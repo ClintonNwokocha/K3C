@@ -1,25 +1,78 @@
 import {
-  BarChart3,
   CloudSun,
   FileText,
   FolderKanban,
   Gauge,
   Home,
   Leaf,
+  LogOut,
   Settings,
   ShieldCheck,
 } from "lucide-react";
 
 const navItems = [
-  { name: "Executive Dashboard", icon: Home, active: true },
-  { name: "Climate Risk Map", icon: CloudSun },
-  { name: "GHG Inventory", icon: Leaf },
-  { name: "Project Portfolio", icon: FolderKanban },
-  { name: "Reports Centre", icon: FileText },
-  { name: "Administration", icon: Settings },
+  {
+    key: "dashboard",
+    name: "Executive Dashboard",
+    icon: Home,
+    allowedRoles: ["admin", "analyst", "sector_focal_point"],
+  },
+  {
+    key: "risk",
+    name: "Climate Risk Map",
+    icon: CloudSun,
+    allowedRoles: ["admin", "analyst"],
+  },
+  {
+    key: "ghg",
+    name: "GHG Inventory",
+    icon: Leaf,
+    allowedRoles: ["admin", "analyst", "sector_focal_point"],
+  },
+  {
+    key: "projects",
+    name: "Project Portfolio",
+    icon: FolderKanban,
+    allowedRoles: ["admin", "analyst", "sector_focal_point"],
+  },
+  {
+    key: "reports",
+    name: "Reports Centre",
+    icon: FileText,
+    allowedRoles: ["admin", "analyst"],
+  },
+  {
+    key: "administration",
+    name: "Administration",
+    icon: Settings,
+    allowedRoles: ["admin"],
+  },
 ];
 
-export default function AppShell({ children }) {
+function formatRole(role) {
+  const labels = {
+    admin: "Admin",
+    analyst: "Analyst",
+    sector_focal_point: "Sector Focal Point",
+    public: "Public",
+  };
+
+  return labels[role] || "Unknown";
+}
+
+export default function AppShell({
+  children,
+  currentUser,
+  onLogout,
+  activePage,
+  onPageChange,
+}) {
+  const role = currentUser?.profile?.role || "public";
+
+  const visibleNavItems = navItems.filter((item) =>
+    item.allowedRoles.includes(role)
+  );
+
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900">
       <aside className="fixed inset-y-0 left-0 w-72 bg-slate-950 text-white">
@@ -34,14 +87,16 @@ export default function AppShell({ children }) {
         </div>
 
         <nav className="space-y-1 px-4 py-6">
-          {navItems.map((item) => {
+          {visibleNavItems.map((item) => {
             const Icon = item.icon;
+            const isActive = activePage === item.key;
 
             return (
               <button
-                key={item.name}
+                key={item.key}
+                onClick={() => onPageChange(item.key)}
                 className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition ${
-                  item.active
+                  isActive
                     ? "bg-emerald-500 text-white shadow"
                     : "text-slate-300 hover:bg-slate-900 hover:text-white"
                 }`}
@@ -58,9 +113,11 @@ export default function AppShell({ children }) {
             <p className="text-xs uppercase tracking-wide text-slate-400">
               Current Role
             </p>
-            <p className="mt-1 font-semibold text-white">Admin</p>
+            <p className="mt-1 font-semibold text-white">
+              {formatRole(role)}
+            </p>
             <p className="mt-1 text-xs text-slate-400">
-              Full system access during development
+              {currentUser?.username || "Signed-in user"}
             </p>
           </div>
         </div>
@@ -78,8 +135,18 @@ export default function AppShell({ children }) {
               Foundation setup active
             </div>
 
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
-              <Gauge size={20} />
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <Gauge size={20} />
+              </div>
+
+              <button
+                onClick={onLogout}
+                className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
             </div>
           </div>
         </header>

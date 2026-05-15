@@ -15,9 +15,21 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import path, include
 
+
+def home(request):
+    return JsonResponse({
+        "message": "KS-CCC backend is running",
+        "health_check": "/api/core/health/",
+        "admin": "/admin/",
+    })
+
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
+    path("", home, name="home"),
+    path("admin/", admin.site.urls),
     path("api/core/", include("core.urls")),
+    path("api/accounts/", include("accounts.urls")),
 ]
