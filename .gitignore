@@ -1,0 +1,23 @@
+# Python
+backend/.venv/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Environment files
+backend/.env
+.env
+
+# Django
+*.sqlite3
+media/
+staticfiles/
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+
+# OS / editor
+.DS_Store
+.vscode/
