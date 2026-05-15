@@ -1,0 +1,455 @@
+import { useEffect, useMemo, useState } from "react";
+import {
+  createEnergyEntry,
+  getEnergyEntries,
+  getEnergyOptions,
+  submitEnergyEntry,
+} from "../services/api";
+
+const initialForm = {
+  year: "2024",
+  sub_category: "stationary_combustion",
+  fuel_or_activity: "diesel",
+  quantity: "",
+  lga: "",
+  notes: "",
+  status: "draft",
+};
+
+function formatNumber(value) {
+  const number = Number(value || 0);
+  return number.toLocaleString(undefined, {
+    maximumFractionDigits: 3,
+  });
+}
+
+function formatStatus(status) {
+  const labels = {
+    draft: "Draft",
+    pending_review: "Pending Review",
+    under_review: "Under Review",
+    revision_requested: "Revision Requested",
+    rejected: "Rejected",
+    approved: "Approved",
+  };
+
+  return labels[status] || status;
+}
+
+function getStatusClass(status) {
+  if (status === "approved") return "bg-emerald-50 text-emerald-700";
+  if (status === "pending_review") return "bg-amber-50 text-amber-700";
+  if (status === "rejected") return "bg-red-50 text-red-700";
+  return "bg-slate-100 text-slate-700";
+}
+
+export default function GHGEnergyPage({ foundation }) {
+  const [options, setOptions] = useState(null);
+  const [entries, setEntries] = useState([]);
+  const [summary, setSummary] = useState([]);
+  const [form, setForm] = useState(initialForm);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const lgas = foundation?.lgas || [];
+
+  async function loadEnergyData() {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const [optionsData, entriesData] = await Promise.all([
+        getEnergyOptions(),
+        getEnergyEntries(),
+      ]);
+
+      setOptions(optionsData);
+      setEntries(entriesData.results || []);
+      setSummary(entriesData.summary || []);
+    } catch (err) {
+      console.error(err);
+      setError("Could not load Energy GHG data.");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadEnergyData();
+  }, []);
+
+  const selectedEmissionFactor = useMemo(() => {
+    if (!options) return null;
+
+    return options.emission_factors.find(
+      (factor) =>
+        factor.fuel_or_species === form.fuel_or_activity &&
+        factor.sub_category === form.sub_category
+    );
+  }, [options, form.fuel_or_activity, form.sub_category]);
+
+  const calculatedPreview = useMemo(() => {
+    const quantity = Number(form.quantity || 0);
+    const co2Ef = Number(selectedEmissionFactor?.co2_ef || 0);
+    const ch4Ef = Number(selectedEmissionFactor?.ch4_ef || 0);
+    const n2oEf = Number(selectedEmissionFactor?.n2o_ef || 0);
+
+    const co2Kg = quantity * co2Ef;
+    const ch4Kg = quantity * ch4Ef;
+    const n2oKg = quantity * n2oEf;
+    const co2eTonnes = (co2Kg + ch4Kg * 28 + n2oKg * 265) / 1000;
+
+    return {
+      co2Kg,
+      ch4Kg,
+      n2oKg,
+      co2eTonnes,
+    };
+  }, [form.quantity, selectedEmissionFactor]);
+
+  function updateForm(field, value) {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setMessage("");
+    setError("");
+
+    const payload = {
+      ...form,
+      year: Number(form.year),
+      quantity: Number(form.quantity),
+      lga: form.lga ? Number(form.lga) : null,
+    };
+
+    try {
+      await createEnergyEntry(payload);
+      setMessage("Energy GHG entry saved successfully.");
+      setForm(initialForm);
+      await loadEnergyData();
+    } catch (err) {
+      console.error(err);
+      setError(
+        err?.response?.data
+          ? JSON.stringify(err.response.data)
+          : "Could not save Energy GHG entry."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  async function handleSubmitForReview(entryId) {
+    setMessage("");
+    setError("");
+
+    try {
+      await submitEnergyEntry(entryId);
+      setMessage("Entry submitted for review.");
+      await loadEnergyData();
+    } catch (err) {
+      console.error(err);
+      setError("Could not submit entry for review.");
+    }
+  }
+
+  return (
+    <div className="space-y-8">
+      <section>
+        <p className="text-sm font-medium text-emerald-700">
+          GHG Inventory
+        </p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight">
+          Energy Sector Data Entry
+        </h1>
+        <p className="mt-2 max-w-3xl text-slate-600">
+          Enter annual fuel consumption in metric tonnes. The system calculates
+          CO₂e automatically using preloaded emission factors.
+        </p>
+      </section>
+
+      {(message || error) && (
+        <div
+          className={`rounded-2xl border p-4 text-sm ${
+            error
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {error || message}
+        </div>
+      )}
+
+      <section className="grid gap-6 xl:grid-cols-3">
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-1"
+        >
+          <h2 className="text-lg font-bold">New Energy Entry</h2>
+          <p className="mt-1 text-sm text-slate-500">
+            Save as draft first, then submit for review.
+          </p>
+
+          <div className="mt-6 space-y-4">
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Inventory Year
+              </label>
+              <select
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={form.year}
+                onChange={(event) => updateForm("year", event.target.value)}
+              >
+                {(options?.years || [2024]).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Sub-category
+              </label>
+              <select
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={form.sub_category}
+                onChange={(event) =>
+                  updateForm("sub_category", event.target.value)
+                }
+              >
+                {(options?.sub_categories || []).map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Fuel Type
+              </label>
+              <select
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={form.fuel_or_activity}
+                onChange={(event) =>
+                  updateForm("fuel_or_activity", event.target.value)
+                }
+              >
+                {(options?.fuels || []).map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                LGA
+              </label>
+              <select
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={form.lga}
+                onChange={(event) => updateForm("lga", event.target.value)}
+              >
+                <option value="">State-wide / Not LGA-specific</option>
+                {lgas.map((lga) => (
+                  <option key={lga.lga_id} value={lga.lga_id}>
+                    {lga.lga_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Quantity consumed
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.001"
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={form.quantity}
+                onChange={(event) =>
+                  updateForm("quantity", event.target.value)
+                }
+                placeholder="Metric tonnes per year"
+                required
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Unit: metric tonnes per year.
+              </p>
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-medium text-slate-700">
+                Notes / Evidence reference
+              </label>
+              <textarea
+                rows="3"
+                className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={form.notes}
+                onChange={(event) => updateForm("notes", event.target.value)}
+                placeholder="Example: source file, agency record, survey note..."
+              />
+            </div>
+
+            <div className="rounded-2xl bg-slate-50 p-4">
+              <p className="text-sm font-semibold text-slate-900">
+                Calculation Preview
+              </p>
+              <div className="mt-3 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Emission factor</span>
+                  <span className="font-semibold">
+                    {selectedEmissionFactor
+                      ? `${selectedEmissionFactor.co2_ef} kg/t`
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">CO₂e result</span>
+                  <span className="font-semibold">
+                    {formatNumber(calculatedPreview.co2eTonnes)} tCO₂e
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              {isSubmitting ? "Saving..." : "Save Energy Entry"}
+            </button>
+          </div>
+        </form>
+
+        <div className="space-y-6 xl:col-span-2">
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm text-slate-500">Total Entries</p>
+              <p className="mt-2 text-2xl font-bold">{entries.length}</p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm text-slate-500">Latest Year</p>
+              <p className="mt-2 text-2xl font-bold">
+                {summary[0]?.year || "—"}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <p className="text-sm text-slate-500">Latest Total</p>
+              <p className="mt-2 text-2xl font-bold">
+                {summary[0]
+                  ? `${formatNumber(summary[0].total_co2e)} tCO₂e`
+                  : "—"}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold">Energy Entries</h2>
+                <p className="text-sm text-slate-500">
+                  Fuel-level emissions calculated by the backend.
+                </p>
+              </div>
+            </div>
+
+            {isLoading ? (
+              <p className="text-slate-500">Loading Energy GHG data...</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[900px] text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="px-3 py-3 font-medium">Year</th>
+                      <th className="px-3 py-3 font-medium">Sub-category</th>
+                      <th className="px-3 py-3 font-medium">Fuel</th>
+                      <th className="px-3 py-3 font-medium">Quantity</th>
+                      <th className="px-3 py-3 font-medium">CO₂e</th>
+                      <th className="px-3 py-3 font-medium">Status</th>
+                      <th className="px-3 py-3 font-medium">Action</th>
+                    </tr>
+                  </thead>
+
+                  <tbody>
+                    {entries.map((entry) => (
+                      <tr
+                        key={entry.id}
+                        className="border-b border-slate-100 last:border-0"
+                      >
+                        <td className="px-3 py-4 font-semibold">
+                          {entry.year}
+                        </td>
+                        <td className="px-3 py-4">
+                          {entry.sub_category_display}
+                        </td>
+                        <td className="px-3 py-4">
+                          {entry.fuel_or_activity}
+                        </td>
+                        <td className="px-3 py-4">
+                          {formatNumber(entry.quantity)} t
+                        </td>
+                        <td className="px-3 py-4 font-semibold">
+                          {formatNumber(entry.co2e_tonnes)} tCO₂e
+                        </td>
+                        <td className="px-3 py-4">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(
+                              entry.status
+                            )}`}
+                          >
+                            {formatStatus(entry.status)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-4">
+                          {entry.status === "draft" ? (
+                            <button
+                              onClick={() => handleSubmitForReview(entry.id)}
+                              className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                            >
+                              Submit for review
+                            </button>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+
+                    {entries.length === 0 && (
+                      <tr>
+                        <td
+                          colSpan="7"
+                          className="px-3 py-8 text-center text-slate-500"
+                        >
+                          No Energy GHG entries yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}

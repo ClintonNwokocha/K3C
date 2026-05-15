@@ -63,3 +63,23 @@ export async function updateManagedUser(userId, payload) {
   const response = await api.patch(`/accounts/users/${userId}/`, payload);
   return response.data;
 }
+
+export async function getEnergyOptions() {
+  const response = await api.get("/ghg/energy/options/");
+  return response.data;
+}
+
+export async function getEnergyEntries() {
+  const response = await api.get("/ghg/energy/entries/");
+  return response.data;
+}
+
+export async function createEnergyEntry(payload) {
+  const response = await api.post("/ghg/energy/entries/", payload);
+  return response.data;
+}
+
+export async function submitEnergyEntry(entryId) {
+  const response = await api.post(`/ghg/energy/entries/${entryId}/submit/`);
+  return response.data;
+}
