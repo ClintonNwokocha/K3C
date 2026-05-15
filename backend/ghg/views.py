@@ -1,4 +1,5 @@
 from django.db.models import Sum
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
 from rest_framework import status
@@ -16,11 +17,15 @@ from .serializers import (
 )
 
 
+def get_user_profile(user):
+    return getattr(user, "profile", None)
+
+
 def can_access_energy_module(user):
     if user.is_superuser:
         return True
 
-    profile = getattr(user, "profile", None)
+    profile = get_user_profile(user)
 
     if not profile:
         return False
@@ -37,21 +42,56 @@ def can_access_energy_module(user):
     return False
 
 
+def can_review_ghg_entries(user):
+    if user.is_superuser:
+        return True
+
+    profile = get_user_profile(user)
+
+    if not profile:
+        return False
+
+    return profile.role in [
+        UserProfile.Role.ADMIN,
+        UserProfile.Role.ANALYST,
+    ]
+
+
+def can_final_approve(user):
+    if user.is_superuser:
+        return True
+
+    profile = get_user_profile(user)
+
+    if not profile:
+        return False
+
+    return profile.role == UserProfile.Role.ADMIN
+
+
 def recompute_energy_total(year):
+    """
+    Official totals should use approved records only.
+    Drafts, pending review records, rejected records, and revision-requested
+    records must not feed official dashboard/report totals.
+    """
     total = (
         GHGInventoryEntry.objects
-        .filter(sector="energy", year=year)
-        .exclude(status=GHGInventoryEntry.Status.REJECTED)
+        .filter(
+            sector=GHGInventoryEntry.Sector.ENERGY,
+            year=year,
+            status=GHGInventoryEntry.Status.APPROVED,
+        )
         .aggregate(total=Sum("co2e_tonnes"))
         .get("total")
     ) or 0
 
     GHGStateTotal.objects.update_or_create(
-        sector="energy",
+        sector=GHGInventoryEntry.Sector.ENERGY,
         year=year,
         defaults={
             "total_co2e": total,
-            "status": "computed",
+            "status": "approved_only",
         }
     )
 
@@ -107,10 +147,19 @@ def energy_entries(request):
     if request.method == "GET":
         entries = (
             GHGInventoryEntry.objects
-            .select_related("emission_factor", "submitted_by", "lga")
-            .filter(sector="energy")
-            .order_by("-year", "sub_category", "fuel_or_activity")
+            .select_related("emission_factor", "submitted_by", "approved_by", "lga")
+            .filter(sector=GHGInventoryEntry.Sector.ENERGY)
+            .order_by("-year", "-created_at")
         )
+
+        profile = get_user_profile(request.user)
+
+        if (
+            profile
+            and profile.role == UserProfile.Role.SECTOR_FOCAL_POINT
+            and not request.user.is_superuser
+        ):
+            entries = entries.filter(submitted_by=request.user)
 
         year = request.query_params.get("year")
         if year:
@@ -118,8 +167,12 @@ def energy_entries(request):
 
         serializer = GHGInventoryEntrySerializer(entries, many=True)
 
-        summary = (
-            entries
+        official_summary = (
+            GHGInventoryEntry.objects
+            .filter(
+                sector=GHGInventoryEntry.Sector.ENERGY,
+                status=GHGInventoryEntry.Status.APPROVED,
+            )
             .values("year")
             .annotate(total_co2e=Sum("co2e_tonnes"))
             .order_by("-year")
@@ -128,7 +181,7 @@ def energy_entries(request):
         return Response({
             "count": entries.count(),
             "results": serializer.data,
-            "summary": list(summary),
+            "summary": list(official_summary),
         })
 
     serializer = EnergyEntryCreateSerializer(
@@ -137,8 +190,6 @@ def energy_entries(request):
     )
     serializer.is_valid(raise_exception=True)
     entry = serializer.save()
-
-    recompute_energy_total(entry.year)
 
     return Response(
         {
@@ -158,12 +209,34 @@ def submit_energy_entry(request, entry_id):
             status=status.HTTP_403_FORBIDDEN
         )
 
-    try:
-        entry = GHGInventoryEntry.objects.get(id=entry_id, sector="energy")
-    except GHGInventoryEntry.DoesNotExist:
+    entry = get_object_or_404(
+        GHGInventoryEntry,
+        id=entry_id,
+        sector=GHGInventoryEntry.Sector.ENERGY,
+    )
+
+    profile = get_user_profile(request.user)
+
+    if (
+        profile
+        and profile.role == UserProfile.Role.SECTOR_FOCAL_POINT
+        and entry.submitted_by != request.user
+        and not request.user.is_superuser
+    ):
         return Response(
-            {"detail": "Energy entry not found."},
-            status=status.HTTP_404_NOT_FOUND
+            {"detail": "You can only submit your own entries."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    allowed_statuses = [
+        GHGInventoryEntry.Status.DRAFT,
+        GHGInventoryEntry.Status.REVISION_REQUESTED,
+    ]
+
+    if entry.status not in allowed_statuses:
+        return Response(
+            {"detail": f"Only draft or revision-requested entries can be submitted. Current status: {entry.status}"},
+            status=status.HTTP_400_BAD_REQUEST
         )
 
     entry.status = GHGInventoryEntry.Status.PENDING_REVIEW
@@ -174,3 +247,177 @@ def submit_energy_entry(request, entry_id):
         "message": "Energy entry submitted for review.",
         "entry": GHGInventoryEntrySerializer(entry).data,
     })
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def energy_review_queue(request):
+    if not can_review_ghg_entries(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can access the review queue."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    entries = (
+        GHGInventoryEntry.objects
+        .select_related("emission_factor", "submitted_by", "approved_by", "lga")
+        .filter(
+            sector=GHGInventoryEntry.Sector.ENERGY,
+            status__in=[
+                GHGInventoryEntry.Status.PENDING_REVIEW,
+                GHGInventoryEntry.Status.UNDER_REVIEW,
+                GHGInventoryEntry.Status.REVISION_REQUESTED,
+                GHGInventoryEntry.Status.REJECTED,
+                GHGInventoryEntry.Status.APPROVED,
+            ],
+        )
+        .order_by("-submitted_at", "-created_at")
+    )
+
+    return Response({
+        "count": entries.count(),
+        "results": GHGInventoryEntrySerializer(entries, many=True).data,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def review_energy_entry(request, entry_id):
+    if not can_review_ghg_entries(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can review GHG entries."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    entry = get_object_or_404(
+        GHGInventoryEntry,
+        id=entry_id,
+        sector=GHGInventoryEntry.Sector.ENERGY,
+    )
+
+    action = request.data.get("action")
+    reviewer_comment = request.data.get("reviewer_comment", "").strip()
+
+    valid_actions = [
+        "mark_under_review",
+        "request_revision",
+        "reject",
+        "approve",
+    ]
+
+    if action not in valid_actions:
+        return Response(
+            {"detail": "Invalid review action."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if action == "mark_under_review":
+        if entry.status != GHGInventoryEntry.Status.PENDING_REVIEW:
+            return Response(
+                {"detail": "Only pending review entries can be marked under review."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        entry.status = GHGInventoryEntry.Status.UNDER_REVIEW
+        entry.reviewer_comment = reviewer_comment
+        entry.save(update_fields=["status", "reviewer_comment", "updated_at"])
+
+        return Response({
+            "message": "Entry marked as under review.",
+            "entry": GHGInventoryEntrySerializer(entry).data,
+        })
+
+    if action == "request_revision":
+        if entry.status not in [
+            GHGInventoryEntry.Status.PENDING_REVIEW,
+            GHGInventoryEntry.Status.UNDER_REVIEW,
+        ]:
+            return Response(
+                {"detail": "Only pending or under-review entries can be returned for revision."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not reviewer_comment:
+            return Response(
+                {"detail": "Reviewer comment is required when requesting revision."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        entry.status = GHGInventoryEntry.Status.REVISION_REQUESTED
+        entry.reviewer_comment = reviewer_comment
+        entry.save(update_fields=["status", "reviewer_comment", "updated_at"])
+
+        recompute_energy_total(entry.year)
+
+        return Response({
+            "message": "Revision requested.",
+            "entry": GHGInventoryEntrySerializer(entry).data,
+        })
+
+    if action == "reject":
+        if not can_final_approve(request.user):
+            return Response(
+                {"detail": "Only Admin users can reject entries."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if entry.status not in [
+            GHGInventoryEntry.Status.PENDING_REVIEW,
+            GHGInventoryEntry.Status.UNDER_REVIEW,
+        ]:
+            return Response(
+                {"detail": "Only pending or under-review entries can be rejected."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not reviewer_comment:
+            return Response(
+                {"detail": "Reviewer comment is required when rejecting an entry."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        entry.status = GHGInventoryEntry.Status.REJECTED
+        entry.reviewer_comment = reviewer_comment
+        entry.save(update_fields=["status", "reviewer_comment", "updated_at"])
+
+        recompute_energy_total(entry.year)
+
+        return Response({
+            "message": "Entry rejected.",
+            "entry": GHGInventoryEntrySerializer(entry).data,
+        })
+
+    if action == "approve":
+        if not can_final_approve(request.user):
+            return Response(
+                {"detail": "Only Admin users can approve entries."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if entry.status not in [
+            GHGInventoryEntry.Status.PENDING_REVIEW,
+            GHGInventoryEntry.Status.UNDER_REVIEW,
+        ]:
+            return Response(
+                {"detail": "Only pending or under-review entries can be approved."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        entry.status = GHGInventoryEntry.Status.APPROVED
+        entry.approved_by = request.user
+        entry.approved_at = timezone.now()
+        entry.reviewer_comment = reviewer_comment
+        entry.save(update_fields=[
+            "status",
+            "approved_by",
+            "approved_at",
+            "reviewer_comment",
+            "updated_at",
+        ])
+
+        recompute_energy_total(entry.year)
+
+        return Response({
+            "message": "Entry approved and included in official Energy total.",
+            "entry": GHGInventoryEntrySerializer(entry).data,
+        })

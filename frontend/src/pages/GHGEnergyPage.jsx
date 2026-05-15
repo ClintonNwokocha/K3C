@@ -3,6 +3,8 @@ import {
   createEnergyEntry,
   getEnergyEntries,
   getEnergyOptions,
+  getEnergyReviewQueue,
+  reviewEnergyEntry,
   submitEnergyEntry,
 } from "../services/api";
 
@@ -39,13 +41,17 @@ function formatStatus(status) {
 function getStatusClass(status) {
   if (status === "approved") return "bg-emerald-50 text-emerald-700";
   if (status === "pending_review") return "bg-amber-50 text-amber-700";
+  if (status === "under_review") return "bg-blue-50 text-blue-700";
+  if (status === "revision_requested") return "bg-purple-50 text-purple-700";
   if (status === "rejected") return "bg-red-50 text-red-700";
   return "bg-slate-100 text-slate-700";
 }
 
-export default function GHGEnergyPage({ foundation }) {
+export default function GHGEnergyPage({ foundation, currentUser }) {
+  const [activeTab, setActiveTab] = useState("entry");
   const [options, setOptions] = useState(null);
   const [entries, setEntries] = useState([]);
+  const [reviewEntries, setReviewEntries] = useState([]);
   const [summary, setSummary] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [message, setMessage] = useState("");
@@ -54,6 +60,8 @@ export default function GHGEnergyPage({ foundation }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const lgas = foundation?.lgas || [];
+  const role = currentUser?.profile?.role;
+  const canReview = role === "admin" || role === "analyst" || currentUser?.is_superuser;
 
   async function loadEnergyData() {
     setIsLoading(true);
@@ -68,6 +76,16 @@ export default function GHGEnergyPage({ foundation }) {
       setOptions(optionsData);
       setEntries(entriesData.results || []);
       setSummary(entriesData.summary || []);
+
+      if (canReview) {
+        try {
+          const reviewData = await getEnergyReviewQueue();
+          setReviewEntries(reviewData.results || []);
+        } catch (reviewError) {
+          console.error(reviewError);
+          setReviewEntries([]);
+        }
+      }
     } catch (err) {
       console.error(err);
       setError("Could not load Energy GHG data.");
@@ -78,7 +96,8 @@ export default function GHGEnergyPage({ foundation }) {
 
   useEffect(() => {
     loadEnergyData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canReview]);
 
   const selectedEmissionFactor = useMemo(() => {
     if (!options) return null;
@@ -156,37 +175,55 @@ export default function GHGEnergyPage({ foundation }) {
       await loadEnergyData();
     } catch (err) {
       console.error(err);
-      setError("Could not submit entry for review.");
+      setError(
+        err?.response?.data
+          ? JSON.stringify(err.response.data)
+          : "Could not submit entry for review."
+      );
     }
   }
 
-  return (
-    <div className="space-y-8">
-      <section>
-        <p className="text-sm font-medium text-emerald-700">
-          GHG Inventory
-        </p>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight">
-          Energy Sector Data Entry
-        </h1>
-        <p className="mt-2 max-w-3xl text-slate-600">
-          Enter annual fuel consumption in metric tonnes. The system calculates
-          CO₂e automatically using preloaded emission factors.
-        </p>
-      </section>
+  async function handleReviewAction(entry, action) {
+    setMessage("");
+    setError("");
 
-      {(message || error) && (
-        <div
-          className={`rounded-2xl border p-4 text-sm ${
-            error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-700"
-          }`}
-        >
-          {error || message}
-        </div>
-      )}
+    let reviewerComment = "";
 
+    if (action === "request_revision" || action === "reject") {
+      reviewerComment = window.prompt("Enter reviewer comment:");
+
+      if (!reviewerComment) {
+        setError("Reviewer comment is required for this action.");
+        return;
+      }
+    }
+
+    if (action === "approve") {
+      reviewerComment = window.prompt(
+        "Optional approval comment. Leave blank and press OK to approve:"
+      ) || "";
+    }
+
+    try {
+      const response = await reviewEnergyEntry(entry.id, {
+        action,
+        reviewer_comment: reviewerComment,
+      });
+
+      setMessage(response.message || "Review action completed.");
+      await loadEnergyData();
+    } catch (err) {
+      console.error(err);
+      setError(
+        err?.response?.data
+          ? JSON.stringify(err.response.data)
+          : "Could not complete review action."
+      );
+    }
+  }
+
+  function renderEntryForm() {
+    return (
       <section className="grid gap-6 xl:grid-cols-3">
         <form
           onSubmit={handleSubmit}
@@ -345,14 +382,14 @@ export default function GHGEnergyPage({ foundation }) {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Latest Year</p>
+              <p className="text-sm text-slate-500">Latest Approved Year</p>
               <p className="mt-2 text-2xl font-bold">
                 {summary[0]?.year || "—"}
               </p>
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-              <p className="text-sm text-slate-500">Latest Total</p>
+              <p className="text-sm text-slate-500">Latest Approved Total</p>
               <p className="mt-2 text-2xl font-bold">
                 {summary[0]
                   ? `${formatNumber(summary[0].total_co2e)} tCO₂e`
@@ -361,95 +398,280 @@ export default function GHGEnergyPage({ foundation }) {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-bold">Energy Entries</h2>
-                <p className="text-sm text-slate-500">
-                  Fuel-level emissions calculated by the backend.
-                </p>
-              </div>
-            </div>
-
-            {isLoading ? (
-              <p className="text-slate-500">Loading Energy GHG data...</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[900px] text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="px-3 py-3 font-medium">Year</th>
-                      <th className="px-3 py-3 font-medium">Sub-category</th>
-                      <th className="px-3 py-3 font-medium">Fuel</th>
-                      <th className="px-3 py-3 font-medium">Quantity</th>
-                      <th className="px-3 py-3 font-medium">CO₂e</th>
-                      <th className="px-3 py-3 font-medium">Status</th>
-                      <th className="px-3 py-3 font-medium">Action</th>
-                    </tr>
-                  </thead>
-
-                  <tbody>
-                    {entries.map((entry) => (
-                      <tr
-                        key={entry.id}
-                        className="border-b border-slate-100 last:border-0"
-                      >
-                        <td className="px-3 py-4 font-semibold">
-                          {entry.year}
-                        </td>
-                        <td className="px-3 py-4">
-                          {entry.sub_category_display}
-                        </td>
-                        <td className="px-3 py-4">
-                          {entry.fuel_or_activity}
-                        </td>
-                        <td className="px-3 py-4">
-                          {formatNumber(entry.quantity)} t
-                        </td>
-                        <td className="px-3 py-4 font-semibold">
-                          {formatNumber(entry.co2e_tonnes)} tCO₂e
-                        </td>
-                        <td className="px-3 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(
-                              entry.status
-                            )}`}
-                          >
-                            {formatStatus(entry.status)}
-                          </span>
-                        </td>
-                        <td className="px-3 py-4">
-                          {entry.status === "draft" ? (
-                            <button
-                              onClick={() => handleSubmitForReview(entry.id)}
-                              className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
-                            >
-                              Submit for review
-                            </button>
-                          ) : (
-                            <span className="text-xs text-slate-400">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-
-                    {entries.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan="7"
-                          className="px-3 py-8 text-center text-slate-500"
-                        >
-                          No Energy GHG entries yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+          <EnergyEntriesTable
+            entries={entries}
+            isLoading={isLoading}
+            onSubmitForReview={handleSubmitForReview}
+          />
         </div>
       </section>
+    );
+  }
+
+  function renderReviewQueue() {
+    return (
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold">Energy Review Queue</h2>
+            <p className="text-sm text-slate-500">
+              Review submitted Energy entries and approve, reject, or request correction.
+            </p>
+          </div>
+
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
+            {reviewEntries.length} records
+          </span>
+        </div>
+
+        {!canReview ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
+            Your role cannot access the review queue.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1000px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500">
+                  <th className="px-3 py-3 font-medium">Year</th>
+                  <th className="px-3 py-3 font-medium">Fuel</th>
+                  <th className="px-3 py-3 font-medium">Sub-category</th>
+                  <th className="px-3 py-3 font-medium">Quantity</th>
+                  <th className="px-3 py-3 font-medium">CO₂e</th>
+                  <th className="px-3 py-3 font-medium">Submitted By</th>
+                  <th className="px-3 py-3 font-medium">Status</th>
+                  <th className="px-3 py-3 font-medium">Actions</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {reviewEntries.map((entry) => (
+                  <tr
+                    key={entry.id}
+                    className="border-b border-slate-100 last:border-0"
+                  >
+                    <td className="px-3 py-4 font-semibold">{entry.year}</td>
+                    <td className="px-3 py-4">{entry.fuel_or_activity}</td>
+                    <td className="px-3 py-4">{entry.sub_category_display}</td>
+                    <td className="px-3 py-4">{formatNumber(entry.quantity)} t</td>
+                    <td className="px-3 py-4 font-semibold">
+                      {formatNumber(entry.co2e_tonnes)} tCO₂e
+                    </td>
+                    <td className="px-3 py-4">
+                      {entry.submitted_by_username || "—"}
+                    </td>
+                    <td className="px-3 py-4">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(
+                          entry.status
+                        )}`}
+                      >
+                        {formatStatus(entry.status)}
+                      </span>
+                    </td>
+                    <td className="px-3 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        {entry.status === "pending_review" && (
+                          <button
+                            onClick={() =>
+                              handleReviewAction(entry, "mark_under_review")
+                            }
+                            className="rounded-full border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+                          >
+                            Mark under review
+                          </button>
+                        )}
+
+                        {["pending_review", "under_review"].includes(entry.status) && (
+                          <>
+                            <button
+                              onClick={() => handleReviewAction(entry, "approve")}
+                              className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-50"
+                            >
+                              Approve
+                            </button>
+
+                            <button
+                              onClick={() =>
+                                handleReviewAction(entry, "request_revision")
+                              }
+                              className="rounded-full border border-purple-200 px-3 py-1 text-xs font-medium text-purple-700 hover:bg-purple-50"
+                            >
+                              Request revision
+                            </button>
+
+                            <button
+                              onClick={() => handleReviewAction(entry, "reject")}
+                              className="rounded-full border border-red-200 px-3 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
+                            >
+                              Reject
+                            </button>
+                          </>
+                        )}
+
+                        {!["pending_review", "under_review"].includes(entry.status) && (
+                          <span className="text-xs text-slate-400">No action</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+
+                {reviewEntries.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan="8"
+                      className="px-3 py-8 text-center text-slate-500"
+                    >
+                      No review records yet.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <section>
+        <p className="text-sm font-medium text-emerald-700">
+          GHG Inventory
+        </p>
+        <h1 className="mt-2 text-3xl font-bold tracking-tight">
+          Energy Sector Data Entry
+        </h1>
+        <p className="mt-2 max-w-3xl text-slate-600">
+          Enter annual fuel consumption in metric tonnes. The system calculates
+          CO₂e automatically using preloaded emission factors. Approved records
+          feed official Energy totals.
+        </p>
+      </section>
+
+      {(message || error) && (
+        <div
+          className={`rounded-2xl border p-4 text-sm ${
+            error
+              ? "border-red-200 bg-red-50 text-red-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700"
+          }`}
+        >
+          {error || message}
+        </div>
+      )}
+
+      <div className="flex flex-wrap gap-3">
+        <button
+          onClick={() => setActiveTab("entry")}
+          className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+            activeTab === "entry"
+              ? "bg-emerald-600 text-white"
+              : "bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Data Entry
+        </button>
+
+        <button
+          onClick={() => setActiveTab("review")}
+          className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+            activeTab === "review"
+              ? "bg-emerald-600 text-white"
+              : "bg-white text-slate-600 hover:bg-slate-50"
+          }`}
+        >
+          Review Queue
+        </button>
+      </div>
+
+      {activeTab === "entry" ? renderEntryForm() : renderReviewQueue()}
+    </div>
+  );
+}
+
+function EnergyEntriesTable({ entries, isLoading, onSubmitForReview }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold">Energy Entries</h2>
+          <p className="text-sm text-slate-500">
+            Fuel-level emissions calculated by the backend.
+          </p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <p className="text-slate-500">Loading Energy GHG data...</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-slate-500">
+                <th className="px-3 py-3 font-medium">Year</th>
+                <th className="px-3 py-3 font-medium">Sub-category</th>
+                <th className="px-3 py-3 font-medium">Fuel</th>
+                <th className="px-3 py-3 font-medium">Quantity</th>
+                <th className="px-3 py-3 font-medium">CO₂e</th>
+                <th className="px-3 py-3 font-medium">Status</th>
+                <th className="px-3 py-3 font-medium">Action</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {entries.map((entry) => (
+                <tr
+                  key={entry.id}
+                  className="border-b border-slate-100 last:border-0"
+                >
+                  <td className="px-3 py-4 font-semibold">{entry.year}</td>
+                  <td className="px-3 py-4">{entry.sub_category_display}</td>
+                  <td className="px-3 py-4">{entry.fuel_or_activity}</td>
+                  <td className="px-3 py-4">{formatNumber(entry.quantity)} t</td>
+                  <td className="px-3 py-4 font-semibold">
+                    {formatNumber(entry.co2e_tonnes)} tCO₂e
+                  </td>
+                  <td className="px-3 py-4">
+                    <span
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(
+                        entry.status
+                      )}`}
+                    >
+                      {formatStatus(entry.status)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-4">
+                    {["draft", "revision_requested"].includes(entry.status) ? (
+                      <button
+                        onClick={() => onSubmitForReview(entry.id)}
+                        className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                      >
+                        Submit for review
+                      </button>
+                    ) : (
+                      <span className="text-xs text-slate-400">—</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+
+              {entries.length === 0 && (
+                <tr>
+                  <td
+                    colSpan="7"
+                    className="px-3 py-8 text-center text-slate-500"
+                  >
+                    No Energy GHG entries yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

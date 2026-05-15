@@ -126,7 +126,7 @@ function App() {
     }
 
     if (activePage === "ghg") {
-      return <GHGEnergyPage foundation={foundation} />;
+      return <GHGEnergyPage foundation={foundation} currentUser={currentUser} />;
     }
 
     const selectedPage = pageDetails[activePage];
