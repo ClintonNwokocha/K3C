@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import AppShell from "./layouts/AppShell";
+import AdministrationPage from "./pages/AdministrationPage";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import PlaceholderPage from "./pages/PlaceholderPage";
@@ -117,6 +118,10 @@ function App() {
   function renderPage() {
     if (activePage === "dashboard") {
       return <Dashboard health={health} foundation={foundation} />;
+    }
+
+    if (activePage === "administration") {
+      return <AdministrationPage foundation={foundation} />;
     }
 
     const selectedPage = pageDetails[activePage];

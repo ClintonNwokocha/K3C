@@ -48,3 +48,18 @@ export async function getFoundationData() {
   const response = await api.get("/core/foundation/");
   return response.data;
 }
+
+export async function getManagedUsers() {
+  const response = await api.get("/accounts/users/");
+  return response.data;
+}
+
+export async function createManagedUser(payload) {
+  const response = await api.post("/accounts/users/", payload);
+  return response.data;
+}
+
+export async function updateManagedUser(userId, payload) {
+  const response = await api.patch(`/accounts/users/${userId}/`, payload);
+  return response.data;
+}

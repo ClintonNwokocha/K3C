@@ -1,9 +1,19 @@
+from django.contrib.auth.models import User
+from django.shortcuts import get_object_or_404
+
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from .models import UserProfile
-from .serializers import CurrentUserSerializer
+from .permissions import IsAdminRole
+from .serializers import (
+    CurrentUserSerializer,
+    ManagedUserCreateSerializer,
+    ManagedUserSerializer,
+    ManagedUserUpdateSerializer,
+)
 
 
 @api_view(["GET"])
@@ -21,4 +31,54 @@ def current_user(request):
     return Response({
         "status": "ok",
         "user": serializer.data
+    })
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated, IsAdminRole])
+def managed_user_list_create(request):
+    if request.method == "GET":
+        users = (
+            User.objects
+            .select_related("profile", "profile__assigned_lga")
+            .all()
+            .order_by("username")
+        )
+
+        serializer = ManagedUserSerializer(users, many=True)
+
+        return Response({
+            "count": users.count(),
+            "results": serializer.data
+        })
+
+    serializer = ManagedUserCreateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    user = serializer.save()
+
+    return Response(
+        {
+            "message": "User created successfully.",
+            "user": ManagedUserSerializer(user).data,
+        },
+        status=status.HTTP_201_CREATED
+    )
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated, IsAdminRole])
+def managed_user_update(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+
+    serializer = ManagedUserUpdateSerializer(
+        user,
+        data=request.data,
+        partial=True
+    )
+    serializer.is_valid(raise_exception=True)
+    updated_user = serializer.save()
+
+    return Response({
+        "message": "User updated successfully.",
+        "user": ManagedUserSerializer(updated_user).data,
     })
