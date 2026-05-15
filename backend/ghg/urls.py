@@ -4,11 +4,14 @@ from .views import (
     energy_entries,
     energy_options,
     energy_review_queue,
+    ghg_dashboard_summary,
     review_energy_entry,
     submit_energy_entry,
 )
 
 urlpatterns = [
+    path("dashboard-summary/", ghg_dashboard_summary, name="ghg-dashboard-summary"),
+
     path("energy/options/", energy_options, name="energy-options"),
     path("energy/entries/", energy_entries, name="energy-entries"),
     path("energy/entries/<int:entry_id>/submit/", submit_energy_entry, name="submit-energy-entry"),

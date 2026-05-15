@@ -93,3 +93,8 @@ export async function reviewEnergyEntry(entryId, payload) {
   const response = await api.post(`/ghg/energy/entries/${entryId}/review/`, payload);
   return response.data;
 }
+
+export async function getGHGDashboardSummary() {
+  const response = await api.get("/ghg/dashboard-summary/");
+  return response.data;
+}

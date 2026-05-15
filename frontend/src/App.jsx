@@ -8,6 +8,7 @@ import PlaceholderPage from "./pages/PlaceholderPage";
 import {
   getCurrentUser,
   getFoundationData,
+  getGHGDashboardSummary,
   getHealthCheck,
   loginUser,
   logoutUser,
@@ -50,6 +51,7 @@ const pageDetails = {
 function App() {
   const [health, setHealth] = useState(null);
   const [foundation, setFoundation] = useState(null);
+  const [ghgSummary, setGhgSummary] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [activePage, setActivePage] = useState("dashboard");
   const [error, setError] = useState("");
@@ -57,11 +59,15 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
 
   async function loadDashboardData() {
-    const healthData = await getHealthCheck();
-    const foundationData = await getFoundationData();
+    const [healthData, foundationData, ghgDashboardData] = await Promise.all([
+      getHealthCheck(),
+      getFoundationData(),
+      getGHGDashboardSummary(),
+    ]);
 
     setHealth(healthData);
     setFoundation(foundationData);
+    setGhgSummary(ghgDashboardData);
   }
 
   useEffect(() => {
@@ -111,6 +117,7 @@ function App() {
     logoutUser();
     setCurrentUser(null);
     setHealth(null);
+    setGhgSummary(null);
     setFoundation(null);
     setActivePage("dashboard");
     setError("");
@@ -118,7 +125,13 @@ function App() {
 
   function renderPage() {
     if (activePage === "dashboard") {
-      return <Dashboard health={health} foundation={foundation} />;
+      return (
+        <Dashboard
+          health={health}
+          foundation={foundation}
+          ghgSummary={ghgSummary}
+        />
+      );
     }
 
     if (activePage === "administration") {
