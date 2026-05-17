@@ -3,7 +3,7 @@ import AppShell from "./layouts/AppShell";
 import AdministrationPage from "./pages/AdministrationPage";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
-import GHGEnergyPage from "./pages/GHGEnergyPage";
+import GHGInventoryPage from "./pages/GHGInventoryPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import {
   getCurrentUser,
@@ -139,7 +139,7 @@ function App() {
     }
 
     if (activePage === "ghg") {
-      return <GHGEnergyPage foundation={foundation} currentUser={currentUser} />;
+      return <GHGInventoryPage foundation={foundation} currentUser={currentUser} />;
     }
 
     const selectedPage = pageDetails[activePage];

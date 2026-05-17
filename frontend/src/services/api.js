@@ -103,3 +103,38 @@ export async function updateEnergyEntry(entryId, payload) {
   const response = await api.patch(`/ghg/energy/entries/${entryId}/`, payload);
   return response.data;
 }
+
+export async function getAgricultureOptions() {
+  const response = await api.get("/ghg/agriculture/options/");
+  return response.data;
+}
+
+export async function getAgricultureEntries() {
+  const response = await api.get("/ghg/agriculture/entries/");
+  return response.data;
+}
+
+export async function createAgricultureEntry(payload) {
+  const response = await api.post("/ghg/agriculture/entries/", payload);
+  return response.data;
+}
+
+export async function updateAgricultureEntry(entryId, payload) {
+  const response = await api.patch(`/ghg/agriculture/entries/${entryId}/`, payload);
+  return response.data;
+}
+
+export async function submitAgricultureEntry(entryId) {
+  const response = await api.post(`/ghg/agriculture/entries/${entryId}/submit/`);
+  return response.data;
+}
+
+export async function getAgricultureReviewQueue() {
+  const response = await api.get("/ghg/agriculture/review-queue/");
+  return response.data;
+}
+
+export async function reviewAgricultureEntry(entryId, payload) {
+  const response = await api.post(`/ghg/agriculture/entries/${entryId}/review/`, payload);
+  return response.data;
+}
