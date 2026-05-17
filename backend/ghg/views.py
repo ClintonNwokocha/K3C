@@ -579,50 +579,132 @@ def review_energy_entry(request, entry_id):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def ghg_dashboard_summary(request):
-    latest_energy_total = (
+    """
+    Executive Dashboard summary for approved GHG data.
+
+    This now combines all implemented GHG sectors:
+    - Energy
+    - Agriculture
+    """
+
+    implemented_sectors = [
+        GHGInventoryEntry.Sector.ENERGY,
+        GHGInventoryEntry.Sector.AGRICULTURE,
+    ]
+
+    sector_labels = {
+        GHGInventoryEntry.Sector.ENERGY: "Energy",
+        GHGInventoryEntry.Sector.AGRICULTURE: "Agriculture",
+    }
+
+    approved_totals = (
         GHGStateTotal.objects
         .filter(
-            sector=GHGInventoryEntry.Sector.ENERGY,
+            sector__in=implemented_sectors,
             status="approved_only",
         )
+        .order_by("sector", "year")
+    )
+
+    latest_year = (
+        approved_totals
         .order_by("-year")
+        .values_list("year", flat=True)
         .first()
     )
 
-    approved_energy_entries = GHGInventoryEntry.objects.filter(
-        sector=GHGInventoryEntry.Sector.ENERGY,
-        status=GHGInventoryEntry.Status.APPROVED,
+    sector_breakdown = []
+
+    if latest_year:
+        latest_sector_totals = (
+            GHGStateTotal.objects
+            .filter(
+                sector__in=implemented_sectors,
+                status="approved_only",
+                year=latest_year,
+            )
+            .order_by("sector")
+        )
+
+        for item in latest_sector_totals:
+            sector_breakdown.append({
+                "sector": item.sector,
+                "sector_label": sector_labels.get(item.sector, item.sector),
+                "year": item.year,
+                "total_co2e": float(item.total_co2e),
+                "total_mtco2e": float(item.total_co2e / Decimal("1000000")),
+            })
+
+    latest_total_tco2e = sum(
+        Decimal(str(item["total_co2e"])) for item in sector_breakdown
     )
 
+    latest_total_mtco2e = latest_total_tco2e / Decimal("1000000")
+
+    yearly_rows = (
+        GHGStateTotal.objects
+        .filter(
+            sector__in=implemented_sectors,
+            status="approved_only",
+        )
+        .values("year")
+        .annotate(total_co2e=Sum("total_co2e"))
+        .order_by("year")
+    )
+
+    yearly_totals = [
+        {
+            "year": row["year"],
+            "total_co2e": float(row["total_co2e"] or 0),
+            "total_mtco2e": float((row["total_co2e"] or 0) / Decimal("1000000")),
+        }
+        for row in yearly_rows
+    ]
+
+    approved_entry_count = GHGInventoryEntry.objects.filter(
+        sector__in=implemented_sectors,
+        status=GHGInventoryEntry.Status.APPROVED,
+    ).count()
+
     pending_review_count = GHGInventoryEntry.objects.filter(
-        sector=GHGInventoryEntry.Sector.ENERGY,
+        sector__in=implemented_sectors,
         status=GHGInventoryEntry.Status.PENDING_REVIEW,
     ).count()
 
     under_review_count = GHGInventoryEntry.objects.filter(
-        sector=GHGInventoryEntry.Sector.ENERGY,
+        sector__in=implemented_sectors,
         status=GHGInventoryEntry.Status.UNDER_REVIEW,
     ).count()
 
     revision_requested_count = GHGInventoryEntry.objects.filter(
-        sector=GHGInventoryEntry.Sector.ENERGY,
+        sector__in=implemented_sectors,
         status=GHGInventoryEntry.Status.REVISION_REQUESTED,
     ).count()
 
     rejected_count = GHGInventoryEntry.objects.filter(
-        sector=GHGInventoryEntry.Sector.ENERGY,
+        sector__in=implemented_sectors,
         status=GHGInventoryEntry.Status.REJECTED,
     ).count()
 
-    approved_entry_count = approved_energy_entries.count()
+    pending_by_sector = []
 
-    energy_total_tco2e = (
-        latest_energy_total.total_co2e
-        if latest_energy_total
-        else Decimal("0")
-    )
-
-    energy_total_mt = energy_total_tco2e / Decimal("1000000")
+    for sector in implemented_sectors:
+        pending_by_sector.append({
+            "sector": sector,
+            "sector_label": sector_labels.get(sector, sector),
+            "pending_review_count": GHGInventoryEntry.objects.filter(
+                sector=sector,
+                status=GHGInventoryEntry.Status.PENDING_REVIEW,
+            ).count(),
+            "under_review_count": GHGInventoryEntry.objects.filter(
+                sector=sector,
+                status=GHGInventoryEntry.Status.UNDER_REVIEW,
+            ).count(),
+            "approved_entry_count": GHGInventoryEntry.objects.filter(
+                sector=sector,
+                status=GHGInventoryEntry.Status.APPROVED,
+            ).count(),
+        })
 
     ndc_constant = (
         NDCConstant.objects
@@ -631,18 +713,18 @@ def ghg_dashboard_summary(request):
         .first()
     )
 
-    energy_only_reduction_pct = Decimal("0")
-    energy_only_progress_pct = Decimal("0")
+    implemented_reduction_pct = Decimal("0")
+    implemented_progress_pct = Decimal("0")
 
     if ndc_constant and ndc_constant.kaduna_baseline_mt > 0:
-        energy_only_reduction_pct = (
-            (ndc_constant.kaduna_baseline_mt - energy_total_mt)
+        implemented_reduction_pct = (
+            (ndc_constant.kaduna_baseline_mt - latest_total_mtco2e)
             / ndc_constant.kaduna_baseline_mt
         ) * Decimal("100")
 
         if ndc_constant.unconditional_pct > 0:
-            energy_only_progress_pct = (
-                energy_only_reduction_pct
+            implemented_progress_pct = (
+                implemented_reduction_pct
                 / ndc_constant.unconditional_pct
             ) * Decimal("100")
 
@@ -653,50 +735,42 @@ def ghg_dashboard_summary(request):
     homes_equivalent = Decimal("0")
 
     if cars_factor and cars_factor.divisor > 0:
-        cars_equivalent = energy_total_tco2e / cars_factor.divisor
+        cars_equivalent = latest_total_tco2e / cars_factor.divisor
 
     if homes_factor and homes_factor.divisor > 0:
-        homes_equivalent = energy_total_tco2e / homes_factor.divisor
-
-    yearly_energy_totals = (
-        GHGStateTotal.objects
-        .filter(
-            sector=GHGInventoryEntry.Sector.ENERGY,
-            status="approved_only",
-        )
-        .order_by("year")
-    )
-
-    yearly_results = [
-        {
-            "year": item.year,
-            "total_co2e": float(item.total_co2e),
-        }
-        for item in yearly_energy_totals
-    ]
+        homes_equivalent = latest_total_tco2e / homes_factor.divisor
 
     return Response({
         "status": "ok",
-        "message": "GHG dashboard summary loaded.",
-        "energy": {
-            "latest_year": latest_energy_total.year if latest_energy_total else None,
-            "latest_total_tco2e": float(energy_total_tco2e),
-            "latest_total_mtco2e": float(energy_total_mt),
+        "message": "Cross-sector GHG dashboard summary loaded.",
+        "implemented_sectors": [
+            {
+                "sector": sector,
+                "sector_label": sector_labels.get(sector, sector),
+            }
+            for sector in implemented_sectors
+        ],
+        "ghg": {
+            "latest_year": latest_year,
+            "latest_total_tco2e": float(latest_total_tco2e),
+            "latest_total_mtco2e": float(latest_total_mtco2e),
             "approved_entry_count": approved_entry_count,
             "pending_review_count": pending_review_count,
             "under_review_count": under_review_count,
             "revision_requested_count": revision_requested_count,
             "rejected_count": rejected_count,
             "total_review_queue_count": pending_review_count + under_review_count,
+            "sector_breakdown": sector_breakdown,
+            "yearly_totals": yearly_totals,
+            "pending_by_sector": pending_by_sector,
             "cars_equivalent": float(cars_equivalent),
             "homes_equivalent": float(homes_equivalent),
-            "yearly_totals": yearly_results,
         },
         "ndc_preview": {
             "kaduna_baseline_mt": float(ndc_constant.kaduna_baseline_mt) if ndc_constant else 0,
             "unconditional_target_pct": float(ndc_constant.unconditional_pct) if ndc_constant else 0,
-            "energy_only_reduction_pct": float(energy_only_reduction_pct),
-            "energy_only_progress_pct": float(energy_only_progress_pct),
-            "note": "Energy-only preview. This is not the official state NDC progress until all GHG sectors are implemented and approved.",
+            "implemented_reduction_pct": float(implemented_reduction_pct),
+            "implemented_progress_pct": float(implemented_progress_pct),
+            "note": "Implemented-sector preview only. This becomes official state NDC progress after all GHG sectors are implemented and approved.",
         }
     })

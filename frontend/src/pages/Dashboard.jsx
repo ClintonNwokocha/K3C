@@ -20,8 +20,10 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
   const gwpValues = foundation?.gwp_values || [];
   const ndc = foundation?.ndc_constant;
 
-  const energy = ghgSummary?.energy;
+  const ghg = ghgSummary?.ghg;
   const ndcPreview = ghgSummary?.ndc_preview;
+  const sectorBreakdown = ghg?.sector_breakdown || [];
+  const yearlyTotals = ghg?.yearly_totals || [];
 
   return (
     <div className="space-y-8">
@@ -33,8 +35,8 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
           KS-CCC Executive Overview
         </h1>
         <p className="mt-2 max-w-3xl text-slate-600">
-          Approved GHG records now feed this dashboard. For this stage, the
-          dashboard is connected to the Energy sector module only.
+          Approved GHG records from implemented sectors now feed this
+          dashboard. Current implemented sectors are Energy and Agriculture.
         </p>
       </section>
 
@@ -50,29 +52,31 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">Approved Energy Emissions</p>
+          <p className="text-sm text-slate-500">
+            Approved GHG Emissions
+          </p>
           <h2 className="mt-3 text-2xl font-bold">
-            {formatNumber(energy?.latest_total_tco2e, 3)}
+            {formatNumber(ghg?.latest_total_tco2e, 3)}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
-            tCO₂e{energy?.latest_year ? ` in ${energy.latest_year}` : ""}
+            tCO₂e{ghg?.latest_year ? ` in ${ghg.latest_year}` : ""}
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">Approved Energy Entries</p>
+          <p className="text-sm text-slate-500">Approved GHG Entries</p>
           <h2 className="mt-3 text-2xl font-bold">
-            {energy?.approved_entry_count || 0}
+            {ghg?.approved_entry_count || 0}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
-            Records included in official Energy total.
+            Records included in official implemented-sector total.
           </p>
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-500">Pending GHG Reviews</p>
           <h2 className="mt-3 text-2xl font-bold text-amber-600">
-            {energy?.total_review_queue_count || 0}
+            {ghg?.total_review_queue_count || 0}
           </h2>
           <p className="mt-2 text-sm text-slate-500">
             Pending or currently under review.
@@ -84,9 +88,9 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold">GHG Energy Summary</h2>
+              <h2 className="text-lg font-bold">Cross-Sector GHG Summary</h2>
               <p className="text-sm text-slate-500">
-                Approved Energy emissions from the GHG Inventory module.
+                Approved totals from Energy and Agriculture.
               </p>
             </div>
 
@@ -99,14 +103,14 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
             <div className="rounded-2xl bg-slate-50 p-5">
               <p className="text-sm text-slate-500">Latest approved year</p>
               <p className="mt-2 text-3xl font-bold">
-                {energy?.latest_year || "—"}
+                {ghg?.latest_year || "—"}
               </p>
             </div>
 
             <div className="rounded-2xl bg-slate-50 p-5">
-              <p className="text-sm text-slate-500">Energy total in MtCO₂e</p>
+              <p className="text-sm text-slate-500">Total in MtCO₂e</p>
               <p className="mt-2 text-3xl font-bold">
-                {formatNumber(energy?.latest_total_mtco2e, 6)}
+                {formatNumber(ghg?.latest_total_mtco2e, 6)}
               </p>
             </div>
 
@@ -115,7 +119,7 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
                 Equivalent cars removed
               </p>
               <p className="mt-2 text-3xl font-bold">
-                {formatNumber(energy?.cars_equivalent, 0)}
+                {formatNumber(ghg?.cars_equivalent, 0)}
               </p>
             </div>
 
@@ -124,33 +128,69 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
                 Equivalent homes powered
               </p>
               <p className="mt-2 text-3xl font-bold">
-                {formatNumber(energy?.homes_equivalent, 0)}
+                {formatNumber(ghg?.homes_equivalent, 0)}
               </p>
             </div>
           </div>
 
           <div className="mt-6 rounded-2xl border border-slate-200 p-5">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold">Yearly Approved Energy Totals</h3>
-                <p className="text-sm text-slate-500">
-                  Simple bar view of approved Energy totals.
-                </p>
-              </div>
-            </div>
+            <h3 className="font-bold">Sector Breakdown</h3>
+            <p className="text-sm text-slate-500">
+              Latest-year approved emissions by implemented sector.
+            </p>
 
-            <div className="space-y-3">
-              {(energy?.yearly_totals || []).length === 0 && (
+            <div className="mt-5 space-y-4">
+              {sectorBreakdown.length === 0 && (
                 <p className="text-sm text-slate-500">
-                  No approved Energy records yet.
+                  No approved sector totals yet.
                 </p>
               )}
 
-              {(energy?.yearly_totals || []).map((item) => {
+              {sectorBreakdown.map((item) => {
                 const maxTotal = Math.max(
-                  ...(energy?.yearly_totals || []).map((row) =>
-                    Number(row.total_co2e || 0)
-                  ),
+                  ...sectorBreakdown.map((row) => Number(row.total_co2e || 0)),
+                  1
+                );
+
+                const width = `${(Number(item.total_co2e || 0) / maxTotal) * 100}%`;
+
+                return (
+                  <div key={item.sector}>
+                    <div className="mb-1 flex justify-between text-sm">
+                      <span className="font-medium">{item.sector_label}</span>
+                      <span className="text-slate-500">
+                        {formatNumber(item.total_co2e, 3)} tCO₂e
+                      </span>
+                    </div>
+
+                    <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className="h-full rounded-full bg-emerald-500"
+                        style={{ width }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-slate-200 p-5">
+            <h3 className="font-bold">Yearly Approved GHG Totals</h3>
+            <p className="text-sm text-slate-500">
+              Combined approved totals from implemented sectors.
+            </p>
+
+            <div className="mt-5 space-y-3">
+              {yearlyTotals.length === 0 && (
+                <p className="text-sm text-slate-500">
+                  No approved GHG records yet.
+                </p>
+              )}
+
+              {yearlyTotals.map((item) => {
+                const maxTotal = Math.max(
+                  ...yearlyTotals.map((row) => Number(row.total_co2e || 0)),
                   1
                 );
 
@@ -180,17 +220,18 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
 
         <div className="space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold">Energy-only NDC Preview</h2>
+            <h2 className="text-lg font-bold">
+              Implemented-Sector NDC Preview
+            </h2>
             <p className="mt-1 text-sm text-slate-500">
-              This is not yet the official NDC progress because other sectors
-              are not implemented.
+              This preview uses only sectors already built in the system.
             </p>
 
             <div className="mt-5">
               <div className="mb-2 flex justify-between text-sm">
                 <span className="text-slate-500">Preview progress</span>
                 <span className="font-semibold">
-                  {formatNumber(ndcPreview?.energy_only_progress_pct, 2)}%
+                  {formatNumber(ndcPreview?.implemented_progress_pct, 2)}%
                 </span>
               </div>
 
@@ -199,7 +240,7 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
                   className="h-full rounded-full bg-emerald-500"
                   style={{
                     width: getProgressWidth(
-                      ndcPreview?.energy_only_progress_pct
+                      ndcPreview?.implemented_progress_pct
                     ),
                   }}
                 />
@@ -222,9 +263,11 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
               </div>
 
               <div className="flex justify-between">
-                <span className="text-slate-500">Energy-only reduction</span>
+                <span className="text-slate-500">
+                  Implemented-sector reduction
+                </span>
                 <span className="font-semibold">
-                  {formatNumber(ndcPreview?.energy_only_reduction_pct, 2)}%
+                  {formatNumber(ndcPreview?.implemented_reduction_pct, 2)}%
                 </span>
               </div>
             </div>
@@ -242,30 +285,68 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
               <div className="flex justify-between">
                 <span className="text-slate-500">Pending review</span>
                 <span className="font-semibold">
-                  {energy?.pending_review_count || 0}
+                  {ghg?.pending_review_count || 0}
                 </span>
               </div>
 
               <div className="flex justify-between">
                 <span className="text-slate-500">Under review</span>
                 <span className="font-semibold">
-                  {energy?.under_review_count || 0}
+                  {ghg?.under_review_count || 0}
                 </span>
               </div>
 
               <div className="flex justify-between">
                 <span className="text-slate-500">Revision requested</span>
                 <span className="font-semibold">
-                  {energy?.revision_requested_count || 0}
+                  {ghg?.revision_requested_count || 0}
                 </span>
               </div>
 
               <div className="flex justify-between">
                 <span className="text-slate-500">Rejected</span>
                 <span className="font-semibold">
-                  {energy?.rejected_count || 0}
+                  {ghg?.rejected_count || 0}
                 </span>
               </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-lg font-bold">Review by Sector</h2>
+
+            <div className="mt-5 space-y-4 text-sm">
+              {(ghg?.pending_by_sector || []).map((item) => (
+                <div
+                  key={item.sector}
+                  className="rounded-xl border border-slate-200 p-4"
+                >
+                  <p className="font-semibold">{item.sector_label}</p>
+
+                  <div className="mt-3 space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Pending</span>
+                      <span className="font-semibold">
+                        {item.pending_review_count}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Under review</span>
+                      <span className="font-semibold">
+                        {item.under_review_count}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Approved entries</span>
+                      <span className="font-semibold">
+                        {item.approved_entry_count}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 
