@@ -6,6 +6,7 @@ import {
   getEnergyReviewQueue,
   reviewEnergyEntry,
   submitEnergyEntry,
+  updateEnergyEntry,
 } from "../services/api";
 
 const initialForm = {
@@ -16,6 +17,13 @@ const initialForm = {
   lga: "",
   notes: "",
   status: "draft",
+};
+
+const initialFilters = {
+  year: "all",
+  status: "all",
+  fuel: "all",
+  subCategory: "all",
 };
 
 function formatNumber(value) {
@@ -47,6 +55,10 @@ function getStatusClass(status) {
   return "bg-slate-100 text-slate-700";
 }
 
+function canEditEntry(entry) {
+  return ["draft", "revision_requested"].includes(entry.status);
+}
+
 export default function GHGEnergyPage({ foundation, currentUser }) {
   const [activeTab, setActiveTab] = useState("entry");
   const [options, setOptions] = useState(null);
@@ -54,6 +66,8 @@ export default function GHGEnergyPage({ foundation, currentUser }) {
   const [reviewEntries, setReviewEntries] = useState([]);
   const [summary, setSummary] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [editingEntryId, setEditingEntryId] = useState(null);
+  const [filters, setFilters] = useState(initialFilters);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -61,7 +75,10 @@ export default function GHGEnergyPage({ foundation, currentUser }) {
 
   const lgas = foundation?.lgas || [];
   const role = currentUser?.profile?.role;
-  const canReview = role === "admin" || role === "analyst" || currentUser?.is_superuser;
+  const canReview =
+    role === "admin" || role === "analyst" || currentUser?.is_superuser;
+
+  const editingEntry = entries.find((entry) => entry.id === editingEntryId);
 
   async function loadEnergyData() {
     setIsLoading(true);
@@ -128,11 +145,55 @@ export default function GHGEnergyPage({ foundation, currentUser }) {
     };
   }, [form.quantity, selectedEmissionFactor]);
 
+  const filteredEntries = useMemo(() => {
+    return entries.filter((entry) => {
+      const yearMatches =
+        filters.year === "all" || String(entry.year) === filters.year;
+      const statusMatches =
+        filters.status === "all" || entry.status === filters.status;
+      const fuelMatches =
+        filters.fuel === "all" || entry.fuel_or_activity === filters.fuel;
+      const subCategoryMatches =
+        filters.subCategory === "all" ||
+        entry.sub_category === filters.subCategory;
+
+      return yearMatches && statusMatches && fuelMatches && subCategoryMatches;
+    });
+  }, [entries, filters]);
+
   function updateForm(field, value) {
     setForm((current) => ({
       ...current,
       [field]: value,
     }));
+  }
+
+  function updateFilter(field, value) {
+    setFilters((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  function resetForm() {
+    setForm(initialForm);
+    setEditingEntryId(null);
+  }
+
+  function startEditEntry(entry) {
+    setEditingEntryId(entry.id);
+    setForm({
+      year: String(entry.year),
+      sub_category: entry.sub_category,
+      fuel_or_activity: entry.fuel_or_activity,
+      quantity: String(entry.quantity),
+      lga: entry.lga ? String(entry.lga) : "",
+      notes: entry.notes || "",
+      status: entry.status,
+    });
+
+    setActiveTab("entry");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function handleSubmit(event) {
@@ -142,16 +203,25 @@ export default function GHGEnergyPage({ foundation, currentUser }) {
     setError("");
 
     const payload = {
-      ...form,
       year: Number(form.year),
+      sub_category: form.sub_category,
+      fuel_or_activity: form.fuel_or_activity,
       quantity: Number(form.quantity),
       lga: form.lga ? Number(form.lga) : null,
+      notes: form.notes,
+      status: "draft",
     };
 
     try {
-      await createEnergyEntry(payload);
-      setMessage("Energy GHG entry saved successfully.");
-      setForm(initialForm);
+      if (editingEntryId) {
+        await updateEnergyEntry(editingEntryId, payload);
+        setMessage("Energy GHG entry updated successfully.");
+      } else {
+        await createEnergyEntry(payload);
+        setMessage("Energy GHG entry saved successfully.");
+      }
+
+      resetForm();
       await loadEnergyData();
     } catch (err) {
       console.error(err);
@@ -173,6 +243,10 @@ export default function GHGEnergyPage({ foundation, currentUser }) {
       await submitEnergyEntry(entryId);
       setMessage("Entry submitted for review.");
       await loadEnergyData();
+
+      if (editingEntryId === entryId) {
+        resetForm();
+      }
     } catch (err) {
       console.error(err);
       setError(
@@ -199,9 +273,10 @@ export default function GHGEnergyPage({ foundation, currentUser }) {
     }
 
     if (action === "approve") {
-      reviewerComment = window.prompt(
-        "Optional approval comment. Leave blank and press OK to approve:"
-      ) || "";
+      reviewerComment =
+        window.prompt(
+          "Optional approval comment. Leave blank and press OK to approve:"
+        ) || "";
     }
 
     try {
@@ -229,10 +304,35 @@ export default function GHGEnergyPage({ foundation, currentUser }) {
           onSubmit={handleSubmit}
           className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-1"
         >
-          <h2 className="text-lg font-bold">New Energy Entry</h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Save as draft first, then submit for review.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold">
+                {editingEntryId ? "Edit Energy Entry" : "New Energy Entry"}
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                {editingEntryId
+                  ? "Only Draft or Revision Requested entries can be edited."
+                  : "Save as draft first, then submit for review."}
+              </p>
+            </div>
+
+            {editingEntryId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+
+          {editingEntry?.reviewer_comment && (
+            <div className="mt-5 rounded-2xl border border-purple-200 bg-purple-50 p-4 text-sm text-purple-800">
+              <p className="font-semibold">Reviewer comment</p>
+              <p className="mt-1">{editingEntry.reviewer_comment}</p>
+            </div>
+          )}
 
           <div className="mt-6 space-y-4">
             <div>
@@ -369,7 +469,11 @@ export default function GHGEnergyPage({ foundation, currentUser }) {
               disabled={isSubmitting}
               className="w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
             >
-              {isSubmitting ? "Saving..." : "Save Energy Entry"}
+              {isSubmitting
+                ? "Saving..."
+                : editingEntryId
+                ? "Update Energy Entry"
+                : "Save Energy Entry"}
             </button>
           </div>
         </form>
@@ -398,10 +502,86 @@ export default function GHGEnergyPage({ foundation, currentUser }) {
             </div>
           </div>
 
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-bold">Filters</h2>
+                <p className="text-sm text-slate-500">
+                  Filter Energy entries by year, status, fuel, and sub-category.
+                </p>
+              </div>
+
+              <button
+                onClick={() => setFilters(initialFilters)}
+                className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                Reset filters
+              </button>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-4">
+              <select
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={filters.year}
+                onChange={(event) => updateFilter("year", event.target.value)}
+              >
+                <option value="all">All years</option>
+                {(options?.years || []).map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={filters.status}
+                onChange={(event) => updateFilter("status", event.target.value)}
+              >
+                <option value="all">All statuses</option>
+                <option value="draft">Draft</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="under_review">Under Review</option>
+                <option value="revision_requested">Revision Requested</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
+
+              <select
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={filters.fuel}
+                onChange={(event) => updateFilter("fuel", event.target.value)}
+              >
+                <option value="all">All fuels</option>
+                {(options?.fuels || []).map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                className="rounded-xl border border-slate-300 px-4 py-3 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                value={filters.subCategory}
+                onChange={(event) =>
+                  updateFilter("subCategory", event.target.value)
+                }
+              >
+                <option value="all">All sub-categories</option>
+                {(options?.sub_categories || []).map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <EnergyEntriesTable
-            entries={entries}
+            entries={filteredEntries}
             isLoading={isLoading}
             onSubmitForReview={handleSubmitForReview}
+            onEditEntry={startEditEntry}
           />
         </div>
       </section>
@@ -592,7 +772,12 @@ export default function GHGEnergyPage({ foundation, currentUser }) {
   );
 }
 
-function EnergyEntriesTable({ entries, isLoading, onSubmitForReview }) {
+function EnergyEntriesTable({
+  entries,
+  isLoading,
+  onSubmitForReview,
+  onEditEntry,
+}) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex items-center justify-between">
@@ -608,7 +793,7 @@ function EnergyEntriesTable({ entries, isLoading, onSubmitForReview }) {
         <p className="text-slate-500">Loading Energy GHG data...</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm">
+          <table className="w-full min-w-[1000px] text-left text-sm">
             <thead>
               <tr className="border-b border-slate-200 text-slate-500">
                 <th className="px-3 py-3 font-medium">Year</th>
@@ -617,6 +802,7 @@ function EnergyEntriesTable({ entries, isLoading, onSubmitForReview }) {
                 <th className="px-3 py-3 font-medium">Quantity</th>
                 <th className="px-3 py-3 font-medium">CO₂e</th>
                 <th className="px-3 py-3 font-medium">Status</th>
+                <th className="px-3 py-3 font-medium">Reviewer Comment</th>
                 <th className="px-3 py-3 font-medium">Action</th>
               </tr>
             </thead>
@@ -643,17 +829,33 @@ function EnergyEntriesTable({ entries, isLoading, onSubmitForReview }) {
                       {formatStatus(entry.status)}
                     </span>
                   </td>
+                  <td className="max-w-xs px-3 py-4 text-xs text-slate-500">
+                    {entry.reviewer_comment || "—"}
+                  </td>
                   <td className="px-3 py-4">
-                    {["draft", "revision_requested"].includes(entry.status) ? (
-                      <button
-                        onClick={() => onSubmitForReview(entry.id)}
-                        className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
-                      >
-                        Submit for review
-                      </button>
-                    ) : (
-                      <span className="text-xs text-slate-400">—</span>
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {canEditEntry(entry) && (
+                        <button
+                          onClick={() => onEditEntry(entry)}
+                          className="rounded-full border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-50"
+                        >
+                          Edit
+                        </button>
+                      )}
+
+                      {canEditEntry(entry) && (
+                        <button
+                          onClick={() => onSubmitForReview(entry.id)}
+                          className="rounded-full border border-emerald-200 px-3 py-1 text-xs font-medium text-emerald-700 transition hover:bg-emerald-50"
+                        >
+                          Submit for review
+                        </button>
+                      )}
+
+                      {!canEditEntry(entry) && (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -661,10 +863,10 @@ function EnergyEntriesTable({ entries, isLoading, onSubmitForReview }) {
               {entries.length === 0 && (
                 <tr>
                   <td
-                    colSpan="7"
+                    colSpan="8"
                     className="px-3 py-8 text-center text-slate-500"
                   >
-                    No Energy GHG entries yet.
+                    No Energy GHG entries found.
                   </td>
                 </tr>
               )}

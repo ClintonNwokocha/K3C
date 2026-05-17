@@ -98,3 +98,8 @@ export async function getGHGDashboardSummary() {
   const response = await api.get("/ghg/dashboard-summary/");
   return response.data;
 }
+
+export async function updateEnergyEntry(entryId, payload) {
+  const response = await api.patch(`/ghg/energy/entries/${entryId}/`, payload);
+  return response.data;
+}

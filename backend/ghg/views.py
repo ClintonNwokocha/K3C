@@ -10,17 +10,43 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.models import UserProfile
+from audit.utils import log_audit_action
 from core.models import EmissionFactor, NDCConstant, EquivalencyFactor
 from .models import GHGInventoryEntry, GHGStateTotal
 from .serializers import (
     EnergyEmissionFactorSerializer,
     EnergyEntryCreateSerializer,
+    EnergyEntryUpdateSerializer,
     GHGInventoryEntrySerializer,
 )
 
 
 def get_user_profile(user):
     return getattr(user, "profile", None)
+
+
+def serialize_entry_for_audit(entry):
+    return {
+        "id": entry.id,
+        "sector": entry.sector,
+        "sub_category": entry.sub_category,
+        "fuel_or_activity": entry.fuel_or_activity,
+        "lga_id": entry.lga_id,
+        "year": entry.year,
+        "quantity": entry.quantity,
+        "unit": entry.unit,
+        "co2_kg": entry.co2_kg,
+        "ch4_kg": entry.ch4_kg,
+        "n2o_kg": entry.n2o_kg,
+        "co2e_tonnes": entry.co2e_tonnes,
+        "status": entry.status,
+        "notes": entry.notes,
+        "reviewer_comment": entry.reviewer_comment,
+        "submitted_by_id": entry.submitted_by_id,
+        "approved_by_id": entry.approved_by_id,
+        "submitted_at": entry.submitted_at,
+        "approved_at": entry.approved_at,
+    }
 
 
 def can_access_energy_module(user):
@@ -71,12 +97,35 @@ def can_final_approve(user):
     return profile.role == UserProfile.Role.ADMIN
 
 
+def can_edit_energy_entry(user, entry):
+    if entry.status not in [
+        GHGInventoryEntry.Status.DRAFT,
+        GHGInventoryEntry.Status.REVISION_REQUESTED,
+    ]:
+        return False
+
+    if user.is_superuser:
+        return True
+
+    profile = get_user_profile(user)
+
+    if not profile:
+        return False
+
+    if profile.role == UserProfile.Role.ADMIN:
+        return True
+
+    if (
+        profile.role == UserProfile.Role.SECTOR_FOCAL_POINT
+        and profile.assigned_sector == UserProfile.Sector.ENERGY
+        and entry.submitted_by_id == user.id
+    ):
+        return True
+
+    return False
+
+
 def recompute_energy_total(year):
-    """
-    Official totals should use approved records only.
-    Drafts, pending review records, rejected records, and revision-requested
-    records must not feed official dashboard/report totals.
-    """
     total = (
         GHGInventoryEntry.objects
         .filter(
@@ -193,6 +242,14 @@ def energy_entries(request):
     serializer.is_valid(raise_exception=True)
     entry = serializer.save()
 
+    log_audit_action(
+        request=request,
+        action="created_ghg_energy_entry",
+        instance=entry,
+        old_value=None,
+        new_value=serialize_entry_for_audit(entry),
+    )
+
     return Response(
         {
             "message": "Energy GHG entry saved successfully.",
@@ -200,6 +257,56 @@ def energy_entries(request):
         },
         status=status.HTTP_201_CREATED
     )
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_energy_entry(request, entry_id):
+    if not can_access_energy_module(request.user):
+        return Response(
+            {"detail": "You do not have access to the Energy GHG module."},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    entry = get_object_or_404(
+        GHGInventoryEntry,
+        id=entry_id,
+        sector=GHGInventoryEntry.Sector.ENERGY,
+    )
+
+    if not can_edit_energy_entry(request.user, entry):
+        return Response(
+            {
+                "detail": (
+                    "This entry cannot be edited. Only Draft or Revision Requested "
+                    "entries can be edited by the original focal point or Admin."
+                )
+            },
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    old_value = serialize_entry_for_audit(entry)
+
+    serializer = EnergyEntryUpdateSerializer(
+        entry,
+        data=request.data,
+        partial=True
+    )
+    serializer.is_valid(raise_exception=True)
+    updated_entry = serializer.save()
+
+    log_audit_action(
+        request=request,
+        action="updated_ghg_energy_entry",
+        instance=updated_entry,
+        old_value=old_value,
+        new_value=serialize_entry_for_audit(updated_entry),
+    )
+
+    return Response({
+        "message": "Energy entry updated successfully.",
+        "entry": GHGInventoryEntrySerializer(updated_entry).data,
+    })
 
 
 @api_view(["POST"])
@@ -241,9 +348,19 @@ def submit_energy_entry(request, entry_id):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+    old_value = serialize_entry_for_audit(entry)
+
     entry.status = GHGInventoryEntry.Status.PENDING_REVIEW
     entry.submitted_at = timezone.now()
     entry.save(update_fields=["status", "submitted_at", "updated_at"])
+
+    log_audit_action(
+        request=request,
+        action="submitted_ghg_energy_entry_for_review",
+        instance=entry,
+        old_value=old_value,
+        new_value=serialize_entry_for_audit(entry),
+    )
 
     return Response({
         "message": "Energy entry submitted for review.",
@@ -297,6 +414,8 @@ def review_energy_entry(request, entry_id):
         sector=GHGInventoryEntry.Sector.ENERGY,
     )
 
+    old_value = serialize_entry_for_audit(entry)
+
     action = request.data.get("action")
     reviewer_comment = request.data.get("reviewer_comment", "").strip()
 
@@ -324,6 +443,14 @@ def review_energy_entry(request, entry_id):
         entry.reviewer_comment = reviewer_comment
         entry.save(update_fields=["status", "reviewer_comment", "updated_at"])
 
+        log_audit_action(
+            request=request,
+            action="marked_ghg_energy_entry_under_review",
+            instance=entry,
+            old_value=old_value,
+            new_value=serialize_entry_for_audit(entry),
+        )
+
         return Response({
             "message": "Entry marked as under review.",
             "entry": GHGInventoryEntrySerializer(entry).data,
@@ -350,6 +477,14 @@ def review_energy_entry(request, entry_id):
         entry.save(update_fields=["status", "reviewer_comment", "updated_at"])
 
         recompute_energy_total(entry.year)
+
+        log_audit_action(
+            request=request,
+            action="requested_revision_for_ghg_energy_entry",
+            instance=entry,
+            old_value=old_value,
+            new_value=serialize_entry_for_audit(entry),
+        )
 
         return Response({
             "message": "Revision requested.",
@@ -383,6 +518,14 @@ def review_energy_entry(request, entry_id):
         entry.save(update_fields=["status", "reviewer_comment", "updated_at"])
 
         recompute_energy_total(entry.year)
+
+        log_audit_action(
+            request=request,
+            action="rejected_ghg_energy_entry",
+            instance=entry,
+            old_value=old_value,
+            new_value=serialize_entry_for_audit(entry),
+        )
 
         return Response({
             "message": "Entry rejected.",
@@ -419,22 +562,23 @@ def review_energy_entry(request, entry_id):
 
         recompute_energy_total(entry.year)
 
+        log_audit_action(
+            request=request,
+            action="approved_ghg_energy_entry",
+            instance=entry,
+            old_value=old_value,
+            new_value=serialize_entry_for_audit(entry),
+        )
+
         return Response({
             "message": "Entry approved and included in official Energy total.",
             "entry": GHGInventoryEntrySerializer(entry).data,
         })
-    
+
 
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def ghg_dashboard_summary(request):
-    """
-    Executive Dashboard summary for approved GHG data.
-
-    For now, this uses only the Energy sector because Energy is the first
-    operational GHG module we have implemented.
-    """
-
     latest_energy_total = (
         GHGStateTotal.objects
         .filter(

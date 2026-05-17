@@ -29,11 +29,19 @@ class GHGInventoryEntrySerializer(serializers.ModelSerializer):
         source="submitted_by.username",
         read_only=True
     )
+    approved_by_username = serializers.CharField(
+        source="approved_by.username",
+        read_only=True
+    )
     status_display = serializers.CharField(
         source="get_status_display",
         read_only=True
     )
     sub_category_display = serializers.SerializerMethodField()
+    lga_name = serializers.CharField(
+        source="lga.lga_name",
+        read_only=True
+    )
 
     class Meta:
         model = GHGInventoryEntry
@@ -44,6 +52,7 @@ class GHGInventoryEntrySerializer(serializers.ModelSerializer):
             "sub_category_display",
             "fuel_or_activity",
             "lga",
+            "lga_name",
             "year",
             "quantity",
             "unit",
@@ -58,6 +67,7 @@ class GHGInventoryEntrySerializer(serializers.ModelSerializer):
             "notes",
             "reviewer_comment",
             "submitted_by_username",
+            "approved_by_username",
             "submitted_at",
             "approved_at",
             "created_at",
@@ -70,6 +80,7 @@ class GHGInventoryEntrySerializer(serializers.ModelSerializer):
             "n2o_kg",
             "co2e_tonnes",
             "submitted_by_username",
+            "approved_by_username",
             "submitted_at",
             "approved_at",
             "created_at",
@@ -96,6 +107,11 @@ class EnergyEntryCreateSerializer(serializers.ModelSerializer):
             "notes",
             "status",
         ]
+
+    def validate_status(self, value):
+        if value != GHGInventoryEntry.Status.DRAFT:
+            raise serializers.ValidationError("New entries can only be created as draft.")
+        return value
 
     def validate(self, attrs):
         fuel = attrs.get("fuel_or_activity")
@@ -127,3 +143,48 @@ class EnergyEntryCreateSerializer(serializers.ModelSerializer):
         )
 
         return entry
+
+
+class EnergyEntryUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GHGInventoryEntry
+        fields = [
+            "sub_category",
+            "fuel_or_activity",
+            "lga",
+            "year",
+            "quantity",
+            "notes",
+        ]
+
+    def validate(self, attrs):
+        instance = self.instance
+
+        fuel = attrs.get("fuel_or_activity", instance.fuel_or_activity)
+        sub_category = attrs.get("sub_category", instance.sub_category)
+
+        factor = EmissionFactor.objects.filter(
+            sector="energy",
+            sub_category=sub_category,
+            fuel_or_species=fuel,
+            is_active=True,
+        ).first()
+
+        if not factor:
+            raise serializers.ValidationError(
+                "No active emission factor found for this fuel and sub-category."
+            )
+
+        attrs["emission_factor"] = factor
+        return attrs
+
+    def update(self, instance, validated_data):
+        emission_factor = validated_data.pop("emission_factor")
+
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+
+        instance.emission_factor = emission_factor
+        instance.save()
+
+        return instance
