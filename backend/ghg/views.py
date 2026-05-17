@@ -590,11 +590,13 @@ def ghg_dashboard_summary(request):
     implemented_sectors = [
         GHGInventoryEntry.Sector.ENERGY,
         GHGInventoryEntry.Sector.AGRICULTURE,
+        GHGInventoryEntry.Sector.WASTE,
     ]
 
     sector_labels = {
         GHGInventoryEntry.Sector.ENERGY: "Energy",
         GHGInventoryEntry.Sector.AGRICULTURE: "Agriculture",
+        GHGInventoryEntry.Sector.WASTE: "Waste",
     }
 
     approved_totals = (

@@ -19,6 +19,15 @@ from .agriculture_views import (
     update_agriculture_entry,
 )
 
+from .waste_views import (
+    review_waste_entry,
+    submit_waste_entry,
+    update_waste_entry,
+    waste_entries,
+    waste_options,
+    waste_review_queue,
+)
+
 urlpatterns = [
     path("dashboard-summary/", ghg_dashboard_summary, name="ghg-dashboard-summary"),
 
@@ -35,4 +44,11 @@ urlpatterns = [
     path("agriculture/entries/<int:entry_id>/submit/", submit_agriculture_entry, name="submit-agriculture-entry"),
     path("agriculture/review-queue/", agriculture_review_queue, name="agriculture-review-queue"),
     path("agriculture/entries/<int:entry_id>/review/", review_agriculture_entry, name="review-agriculture-entry"),
+
+    path("waste/options/", waste_options, name="waste-options"),
+    path("waste/entries/", waste_entries, name="waste-entries"),
+    path("waste/entries/<int:entry_id>/", update_waste_entry, name="update-waste-entry"),
+    path("waste/entries/<int:entry_id>/submit/", submit_waste_entry, name="submit-waste-entry"),
+    path("waste/review-queue/", waste_review_queue, name="waste-review-queue"),
+    path("waste/entries/<int:entry_id>/review/", review_waste_entry, name="review-waste-entry"),
 ]

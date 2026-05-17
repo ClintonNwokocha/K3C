@@ -138,3 +138,38 @@ export async function reviewAgricultureEntry(entryId, payload) {
   const response = await api.post(`/ghg/agriculture/entries/${entryId}/review/`, payload);
   return response.data;
 }
+
+export async function getWasteOptions() {
+  const response = await api.get("/ghg/waste/options/");
+  return response.data;
+}
+
+export async function getWasteEntries() {
+  const response = await api.get("/ghg/waste/entries/");
+  return response.data;
+}
+
+export async function createWasteEntry(payload) {
+  const response = await api.post("/ghg/waste/entries/", payload);
+  return response.data;
+}
+
+export async function updateWasteEntry(entryId, payload) {
+  const response = await api.patch(`/ghg/waste/entries/${entryId}/`, payload);
+  return response.data;
+}
+
+export async function submitWasteEntry(entryId) {
+  const response = await api.post(`/ghg/waste/entries/${entryId}/submit/`);
+  return response.data;
+}
+
+export async function getWasteReviewQueue() {
+  const response = await api.get("/ghg/waste/review-queue/");
+  return response.data;
+}
+
+export async function reviewWasteEntry(entryId, payload) {
+  const response = await api.post(`/ghg/waste/entries/${entryId}/review/`, payload);
+  return response.data;
+}
