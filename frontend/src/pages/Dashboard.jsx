@@ -36,7 +36,7 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
         </h1>
         <p className="mt-2 max-w-3xl text-slate-600">
           Approved GHG records from implemented sectors now feed this
-          dashboard. Current implemented sectors are Energy, Agriculture, and Waste.
+          dashboard. Current implemented sectors are Energy, Agriculture, Waste, and IPPU.
         </p>
       </section>
 
@@ -90,7 +90,7 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
             <div>
               <h2 className="text-lg font-bold">Cross-Sector GHG Summary</h2>
               <p className="text-sm text-slate-500">
-                Approved totals from Energy, Agriculture and Waste.
+                Approved totals from Energy, Agriculture Waste, and IPPU.
               </p>
             </div>
 

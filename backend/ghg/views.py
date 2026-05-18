@@ -591,12 +591,14 @@ def ghg_dashboard_summary(request):
         GHGInventoryEntry.Sector.ENERGY,
         GHGInventoryEntry.Sector.AGRICULTURE,
         GHGInventoryEntry.Sector.WASTE,
+        GHGInventoryEntry.Sector.IPPU,
     ]
 
     sector_labels = {
         GHGInventoryEntry.Sector.ENERGY: "Energy",
         GHGInventoryEntry.Sector.AGRICULTURE: "Agriculture",
         GHGInventoryEntry.Sector.WASTE: "Waste",
+        GHGInventoryEntry.Sector.IPPU: "IPPU",
     }
 
     approved_totals = (

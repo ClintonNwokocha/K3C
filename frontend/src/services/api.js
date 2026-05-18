@@ -173,3 +173,38 @@ export async function reviewWasteEntry(entryId, payload) {
   const response = await api.post(`/ghg/waste/entries/${entryId}/review/`, payload);
   return response.data;
 }
+
+export async function getIPPUOptions() {
+  const response = await api.get("/ghg/ippu/options/");
+  return response.data;
+}
+
+export async function getIPPUEntries() {
+  const response = await api.get("/ghg/ippu/entries/");
+  return response.data;
+}
+
+export async function createIPPUEntry(payload) {
+  const response = await api.post("/ghg/ippu/entries/", payload);
+  return response.data;
+}
+
+export async function updateIPPUEntry(entryId, payload) {
+  const response = await api.patch(`/ghg/ippu/entries/${entryId}/`, payload);
+  return response.data;
+}
+
+export async function submitIPPUEntry(entryId) {
+  const response = await api.post(`/ghg/ippu/entries/${entryId}/submit/`);
+  return response.data;
+}
+
+export async function getIPPUReviewQueue() {
+  const response = await api.get("/ghg/ippu/review-queue/");
+  return response.data;
+}
+
+export async function reviewIPPUEntry(entryId, payload) {
+  const response = await api.post(`/ghg/ippu/entries/${entryId}/review/`, payload);
+  return response.data;
+}

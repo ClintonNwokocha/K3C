@@ -28,6 +28,15 @@ from .waste_views import (
     waste_review_queue,
 )
 
+from .ippu_views import (
+    ippu_entries,
+    ippu_options,
+    ippu_review_queue,
+    review_ippu_entry,
+    submit_ippu_entry,
+    update_ippu_entry,
+)
+
 urlpatterns = [
     path("dashboard-summary/", ghg_dashboard_summary, name="ghg-dashboard-summary"),
 
@@ -51,4 +60,11 @@ urlpatterns = [
     path("waste/entries/<int:entry_id>/submit/", submit_waste_entry, name="submit-waste-entry"),
     path("waste/review-queue/", waste_review_queue, name="waste-review-queue"),
     path("waste/entries/<int:entry_id>/review/", review_waste_entry, name="review-waste-entry"),
+
+    path("ippu/options/", ippu_options, name="ippu-options"),
+    path("ippu/entries/", ippu_entries, name="ippu-entries"),
+    path("ippu/entries/<int:entry_id>/", update_ippu_entry, name="update-ippu-entry"),
+    path("ippu/entries/<int:entry_id>/submit/", submit_ippu_entry, name="submit-ippu-entry"),
+    path("ippu/review-queue/", ippu_review_queue, name="ippu-review-queue"),
+    path("ippu/entries/<int:entry_id>/review/", review_ippu_entry, name="review-ippu-entry"),
 ]

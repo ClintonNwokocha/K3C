@@ -2,6 +2,7 @@ import { useState } from "react";
 import GHGAgriculturePage from "./GHGAgriculturePage";
 import GHGEnergyPage from "./GHGEnergyPage";
 import GHGWastePage from "./GHGWastePage";
+import GHGIPPUPage from "./GHGIPPUPage";
 
 export default function GHGInventoryPage({ foundation, currentUser }) {
   const [activeSector, setActiveSector] = useState("energy");
@@ -55,8 +56,12 @@ export default function GHGInventoryPage({ foundation, currentUser }) {
           </button>
 
           <button
-            disabled
-            className="cursor-not-allowed rounded-full bg-slate-50 px-5 py-2 text-sm font-medium text-slate-400"
+            onClick={() => setActiveSector("ippu")}
+            className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                activeSector === "ippu"
+                    ? "bg-emerald-600 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
           >
             IPPU
           </button>
@@ -73,6 +78,10 @@ export default function GHGInventoryPage({ foundation, currentUser }) {
 
       {activeSector === "waste" && (
         <GHGWastePage foundation={foundation} currentUser={currentUser} />
+      )}
+
+      {activeSector === "ippu" && (
+        <GHGIPPUPage foundation={foundation} currentUser={currentUser} />
       )}
     </div>
   );
