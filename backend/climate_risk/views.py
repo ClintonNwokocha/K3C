@@ -9,6 +9,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from accounts.models import UserProfile
+from audit.utils import log_audit_action
 from .models import ClimateRiskProfile
 from .serializers import (
     ClimateRiskProfileSerializer,
@@ -33,6 +34,26 @@ def can_manage_climate_risk(user):
             UserProfile.Role.ANALYST,
         ]
     )
+
+
+def serialize_profile_for_audit(profile):
+    return {
+        "id": profile.id,
+        "lga_id": profile.lga_id,
+        "lga_name": profile.lga.lga_name if profile.lga else None,
+        "year": profile.year,
+        "flood_risk_score": profile.flood_risk_score,
+        "drought_risk_score": profile.drought_risk_score,
+        "heat_risk_score": profile.heat_risk_score,
+        "erosion_risk_score": profile.erosion_risk_score,
+        "vulnerability_score": profile.vulnerability_score,
+        "adaptive_capacity_score": profile.adaptive_capacity_score,
+        "overall_risk_score": profile.overall_risk_score,
+        "risk_level": profile.risk_level,
+        "notes": profile.notes,
+        "data_source": profile.data_source,
+        "is_active": profile.is_active,
+    }
 
 
 @api_view(["GET"])
@@ -127,6 +148,8 @@ def update_climate_risk_profile(request, profile_id):
         id=profile_id,
     )
 
+    old_value = serialize_profile_for_audit(profile)
+
     serializer = ClimateRiskProfileUpdateSerializer(
         profile,
         data=request.data,
@@ -134,6 +157,14 @@ def update_climate_risk_profile(request, profile_id):
     )
     serializer.is_valid(raise_exception=True)
     updated_profile = serializer.save()
+
+    log_audit_action(
+        request=request,
+        action="updated_climate_risk_profile",
+        instance=updated_profile,
+        old_value=old_value,
+        new_value=serialize_profile_for_audit(updated_profile),
+    )
 
     return Response({
         "message": "Climate risk profile updated successfully.",

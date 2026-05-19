@@ -17,11 +17,7 @@ function scoreToFormValue(value) {
   return String(value);
 }
 
-export default function ClimateRiskEditPanel({
-  profile,
-  canManage,
-  onSaved,
-}) {
+export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
   const [form, setForm] = useState(initialForm);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -30,6 +26,8 @@ export default function ClimateRiskEditPanel({
   useEffect(() => {
     if (!profile) {
       setForm(initialForm);
+      setMessage("");
+      setError("");
       return;
     }
 
@@ -70,13 +68,8 @@ export default function ClimateRiskEditPanel({
     }));
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-    setIsSaving(true);
-    setMessage("");
-    setError("");
-
-    const payload = {
+  function buildPayload() {
+    return {
       flood_risk_score: Number(form.flood_risk_score),
       drought_risk_score: Number(form.drought_risk_score),
       heat_risk_score: Number(form.heat_risk_score),
@@ -86,9 +79,18 @@ export default function ClimateRiskEditPanel({
       notes: form.notes,
       data_source: form.data_source,
     };
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    setIsSaving(true);
+    setMessage("");
+    setError("");
 
     try {
-      await updateClimateRiskProfile(profile.id, payload);
+      await updateClimateRiskProfile(profile.id, buildPayload());
+
       setMessage("Risk profile updated successfully.");
 
       if (onSaved) {
@@ -107,30 +109,12 @@ export default function ClimateRiskEditPanel({
   }
 
   const scoreFields = [
-    {
-      key: "flood_risk_score",
-      label: "Flood Risk",
-    },
-    {
-      key: "drought_risk_score",
-      label: "Drought Risk",
-    },
-    {
-      key: "heat_risk_score",
-      label: "Heat Risk",
-    },
-    {
-      key: "erosion_risk_score",
-      label: "Erosion Risk",
-    },
-    {
-      key: "vulnerability_score",
-      label: "Vulnerability",
-    },
-    {
-      key: "adaptive_capacity_score",
-      label: "Adaptive Capacity",
-    },
+    { key: "flood_risk_score", label: "Flood Risk" },
+    { key: "drought_risk_score", label: "Drought Risk" },
+    { key: "heat_risk_score", label: "Heat Risk" },
+    { key: "erosion_risk_score", label: "Erosion Risk" },
+    { key: "vulnerability_score", label: "Vulnerability" },
+    { key: "adaptive_capacity_score", label: "Adaptive Capacity" },
   ];
 
   return (

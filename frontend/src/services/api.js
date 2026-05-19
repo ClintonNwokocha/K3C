@@ -253,3 +253,4 @@ export async function updateClimateRiskProfile(profileId, payload) {
   const response = await api.patch(`/risk/profiles/${profileId}/`, payload);
   return response.data;
 }
+
