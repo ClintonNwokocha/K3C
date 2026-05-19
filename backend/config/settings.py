@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     "accounts",
     "core",
     "audit",
-    "risk",
+    "climate_risk",
     "ghg",
     "projects",
     "reports",

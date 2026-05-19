@@ -243,3 +243,8 @@ export async function reviewLULUCFEntry(entryId, payload) {
   const response = await api.post(`/ghg/lulucf/entries/${entryId}/review/`, payload);
   return response.data;
 }
+
+export async function getClimateRiskProfiles(params = {}) {
+  const response = await api.get("/risk/profiles/", { params });
+  return response.data;
+}
