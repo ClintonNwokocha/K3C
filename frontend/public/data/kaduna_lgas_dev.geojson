@@ -1,0 +1,190 @@
+{
+  "type": "FeatureCollection",
+  "name": "kaduna_lgas_dev_placeholder",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Birnin Gwari" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[6.05, 10.55], [6.8, 10.55], [6.8, 11.25], [6.05, 11.25], [6.05, 10.55]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Chikun" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[6.75, 10.05], [7.35, 10.05], [7.35, 10.55], [6.75, 10.55], [6.75, 10.05]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Giwa" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.25, 10.85], [7.85, 10.85], [7.85, 11.35], [7.25, 11.35], [7.25, 10.85]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Igabi" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.25, 10.35], [7.85, 10.35], [7.85, 10.85], [7.25, 10.85], [7.25, 10.35]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Ikara" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[8.05, 10.75], [8.55, 10.75], [8.55, 11.25], [8.05, 11.25], [8.05, 10.75]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Jaba" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.95, 9.25], [8.35, 9.25], [8.35, 9.65], [7.95, 9.65], [7.95, 9.25]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Jema'a" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.45, 9.25], [7.95, 9.25], [7.95, 9.7], [7.45, 9.7], [7.45, 9.25]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Kachia" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.15, 9.45], [7.75, 9.45], [7.75, 10.05], [7.15, 10.05], [7.15, 9.45]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Kaduna North" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.35, 10.55], [7.6, 10.55], [7.6, 10.75], [7.35, 10.75], [7.35, 10.55]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Kaduna South" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.35, 10.35], [7.6, 10.35], [7.6, 10.55], [7.35, 10.55], [7.35, 10.35]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Kagarko" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.55, 8.95], [8.15, 8.95], [8.15, 9.35], [7.55, 9.35], [7.55, 8.95]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Kajuru" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.55, 9.75], [8.1, 9.75], [8.1, 10.25], [7.55, 10.25], [7.55, 9.75]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Kaura" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[8.25, 9.15], [8.7, 9.15], [8.7, 9.55], [8.25, 9.55], [8.25, 9.15]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Kauru" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[8.05, 9.55], [8.65, 9.55], [8.65, 10.15], [8.05, 10.15], [8.05, 9.55]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Kubau" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[8.05, 10.25], [8.6, 10.25], [8.6, 10.75], [8.05, 10.75], [8.05, 10.25]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Kudan" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.85, 10.85], [8.15, 10.85], [8.15, 11.15], [7.85, 11.15], [7.85, 10.85]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Lere" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[8.35, 9.95], [8.9, 9.95], [8.9, 10.45], [8.35, 10.45], [8.35, 9.95]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Makarfi" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.75, 11.15], [8.15, 11.15], [8.15, 11.55], [7.75, 11.55], [7.75, 11.15]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Sabon Gari" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.55, 11.05], [7.9, 11.05], [7.9, 11.35], [7.55, 11.35], [7.55, 11.05]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Sanga" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[8.35, 8.85], [8.9, 8.85], [8.9, 9.25], [8.35, 9.25], [8.35, 8.85]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Soba" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[8.35, 10.65], [8.85, 10.65], [8.85, 11.05], [8.35, 11.05], [8.35, 10.65]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Zangon Kataf" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.75, 9.05], [8.3, 9.05], [8.3, 9.45], [7.75, 9.45], [7.75, 9.05]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "lga_name": "Zaria" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[7.35, 11.15], [7.75, 11.15], [7.75, 11.55], [7.35, 11.55], [7.35, 11.15]]]
+      }
+    }
+  ]
+}

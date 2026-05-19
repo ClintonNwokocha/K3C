@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { getClimateRiskProfiles } from "../services/api";
+import ClimateRiskMap from "../components/ClimateRiskMap";
 
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -26,6 +27,7 @@ export default function ClimateRiskPage() {
   const [selectedYear, setSelectedYear] = useState("");
   const [riskLevel, setRiskLevel] = useState("all");
   const [searchText, setSearchText] = useState("");
+  const [mapMetric, setMapMetric] = useState("overall");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -89,8 +91,7 @@ export default function ClimateRiskPage() {
           </h1>
           <p className="mt-2 max-w-3xl text-slate-600">
             Development risk dashboard showing flood, drought, heat, erosion,
-            vulnerability and adaptive capacity scores for Kaduna’s LGAs. The
-            interactive map will be added in the next stage.
+            vulnerability and adaptive capacity scores for Kaduna’s LGAs. The map below uses development placeholder polygons and will later be replaced with official Kaduna LGA boundaries.
           </p>
         </div>
 
@@ -149,6 +150,41 @@ export default function ClimateRiskPage() {
           </p>
         </div>
       </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+            <div>
+                <h2 className="text-lg font-bold">LGA Risk Choropleth Map</h2>
+                <p className="text-sm text-slate-500">
+                    Development map joining LGA polygons with climate risk scores.
+                </p>
+            </div>
+
+            <select
+                value={mapMetric}
+                onChange={(event) => setMapMetric(event.target.value)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            >
+                <option value="overall">Overall Risk</option>
+                <option value="flood">Flood Risk</option>
+                <option value="drought">Drought Risk</option>
+                <option value="heat">Heat Risk</option>
+                <option value="erosion">Erosion Risk</option>
+                <option value="vulnerability">Vulnerability</option>
+                <option value="adaptive_capacity">Adaptive Capacity</option>
+            </select>
+        </div>
+
+        <ClimateRiskMap profiles={profiles} metric={mapMetric} />
+
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+            This map uses development placeholder LGA polygons. Replace
+            <code className="mx-1 rounded bg-amber-100 px-1">
+                public/data/kaduna_lgas_dev.geojson
+            </code>
+            with official Kaduna LGA boundaries before production.
+        </div>
+    </section>
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
