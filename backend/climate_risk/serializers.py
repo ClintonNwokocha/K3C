@@ -1,7 +1,6 @@
 from rest_framework import serializers
 
-from .models import ClimateRiskProfile
-
+from .models import ClimateRiskParameterRecord, ClimateRiskProfile
 
 class ClimateRiskProfileSerializer(serializers.ModelSerializer):
     lga_name = serializers.CharField(source="lga.lga_name", read_only=True)
@@ -73,3 +72,58 @@ class ClimateRiskProfileUpdateSerializer(serializers.ModelSerializer):
                 })
 
         return attrs
+    
+class ClimateRiskParameterRecordSerializer(serializers.ModelSerializer):
+    lga_name = serializers.CharField(source="lga.lga_name", read_only=True)
+    category_display = serializers.CharField(
+        source="get_category_display",
+        read_only=True,
+    )
+
+    class Meta:
+        model = ClimateRiskParameterRecord
+        fields = [
+            "id",
+            "lga",
+            "lga_name",
+            "year",
+            "category",
+            "category_display",
+            "parameter_key",
+            "parameter_label",
+            "raw_value",
+            "unit",
+            "normalized_score",
+            "data_source",
+            "notes",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ClimateRiskParameterRecordCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClimateRiskParameterRecord
+        fields = [
+            "lga",
+            "year",
+            "category",
+            "parameter_key",
+            "parameter_label",
+            "raw_value",
+            "unit",
+            "normalized_score",
+            "data_source",
+            "notes",
+            "is_active",
+        ]
+
+    def validate_normalized_score(self, value):
+        if value is None:
+            return value
+
+        if value < 0 or value > 100:
+            raise serializers.ValidationError("Normalized score must be between 0 and 100.")
+
+        return value

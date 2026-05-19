@@ -254,3 +254,17 @@ export async function updateClimateRiskProfile(profileId, payload) {
   return response.data;
 }
 
+export async function getClimateRiskParameterRecords(params = {}) {
+  const response = await api.get("/risk/parameters/", { params });
+  return response.data;
+}
+
+export async function createClimateRiskParameterRecord(payload) {
+  const response = await api.post("/risk/parameters/", payload);
+  return response.data;
+}
+
+export async function updateClimateRiskParameterRecord(recordId, payload) {
+  const response = await api.patch(`/risk/parameters/${recordId}/`, payload);
+  return response.data;
+}

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import ClimateRiskEditPanel from "../components/ClimateRiskEditPanel";
 import ClimateRiskMap from "../components/ClimateRiskMap";
 import { getClimateRiskProfiles } from "../services/api";
-
+import ClimateRiskParameterPanel from "../components/ClimateRiskParameterPanel";
 
 function normalizeName(value) {
   return String(value || "")
@@ -390,6 +390,15 @@ export default function ClimateRiskPage({ currentUser }) {
             />
         </div>
       </section>
+
+      <ClimateRiskParameterPanel
+        lgas={riskData?.results?.map((profile) => ({
+            lga_id: profile.lga,
+            lga_name: profile.lga_name,
+        })) || []}
+        selectedProfile={selectedProfile}
+        canManage={canManageRisk}
+      />
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">

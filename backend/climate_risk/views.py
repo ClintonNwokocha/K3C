@@ -10,8 +10,10 @@ from rest_framework.response import Response
 
 from accounts.models import UserProfile
 from audit.utils import log_audit_action
-from .models import ClimateRiskProfile
+from .models import ClimateRiskParameterRecord, ClimateRiskProfile
 from .serializers import (
+    ClimateRiskParameterRecordCreateUpdateSerializer,
+    ClimateRiskParameterRecordSerializer,
     ClimateRiskProfileSerializer,
     ClimateRiskProfileUpdateSerializer,
 )
@@ -169,4 +171,99 @@ def update_climate_risk_profile(request, profile_id):
     return Response({
         "message": "Climate risk profile updated successfully.",
         "profile": ClimateRiskProfileSerializer(updated_profile).data,
+    })
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def climate_risk_parameter_records(request):
+    if request.method == "GET":
+        year = request.query_params.get("year")
+        lga = request.query_params.get("lga")
+        category = request.query_params.get("category")
+
+        records = (
+            ClimateRiskParameterRecord.objects
+            .select_related("lga")
+            .filter(is_active=True)
+            .order_by("lga__lga_name", "category", "parameter_label")
+        )
+
+        if year:
+            records = records.filter(year=year)
+
+        if lga:
+            records = records.filter(lga_id=lga)
+
+        if category and category != "all":
+            records = records.filter(category=category)
+
+        return Response({
+            "status": "ok",
+            "message": "Climate risk parameter records loaded.",
+            "count": records.count(),
+            "results": ClimateRiskParameterRecordSerializer(records, many=True).data,
+        })
+
+    if not can_manage_climate_risk(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can create climate risk parameter records."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    serializer = ClimateRiskParameterRecordCreateUpdateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    record = serializer.save()
+
+    log_audit_action(
+        request=request,
+        action="created_climate_risk_parameter_record",
+        instance=record,
+        old_value=None,
+        new_value=ClimateRiskParameterRecordSerializer(record).data,
+    )
+
+    return Response(
+        {
+            "message": "Climate risk parameter record created successfully.",
+            "record": ClimateRiskParameterRecordSerializer(record).data,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_climate_risk_parameter_record(request, record_id):
+    if not can_manage_climate_risk(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can update climate risk parameter records."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    record = get_object_or_404(
+        ClimateRiskParameterRecord.objects.select_related("lga"),
+        id=record_id,
+    )
+
+    old_value = ClimateRiskParameterRecordSerializer(record).data
+
+    serializer = ClimateRiskParameterRecordCreateUpdateSerializer(
+        record,
+        data=request.data,
+        partial=True,
+    )
+    serializer.is_valid(raise_exception=True)
+    updated_record = serializer.save()
+
+    log_audit_action(
+        request=request,
+        action="updated_climate_risk_parameter_record",
+        instance=updated_record,
+        old_value=old_value,
+        new_value=ClimateRiskParameterRecordSerializer(updated_record).data,
+    )
+
+    return Response({
+        "message": "Climate risk parameter record updated successfully.",
+        "record": ClimateRiskParameterRecordSerializer(updated_record).data,
     })

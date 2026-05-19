@@ -90,3 +90,59 @@ class ClimateRiskProfile(models.Model):
 
     def __str__(self):
         return f"{self.lga.lga_name} - {self.year} - {self.get_risk_level_display()}"
+
+
+class ClimateRiskParameterRecord(models.Model):
+    class Category(models.TextChoices):
+        FLOOD = "flood", "Flood"
+        DROUGHT = "drought", "Drought"
+        HEAT = "heat", "Heat"
+        EROSION = "erosion", "Erosion"
+        VULNERABILITY = "vulnerability", "Vulnerability"
+        ADAPTIVE_CAPACITY = "adaptive_capacity", "Adaptive Capacity"
+
+    lga = models.ForeignKey(
+        LGARegistry,
+        on_delete=models.CASCADE,
+        related_name="climate_risk_parameter_records",
+    )
+
+    year = models.PositiveIntegerField(default=2025)
+
+    category = models.CharField(
+        max_length=50,
+        choices=Category.choices,
+    )
+
+    parameter_key = models.SlugField(max_length=100)
+    parameter_label = models.CharField(max_length=150)
+
+    raw_value = models.DecimalField(max_digits=14, decimal_places=4, default=0)
+    unit = models.CharField(max_length=50, blank=True)
+
+    normalized_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Optional 0-100 normalized score. Later this will be calculated automatically.",
+    )
+
+    data_source = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("lga", "year", "category", "parameter_key")
+        ordering = ["lga__lga_name", "category", "parameter_label"]
+        indexes = [
+            models.Index(fields=["year", "category"]),
+            models.Index(fields=["lga", "year"]),
+        ]
+
+    def __str__(self):
+        return f"{self.lga.lga_name} - {self.year} - {self.parameter_label}"
