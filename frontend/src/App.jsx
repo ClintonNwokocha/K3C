@@ -169,7 +169,13 @@ function App() {
       currentUser={currentUser}
       onLogout={handleLogout}
       activePage={activePage}
-      onPageChange={setActivePage}
+      onPageChange={async (page) => {
+        setActivePage(page);
+
+        if (page === "dashboard") {
+          await loadDashboardData();
+        }
+      }}
     >
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-red-700">

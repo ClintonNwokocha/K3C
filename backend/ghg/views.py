@@ -592,6 +592,7 @@ def ghg_dashboard_summary(request):
         GHGInventoryEntry.Sector.AGRICULTURE,
         GHGInventoryEntry.Sector.WASTE,
         GHGInventoryEntry.Sector.IPPU,
+        GHGInventoryEntry.Sector.LULUCF,
     ]
 
     sector_labels = {
@@ -599,6 +600,7 @@ def ghg_dashboard_summary(request):
         GHGInventoryEntry.Sector.AGRICULTURE: "Agriculture",
         GHGInventoryEntry.Sector.WASTE: "Waste",
         GHGInventoryEntry.Sector.IPPU: "IPPU",
+        GHGInventoryEntry.Sector.LULUCF: "LULUCF",
     }
 
     approved_totals = (
@@ -619,25 +621,42 @@ def ghg_dashboard_summary(request):
 
     sector_breakdown = []
 
-    if latest_year:
-        latest_sector_totals = (
+    for sector in implemented_sectors:
+        latest_sector_total = (
             GHGStateTotal.objects
             .filter(
-                sector__in=implemented_sectors,
+                sector=sector,
                 status="approved_only",
-                year=latest_year,
             )
-            .order_by("sector")
+            .order_by("-year")
+            .first()
         )
 
-        for item in latest_sector_totals:
+        if latest_sector_total:
             sector_breakdown.append({
-                "sector": item.sector,
-                "sector_label": sector_labels.get(item.sector, item.sector),
-                "year": item.year,
-                "total_co2e": float(item.total_co2e),
-                "total_mtco2e": float(item.total_co2e / Decimal("1000000")),
+                "sector": latest_sector_total.sector,
+                "sector_label": sector_labels.get(
+                    latest_sector_total.sector,
+                    latest_sector_total.sector
+                ),
+                "year": latest_sector_total.year,
+                "total_co2e": float(latest_sector_total.total_co2e),
+                "total_mtco2e": float(
+                    latest_sector_total.total_co2e / Decimal("1000000")
+                ),
             })
+        else:
+            sector_breakdown.append({
+                "sector": sector,
+                "sector_label": sector_labels.get(sector, sector),
+                "year": None,
+                "total_co2e": 0,
+                "total_mtco2e": 0,
+            })
+
+    latest_total_tco2e = sum(
+        Decimal(str(item["total_co2e"])) for item in sector_breakdown
+    )
 
     latest_total_tco2e = sum(
         Decimal(str(item["total_co2e"])) for item in sector_breakdown

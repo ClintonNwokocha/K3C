@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  createIPPUEntry,
-  getIPPUEntries,
-  getIPPUOptions,
-  getIPPUReviewQueue,
-  reviewIPPUEntry,
-  submitIPPUEntry,
-  updateIPPUEntry,
+  createLULUCFEntry,
+  getLULUCFEntries,
+  getLULUCFOptions,
+  getLULUCFReviewQueue,
+  reviewLULUCFEntry,
+  submitLULUCFEntry,
+  updateLULUCFEntry,
 } from "../services/api";
 
 const initialForm = {
   year: "2024",
-  sub_category: "mineral_products",
-  fuel_or_activity: "cement",
+  sub_category: "deforestation",
+  fuel_or_activity: "forest_to_cropland",
   quantity: "",
   lga: "",
   notes: "",
@@ -51,9 +51,9 @@ function canEditEntry(entry) {
   return ["draft", "revision_requested"].includes(entry.status);
 }
 
-export default function GHGIPPUPage({ foundation, currentUser }) {  const [activeTab, setActiveTab] = useState("entry");
-  const [options, setOptions] = useState(null);
-  const [entries, setEntries] = useState([]);
+export default function GHGLULUCFPage({ foundation, currentUser }) {
+  const [activeTab, setActiveTab] = useState("entry");
+  const [options, setOptions] = useState(null);  const [entries, setEntries] = useState([]);
   const [reviewEntries, setReviewEntries] = useState([]);
   const [summary, setSummary] = useState([]);
   const [form, setForm] = useState(initialForm);
@@ -109,14 +109,14 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
     };
   }, [form.quantity, selectedEmissionFactor]);
 
-  async function loadIPPUData() {
+  async function loadLULUCFData() {
     setIsLoading(true);
     setError("");
 
     try {
       const [optionsData, entriesData] = await Promise.all([
-        getIPPUOptions(),
-        getIPPUEntries(),
+        getLULUCFOptions(),
+        getLULUCFEntries(),
       ]);
 
       setOptions(optionsData);
@@ -124,19 +124,19 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
       setSummary(entriesData.summary || []);
 
       if (canReview) {
-        const reviewData = await getIPPUReviewQueue();
+        const reviewData = await getLULUCFReviewQueue();
         setReviewEntries(reviewData.results || []);
       }
     } catch (err) {
       console.error(err);
-      setError("Could not load IPPU GHG data.");
+      setError("Could not load LULUCF GHG data.");
     } finally {
       setIsLoading(false);
     }
   }
 
   useEffect(() => {
-    loadIPPUData();
+    loadLULUCFData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canReview]);
 
@@ -194,21 +194,21 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
 
     try {
       if (editingEntryId) {
-        await updateIPPUEntry(editingEntryId, payload);
-        setMessage("IPPU entry updated successfully.");
+        await updateLULUCFEntry(editingEntryId, payload);
+        setMessage("LULUCF entry updated successfully.");
       } else {
-        await createIPPUEntry(payload);
-        setMessage("IPPU entry saved successfully.");
+        await createLULUCFEntry(payload);
+        setMessage("LULUCF entry saved successfully.");
       }
 
       resetForm();
-      await loadIPPUData();
+      await loadLULUCFData();
     } catch (err) {
       console.error(err);
       setError(
         err?.response?.data
           ? JSON.stringify(err.response.data)
-          : "Could not save IPPU entry."
+          : "Could not save LULUCF entry."
       );
     } finally {
       setIsSubmitting(false);
@@ -220,15 +220,15 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
     setError("");
 
     try {
-      await submitIPPUEntry(entryId);
-      setMessage("IPPU entry submitted for review.");
-      await loadIPPUData();
+      await submitLULUCFEntry(entryId);
+      setMessage("LULUCF entry submitted for review.");
+      await loadLULUCFData();
     } catch (err) {
       console.error(err);
       setError(
         err?.response?.data
           ? JSON.stringify(err.response.data)
-          : "Could not submit IPPU entry."
+          : "Could not submit LULUCF entry."
       );
     }
   }
@@ -256,13 +256,13 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
     }
 
     try {
-      const response = await reviewIPPUEntry(entry.id, {
+      const response = await reviewLULUCFEntry(entry.id, {
         action,
         reviewer_comment: reviewerComment,
       });
 
       setMessage(response.message || "Review action completed.");
-      await loadIPPUData();
+      await loadLULUCFData();
     } catch (err) {
       console.error(err);
       setError(
@@ -280,10 +280,12 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
           GHG Inventory
         </p>
         <h1 className="mt-2 text-3xl font-bold tracking-tight">
-          IPPU Sector Data Entry
+          LULUCF Sector Data Entry
         </h1>
         <p className="mt-2 max-w-3xl text-slate-600">
-          Enter IPPU activity data. This phase covers mineral products and refrigerant gas leakage.
+          Enter LULUCF activity data in hectares. Positive values represent emissions
+          from land conversion, while negative values represent removals from
+          afforestation.
         </p>
       </section>
 
@@ -332,7 +334,7 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-bold">
-                  {editingEntryId ? "Edit IPPU Entry" : "New IPPU Entry"}
+                  {editingEntryId ? "Edit LULUCF Entry" : "New LULUCF Entry"}
                 </h2>
                 <p className="mt-1 text-sm text-slate-500">
                   Save as draft first, then submit for review.
@@ -461,7 +463,7 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
                   className="w-full rounded-xl border border-slate-300 px-4 py-3 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
                   value={form.notes}
                   onChange={(event) => updateForm("notes", event.target.value)}
-                  placeholder="Example: construction records, industrial permits, refrigerant servicing records..."
+                  placeholder="Example: KADGIS land cover analysis, Forestry Commission afforestation records, land-use transition table..."
                 />
               </div>
 
@@ -509,8 +511,8 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
                 {isSubmitting
                   ? "Saving..."
                   : editingEntryId
-                  ? "Update IPPU Entry"
-                  : "Save IPPU Entry"}
+                  ? "Update LULUCF Entry"
+                  : "Save LULUCF Entry"}
               </button>
             </div>
           </form>
@@ -539,7 +541,7 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
               </div>
             </div>
 
-            <IPPUEntriesTable
+            <LULUCFEntriesTable
               entries={entries}
               isLoading={isLoading}
               onEditEntry={startEditEntry}
@@ -558,7 +560,7 @@ export default function GHGIPPUPage({ foundation, currentUser }) {  const [activ
   );
 }
 
-function IPPUEntriesTable({
+function LULUCFEntriesTable({
   entries,
   isLoading,
   onEditEntry,
@@ -566,13 +568,13 @@ function IPPUEntriesTable({
 }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-bold">IPPU Entries</h2>
+      <h2 className="text-lg font-bold">LULUCF Entries</h2>
       <p className="text-sm text-slate-500">
-        IPPU emissions calculated by the backend.
+        LULUCF emissions calculated by the backend.
       </p>
 
       {isLoading ? (
-        <p className="mt-5 text-slate-500">Loading IPPU GHG data...</p>
+        <p className="mt-5 text-slate-500">Loading LULUCF GHG data...</p>
       ) : (
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[1000px] text-left text-sm">
@@ -601,7 +603,11 @@ function IPPUEntriesTable({
                   <td className="px-3 py-4">
                     {formatNumber(entry.quantity)} {entry.unit}
                   </td>
-                  <td className="px-3 py-4 font-semibold">
+                  <td
+                    className={`px-3 py-4 font-semibold ${
+                      Number(entry.co2e_tonnes) < 0 ? "text-emerald-700" : "text-slate-900"
+                    }`}
+                  >
                     {formatNumber(entry.co2e_tonnes)} tCO₂e
                   </td>
                   <td className="px-3 py-4">
@@ -650,7 +656,7 @@ function IPPUEntriesTable({
                     colSpan="8"
                     className="px-3 py-8 text-center text-slate-500"
                   >
-                    No IPPU GHG entries yet.
+                    No LULUCF GHG entries yet.
                   </td>
                 </tr>
               )}
@@ -666,16 +672,16 @@ function ReviewQueueTable({ reviewEntries, canReview, onReviewAction }) {
   if (!canReview) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-        Your role cannot access the IPPU review queue.
+        Your role cannot access the LULUCF review queue.
       </div>
     );
   }
 
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-bold">IPPU Review Queue</h2>
+      <h2 className="text-lg font-bold">LULUCF Review Queue</h2>
       <p className="text-sm text-slate-500">
-        Review submitted IPPU entries and approve, reject, or request
+        Review submitted LULUCF entries and approve, reject, or request
         correction.
       </p>
 
@@ -775,7 +781,7 @@ function ReviewQueueTable({ reviewEntries, canReview, onReviewAction }) {
                   colSpan="8"
                   className="px-3 py-8 text-center text-slate-500"
                 >
-                  No IPPU review records yet.
+                  No LULUCF review records yet.
                 </td>
               </tr>
             )}

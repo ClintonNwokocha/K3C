@@ -36,7 +36,7 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
         </h1>
         <p className="mt-2 max-w-3xl text-slate-600">
           Approved GHG records from implemented sectors now feed this
-          dashboard. Current implemented sectors are Energy, Agriculture, Waste, and IPPU.
+          dashboard. Current implemented sectors are Energy, Agriculture, Waste, IPPU and LULUCF.
         </p>
       </section>
 
@@ -90,7 +90,7 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
             <div>
               <h2 className="text-lg font-bold">Cross-Sector GHG Summary</h2>
               <p className="text-sm text-slate-500">
-                Approved totals from Energy, Agriculture Waste, and IPPU.
+                Approved totals from Energy, Agriculture, Waste, IPPU and LULUCF.
               </p>
             </div>
 
@@ -148,11 +148,11 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
 
               {sectorBreakdown.map((item) => {
                 const maxTotal = Math.max(
-                  ...sectorBreakdown.map((row) => Number(row.total_co2e || 0)),
+                  ...sectorBreakdown.map((row) => Math.abs(Number(row.total_co2e || 0))),
                   1
                 );
 
-                const width = `${(Number(item.total_co2e || 0) / maxTotal) * 100}%`;
+                const width = `${(Math.abs(Number(item.total_co2e || 0)) / maxTotal) * 100}%`;
 
                 return (
                   <div key={item.sector}>
@@ -165,7 +165,9 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
 
                     <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full rounded-full bg-emerald-500"
+                        className={`h-full rounded-full ${
+                          Number(item.total_co2e) < 0 ? "bg-sky-500" : "bg-emerald-500"
+                        }`}
                         style={{ width }}
                       />
                     </div>

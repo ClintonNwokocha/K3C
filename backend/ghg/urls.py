@@ -37,6 +37,15 @@ from .ippu_views import (
     update_ippu_entry,
 )
 
+from .lulucf_views import (
+    lulucf_entries,
+    lulucf_options,
+    lulucf_review_queue,
+    review_lulucf_entry,
+    submit_lulucf_entry,
+    update_lulucf_entry,
+)
+
 urlpatterns = [
     path("dashboard-summary/", ghg_dashboard_summary, name="ghg-dashboard-summary"),
 
@@ -67,4 +76,11 @@ urlpatterns = [
     path("ippu/entries/<int:entry_id>/submit/", submit_ippu_entry, name="submit-ippu-entry"),
     path("ippu/review-queue/", ippu_review_queue, name="ippu-review-queue"),
     path("ippu/entries/<int:entry_id>/review/", review_ippu_entry, name="review-ippu-entry"),
+
+    path("lulucf/options/", lulucf_options, name="lulucf-options"),
+    path("lulucf/entries/", lulucf_entries, name="lulucf-entries"),
+    path("lulucf/entries/<int:entry_id>/", update_lulucf_entry, name="update-lulucf-entry"),
+    path("lulucf/entries/<int:entry_id>/submit/", submit_lulucf_entry, name="submit-lulucf-entry"),
+    path("lulucf/review-queue/", lulucf_review_queue, name="lulucf-review-queue"),
+    path("lulucf/entries/<int:entry_id>/review/", review_lulucf_entry, name="review-lulucf-entry"),
 ]
