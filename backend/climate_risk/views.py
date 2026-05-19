@@ -1,13 +1,38 @@
 from decimal import Decimal
 
 from django.db.models import Avg, Count, Max
+from django.shortcuts import get_object_or_404
 
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+from accounts.models import UserProfile
 from .models import ClimateRiskProfile
-from .serializers import ClimateRiskProfileSerializer
+from .serializers import (
+    ClimateRiskProfileSerializer,
+    ClimateRiskProfileUpdateSerializer,
+)
+
+
+def get_user_profile(user):
+    return getattr(user, "profile", None)
+
+
+def can_manage_climate_risk(user):
+    if user.is_superuser:
+        return True
+
+    profile = get_user_profile(user)
+
+    return bool(
+        profile
+        and profile.role in [
+            UserProfile.Role.ADMIN,
+            UserProfile.Role.ANALYST,
+        ]
+    )
 
 
 @api_view(["GET"])
@@ -85,4 +110,32 @@ def climate_risk_profiles(request):
         },
         "top_lgas": serializer.data[:5],
         "results": serializer.data,
+    })
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_climate_risk_profile(request, profile_id):
+    if not can_manage_climate_risk(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can update climate risk profiles."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    profile = get_object_or_404(
+        ClimateRiskProfile.objects.select_related("lga"),
+        id=profile_id,
+    )
+
+    serializer = ClimateRiskProfileUpdateSerializer(
+        profile,
+        data=request.data,
+        partial=True,
+    )
+    serializer.is_valid(raise_exception=True)
+    updated_profile = serializer.save()
+
+    return Response({
+        "message": "Climate risk profile updated successfully.",
+        "profile": ClimateRiskProfileSerializer(updated_profile).data,
     })

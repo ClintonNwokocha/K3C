@@ -144,7 +144,7 @@ function App() {
     }
 
     if (activePage === "risk") {
-      return <ClimateRiskPage />;
+      return <ClimateRiskPage currentUser={currentUser} />;
     }
 
     const selectedPage = pageDetails[activePage];

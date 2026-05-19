@@ -1,10 +1,12 @@
+import L from "leaflet";
 import { useEffect, useMemo, useState } from "react";
-import { GeoJSON, MapContainer, TileLayer } from "react-leaflet";
+import { GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
 
 function normalizeName(value) {
   return String(value || "")
     .trim()
     .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, "")
     .replace(/\s+/g, " ");
 }
 
@@ -14,9 +16,7 @@ function formatNumber(value, maximumFractionDigits = 2) {
   });
 }
 
-function getMetricValue(profile, metric) {
-  if (!profile) return 0;
-
+function getMetricField(metric) {
   const metricMap = {
     overall: "overall_risk_score",
     flood: "flood_risk_score",
@@ -27,7 +27,7 @@ function getMetricValue(profile, metric) {
     adaptive_capacity: "adaptive_capacity_score",
   };
 
-  return Number(profile[metricMap[metric] || "overall_risk_score"] || 0);
+  return metricMap[metric] || "overall_risk_score";
 }
 
 function getMetricLabel(metric) {
@@ -44,7 +44,14 @@ function getMetricLabel(metric) {
   return labels[metric] || "Overall Risk";
 }
 
-function getColor(value, metric) {
+function getMetricValue(profile, metric) {
+  if (!profile) return 0;
+  return Number(profile[getMetricField(metric)] || 0);
+}
+
+function getColor(value, metric, hasProfile) {
+  if (!hasProfile) return "#94a3b8";
+
   if (metric === "adaptive_capacity") {
     if (value >= 70) return "#16a34a";
     if (value >= 55) return "#84cc16";
@@ -58,16 +65,181 @@ function getColor(value, metric) {
   return "#16a34a";
 }
 
-export default function ClimateRiskMap({ profiles = [], metric = "overall" }) {
-  const [geojson, setGeojson] = useState(null);
+function FitBounds({ geojson }) {
+  const map = useMap();
 
   useEffect(() => {
-    fetch("/data/kaduna_lgas_dev.geojson")
-      .then((response) => response.json())
-      .then((data) => setGeojson(data))
-      .catch((error) => {
-        console.error("Could not load Kaduna LGA GeoJSON", error);
+    if (!geojson) return;
+
+    const layer = L.geoJSON(geojson);
+    const bounds = layer.getBounds();
+
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, {
+        padding: [20, 20],
       });
+    }
+  }, [geojson, map]);
+
+  return null;
+}
+
+function getStringPropertyEntries(feature) {
+  const properties = feature?.properties || {};
+
+  return Object.entries(properties)
+    .filter(([, value]) => value !== null && value !== undefined)
+    .map(([key, value]) => [key, String(value).trim()])
+    .filter(([, value]) => value.length > 0);
+}
+
+function resolveFeatureProfile(feature, profileByName, profiles) {
+  const entries = getStringPropertyEntries(feature);
+
+  const preferredKeys = [
+    "lga_name",
+    "LGA_NAME",
+    "lgaName",
+    "LGA",
+    "lga",
+    "LGANAME",
+    "LGAName",
+    "ADM2_NAME",
+    "ADM2_EN",
+    "NAME_2",
+    "NAME",
+    "name",
+    "shapeName",
+    "shape_name",
+    "admin2Name",
+    "admin2_name",
+    "district",
+    "District",
+  ];
+
+  for (const key of preferredKeys) {
+    const found = entries.find(([entryKey]) => entryKey === key);
+
+    if (found) {
+      const candidate = found[1];
+      const exactProfile = profileByName[normalizeName(candidate)];
+
+      if (exactProfile) {
+        return {
+          displayName: candidate,
+          matchedName: exactProfile.lga_name,
+          profile: exactProfile,
+          matchedBy: key,
+        };
+      }
+    }
+  }
+
+  for (const [key, value] of entries) {
+    const exactProfile = profileByName[normalizeName(value)];
+
+    if (exactProfile) {
+      return {
+        displayName: value,
+        matchedName: exactProfile.lga_name,
+        profile: exactProfile,
+        matchedBy: key,
+      };
+    }
+  }
+
+  for (const [key, value] of entries) {
+    const normalizedValue = normalizeName(value);
+
+    const partialProfile = profiles.find((profile) => {
+      const normalizedProfileName = normalizeName(profile.lga_name);
+
+      if (!normalizedValue || !normalizedProfileName) return false;
+
+      return (
+        normalizedValue.includes(normalizedProfileName) ||
+        normalizedProfileName.includes(normalizedValue)
+      );
+    });
+
+    if (partialProfile) {
+      return {
+        displayName: value,
+        matchedName: partialProfile.lga_name,
+        profile: partialProfile,
+        matchedBy: key,
+      };
+    }
+  }
+
+  const fallbackName =
+    entries.find(([key]) =>
+      ["shapeName", "shape_name", "name", "NAME", "LGA", "ADM2_NAME"].includes(
+        key
+      )
+    )?.[1] ||
+    entries[0]?.[1] ||
+    "Unnamed LGA";
+
+  return {
+    displayName: fallbackName,
+    matchedName: "",
+    profile: null,
+    matchedBy: "",
+  };
+}
+
+export default function ClimateRiskMap({
+  profiles = [],
+  metric = "overall",
+  selectedLgaName = "",
+  onSelectLgaName,
+}) {
+  const [geojson, setGeojson] = useState(null);
+  const [geojsonSource, setGeojsonSource] = useState("");
+  const [geojsonError, setGeojsonError] = useState("");
+
+  useEffect(() => {
+    async function loadGeojson() {
+      setGeojsonError("");
+
+      const sources = [
+        {
+          url: "/data/kaduna_lgas.geojson",
+          label: "Official Kaduna LGA boundary",
+        },
+        {
+          url: "/data/kaduna_lgas_dev.geojson",
+          label: "Development placeholder boundary",
+        },
+      ];
+
+      for (const source of sources) {
+        try {
+          const response = await fetch(source.url);
+
+          if (!response.ok) {
+            throw new Error(`Could not load ${source.url}`);
+          }
+
+          const data = await response.json();
+
+          setGeojson(data);
+          setGeojsonSource(source.label);
+
+          console.log("Loaded GeoJSON source:", source.label);
+          console.log("First GeoJSON feature properties:", data?.features?.[0]?.properties);
+
+          return;
+        } catch (error) {
+          console.warn(error);
+        }
+      }
+
+      setGeojsonError("Could not load any Kaduna LGA GeoJSON boundary file.");
+    }
+
+    loadGeojson();
   }, []);
 
   const profileByName = useMemo(() => {
@@ -80,39 +252,52 @@ export default function ClimateRiskMap({ profiles = [], metric = "overall" }) {
     return lookup;
   }, [profiles]);
 
+  function getResolved(feature) {
+    return resolveFeatureProfile(feature, profileByName, profiles);
+  }
+
   function styleFeature(feature) {
-    const lgaName = feature?.properties?.lga_name;
-    const profile = profileByName[normalizeName(lgaName)];
-    const value = getMetricValue(profile, metric);
+    const resolved = getResolved(feature);
+    const value = getMetricValue(resolved.profile, metric);
+    const isSelected =
+      normalizeName(resolved.matchedName || resolved.displayName) ===
+      normalizeName(selectedLgaName);
 
     return {
-      fillColor: getColor(value, metric),
-      weight: 1.5,
+      fillColor: getColor(value, metric, Boolean(resolved.profile)),
+      weight: isSelected ? 4 : 1.5,
       opacity: 1,
-      color: "#ffffff",
-      fillOpacity: 0.75,
+      color: isSelected ? "#0f172a" : "#ffffff",
+      fillOpacity: isSelected ? 0.92 : 0.75,
     };
   }
 
   function onEachFeature(feature, layer) {
-    const lgaName = feature?.properties?.lga_name;
-    const profile = profileByName[normalizeName(lgaName)];
-    const value = getMetricValue(profile, metric);
+    const resolved = getResolved(feature);
+    const value = getMetricValue(resolved.profile, metric);
 
     layer.bindPopup(`
-      <div style="font-family: system-ui, sans-serif; min-width: 180px;">
-        <strong>${lgaName}</strong><br/>
+      <div style="font-family: system-ui, sans-serif; min-width: 210px;">
+        <strong>${resolved.matchedName || resolved.displayName}</strong><br/>
         <span>${getMetricLabel(metric)}: <strong>${formatNumber(value, 2)}</strong></span><br/>
         ${
-          profile
-            ? `<span>Risk Level: <strong>${profile.risk_level_display}</strong></span><br/>
-               <span>Year: ${profile.year}</span>`
-            : `<span>No risk profile found</span>`
+          resolved.profile
+            ? `<span>Risk Level: <strong>${resolved.profile.risk_level_display}</strong></span><br/>
+               <span>Year: ${resolved.profile.year}</span><br/>
+               <span style="font-size: 11px; color: #64748b;">Matched by: ${resolved.matchedBy}</span>`
+            : `<span>No matching risk profile found</span>`
         }
       </div>
     `);
 
     layer.on({
+      click: () => {
+        const nameToSelect = resolved.matchedName || resolved.displayName;
+
+        if (onSelectLgaName && nameToSelect) {
+          onSelectLgaName(nameToSelect);
+        }
+      },
       mouseover: (event) => {
         event.target.setStyle({
           weight: 3,
@@ -128,26 +313,40 @@ export default function ClimateRiskMap({ profiles = [], metric = "overall" }) {
 
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <MapContainer
-        center={[10.45, 7.75]}
-        zoom={7}
-        scrollWheelZoom={false}
-        style={{ height: "520px", width: "100%" }}
-      >
-        <TileLayer
-          attribution="&copy; OpenStreetMap contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-
-        {geojson && (
-          <GeoJSON
-            key={`${metric}-${profiles.length}`}
-            data={geojson}
-            style={styleFeature}
-            onEachFeature={onEachFeature}
+      <div className="relative">
+        <MapContainer
+          center={[10.45, 7.75]}
+          zoom={7}
+          scrollWheelZoom={false}
+          style={{ height: "520px", width: "100%" }}
+        >
+          <TileLayer
+            attribution="&copy; OpenStreetMap contributors"
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-        )}
-      </MapContainer>
+
+          {geojson && <FitBounds geojson={geojson} />}
+
+          {geojson && (
+            <GeoJSON
+              key={`${metric}-${selectedLgaName}-${profiles.length}-${geojsonSource}`}
+              data={geojson}
+              style={styleFeature}
+              onEachFeature={onEachFeature}
+            />
+          )}
+        </MapContainer>
+
+        <div className="absolute bottom-4 left-4 z-[500] rounded-xl bg-white/95 px-4 py-2 text-xs text-slate-600 shadow">
+          Boundary source: {geojsonSource || "Loading..."}
+        </div>
+      </div>
+
+      {geojsonError && (
+        <div className="border-t border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {geojsonError}
+        </div>
+      )}
     </div>
   );
 }

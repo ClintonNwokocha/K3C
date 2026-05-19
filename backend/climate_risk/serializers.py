@@ -34,3 +34,42 @@ class ClimateRiskProfileSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
+
+
+class ClimateRiskProfileUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClimateRiskProfile
+        fields = [
+            "flood_risk_score",
+            "drought_risk_score",
+            "heat_risk_score",
+            "erosion_risk_score",
+            "vulnerability_score",
+            "adaptive_capacity_score",
+            "notes",
+            "data_source",
+            "is_active",
+        ]
+
+    def validate(self, attrs):
+        score_fields = [
+            "flood_risk_score",
+            "drought_risk_score",
+            "heat_risk_score",
+            "erosion_risk_score",
+            "vulnerability_score",
+            "adaptive_capacity_score",
+        ]
+
+        for field in score_fields:
+            value = attrs.get(field)
+
+            if value is None:
+                continue
+
+            if value < 0 or value > 100:
+                raise serializers.ValidationError({
+                    field: "Score must be between 0 and 100."
+                })
+
+        return attrs
