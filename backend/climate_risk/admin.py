@@ -1,6 +1,11 @@
 from django.contrib import admin
 
-from .models import ClimateRiskParameterRecord, ClimateRiskProfile
+from .models import (
+    ClimateRiskDatasetUpload,
+    ClimateRiskParameterRecord,
+    ClimateRiskProfile,
+)
+
 
 @admin.register(ClimateRiskProfile)
 class ClimateRiskProfileAdmin(admin.ModelAdmin):
@@ -9,9 +14,12 @@ class ClimateRiskProfileAdmin(admin.ModelAdmin):
         "year",
         "overall_risk_score",
         "risk_level",
+        "dominant_hazard",
         "flood_risk_score",
         "drought_risk_score",
         "heat_risk_score",
+        "erosion_risk_score",
+        "exposure_score",
         "vulnerability_score",
         "adaptive_capacity_score",
     )
@@ -20,9 +28,11 @@ class ClimateRiskProfileAdmin(admin.ModelAdmin):
     readonly_fields = (
         "overall_risk_score",
         "risk_level",
+        "dominant_hazard",
         "created_at",
         "updated_at",
     )
+
 
 @admin.register(ClimateRiskParameterRecord)
 class ClimateRiskParameterRecordAdmin(admin.ModelAdmin):
@@ -44,4 +54,34 @@ class ClimateRiskParameterRecordAdmin(admin.ModelAdmin):
         "parameter_label",
         "data_source",
         "notes",
+    )
+
+
+@admin.register(ClimateRiskDatasetUpload)
+class ClimateRiskDatasetUploadAdmin(admin.ModelAdmin):
+    list_display = (
+        "dataset_type",
+        "year",
+        "original_filename",
+        "status",
+        "row_count",
+        "imported_count",
+        "failed_count",
+        "uploaded_by",
+        "created_at",
+    )
+    list_filter = ("dataset_type", "year", "status")
+    search_fields = ("original_filename",)
+    readonly_fields = (
+        "dataset_type",
+        "year",
+        "original_filename",
+        "status",
+        "row_count",
+        "imported_count",
+        "failed_count",
+        "validation_errors",
+        "summary",
+        "uploaded_by",
+        "created_at",
     )

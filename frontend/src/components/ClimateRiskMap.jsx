@@ -2,6 +2,11 @@ import L from "leaflet";
 import { useEffect, useMemo, useState } from "react";
 import { GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
 
+const NIGERIA_BOUNDS = [
+  [3.5, 2.5],   // southwest: latitude, longitude
+  [14.5, 15.5], // northeast: latitude, longitude
+];
+
 function normalizeName(value) {
   return String(value || "")
     .trim()
@@ -23,6 +28,7 @@ function getMetricField(metric) {
     drought: "drought_risk_score",
     heat: "heat_risk_score",
     erosion: "erosion_risk_score",
+    exposure: "exposure_score",
     vulnerability: "vulnerability_score",
     adaptive_capacity: "adaptive_capacity_score",
   };
@@ -30,18 +36,20 @@ function getMetricField(metric) {
   return metricMap[metric] || "overall_risk_score";
 }
 
+
 function getMetricLabel(metric) {
   const labels = {
-    overall: "Overall Risk",
-    flood: "Flood Risk",
-    drought: "Drought Risk",
-    heat: "Heat Risk",
-    erosion: "Erosion Risk",
-    vulnerability: "Vulnerability",
-    adaptive_capacity: "Adaptive Capacity",
+    overall: "Overall Climate Risk Index",
+    flood: "Flood Risk Index",
+    drought: "Drought Risk Index",
+    heat: "Heat Risk Index",
+    erosion: "Erosion Risk Index",
+    exposure: "Exposure Index",
+    vulnerability: "Vulnerability Index",
+    adaptive_capacity: "Adaptive Capacity Index",
   };
 
-  return labels[metric] || "Overall Risk";
+  return labels[metric] || "Overall Climate Risk Index";
 }
 
 function getMetricValue(profile, metric) {
@@ -97,6 +105,7 @@ function resolveFeatureProfile(feature, profileByName, profiles) {
   const entries = getStringPropertyEntries(feature);
 
   const preferredKeys = [
+    "lganame",
     "lga_name",
     "LGA_NAME",
     "lgaName",
@@ -115,7 +124,7 @@ function resolveFeatureProfile(feature, profileByName, profiles) {
     "admin2_name",
     "district",
     "District",
-  ];
+];
 
   for (const key of preferredKeys) {
     const found = entries.find(([entryKey]) => entryKey === key);
@@ -173,13 +182,22 @@ function resolveFeatureProfile(feature, profileByName, profiles) {
   }
 
   const fallbackName =
-    entries.find(([key]) =>
-      ["shapeName", "shape_name", "name", "NAME", "LGA", "ADM2_NAME"].includes(
-        key
-      )
-    )?.[1] ||
-    entries[0]?.[1] ||
-    "Unnamed LGA";
+  entries.find(([key]) =>
+    [
+      "lganame",
+      "lga_name",
+      "LGA_NAME",
+      "LGANAME",
+      "shapeName",
+      "shape_name",
+      "name",
+      "NAME",
+      "LGA",
+      "ADM2_NAME",
+    ].includes(key)
+  )?.[1] ||
+  entries[0]?.[1] ||
+  "Unnamed LGA";
 
   return {
     displayName: fallbackName,
@@ -279,7 +297,7 @@ export default function ClimateRiskMap({
     layer.bindPopup(`
       <div style="font-family: system-ui, sans-serif; min-width: 210px;">
         <strong>${resolved.matchedName || resolved.displayName}</strong><br/>
-        <span>${getMetricLabel(metric)}: <strong>${formatNumber(value, 2)}</strong></span><br/>
+        <span>${getMetricLabel(metric)}: <strong>${formatNumber(value, 2)} / 100</strong></span><br/>
         ${
           resolved.profile
             ? `<span>Risk Level: <strong>${resolved.profile.risk_level_display}</strong></span><br/>
@@ -317,8 +335,12 @@ export default function ClimateRiskMap({
         <MapContainer
           center={[10.45, 7.75]}
           zoom={7}
+          minZoom={6}
+          maxZoom={15}
+          maxBounds={NIGERIA_BOUNDS}
+          maxBoundsViscosity={1.0}
           scrollWheelZoom={false}
-          style={{ height: "520px", width: "100%" }}
+          style={{ height: "360px", width: "100%" }}
         >
           <TileLayer
             attribution="&copy; OpenStreetMap contributors"

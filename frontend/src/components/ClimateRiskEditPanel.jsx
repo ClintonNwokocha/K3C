@@ -109,12 +109,16 @@ export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
   }
 
   const scoreFields = [
-    { key: "flood_risk_score", label: "Flood Risk" },
-    { key: "drought_risk_score", label: "Drought Risk" },
-    { key: "heat_risk_score", label: "Heat Risk" },
-    { key: "erosion_risk_score", label: "Erosion Risk" },
-    { key: "vulnerability_score", label: "Vulnerability" },
-    { key: "adaptive_capacity_score", label: "Adaptive Capacity" },
+    { key: "flood_risk_score", label: "Flood Risk Index (/100)" },
+    { key: "drought_risk_score", label: "Drought Risk Index (/100)" },
+    { key: "heat_risk_score", label: "Heat Risk Index (/100)" },
+    { key: "erosion_risk_score", label: "Erosion Risk Index (/100)" },
+    { key: "exposure_score", label: "Exposure Index (/100)" },
+    { key: "vulnerability_score", label: "Vulnerability Index (/100)" },
+    {
+      key: "adaptive_capacity_score",
+      label: "Adaptive Capacity Index (/100)",
+    },
   ];
 
   return (
@@ -130,8 +134,9 @@ export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
           Edit {profile.lga_name} Risk Scores
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Scores must be between 0 and 100. Overall risk and risk level are
-          recalculated automatically by the backend.
+          These are normalized indexes from 0 to 100. Raw measured values are stored
+          separately as parameter records. Overall risk and risk level are recalculated
+          automatically by the backend.
         </p>
       </div>
 

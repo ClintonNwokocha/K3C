@@ -268,3 +268,19 @@ export async function updateClimateRiskParameterRecord(recordId, payload) {
   const response = await api.patch(`/risk/parameters/${recordId}/`, payload);
   return response.data;
 }
+
+export async function getClimateRiskDatasetUploads() {
+  const response = await api.get("/risk/uploads/");
+  return response.data;
+}
+
+export async function uploadClimateRiskDataset(payload) {
+  const formData = new FormData();
+
+  formData.append("dataset_type", payload.dataset_type);
+  formData.append("year", payload.year);
+  formData.append("file", payload.file);
+
+  const response = await api.post("/risk/uploads/", formData);
+  return response.data;
+}

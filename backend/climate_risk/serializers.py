@@ -1,6 +1,11 @@
 from rest_framework import serializers
 
-from .models import ClimateRiskParameterRecord, ClimateRiskProfile
+from .models import (
+    ClimateRiskDatasetUpload,
+    ClimateRiskParameterRecord,
+    ClimateRiskProfile,
+)
+
 
 class ClimateRiskProfileSerializer(serializers.ModelSerializer):
     lga_name = serializers.CharField(source="lga.lga_name", read_only=True)
@@ -22,11 +27,13 @@ class ClimateRiskProfileSerializer(serializers.ModelSerializer):
             "drought_risk_score",
             "heat_risk_score",
             "erosion_risk_score",
+            "exposure_score",
             "vulnerability_score",
             "adaptive_capacity_score",
             "overall_risk_score",
             "risk_level",
             "risk_level_display",
+            "dominant_hazard",
             "notes",
             "data_source",
             "is_active",
@@ -43,6 +50,7 @@ class ClimateRiskProfileUpdateSerializer(serializers.ModelSerializer):
             "drought_risk_score",
             "heat_risk_score",
             "erosion_risk_score",
+            "exposure_score",
             "vulnerability_score",
             "adaptive_capacity_score",
             "notes",
@@ -56,6 +64,7 @@ class ClimateRiskProfileUpdateSerializer(serializers.ModelSerializer):
             "drought_risk_score",
             "heat_risk_score",
             "erosion_risk_score",
+            "exposure_score",
             "vulnerability_score",
             "adaptive_capacity_score",
         ]
@@ -72,7 +81,8 @@ class ClimateRiskProfileUpdateSerializer(serializers.ModelSerializer):
                 })
 
         return attrs
-    
+
+
 class ClimateRiskParameterRecordSerializer(serializers.ModelSerializer):
     lga_name = serializers.CharField(source="lga.lga_name", read_only=True)
     category_display = serializers.CharField(
@@ -124,6 +134,42 @@ class ClimateRiskParameterRecordCreateUpdateSerializer(serializers.ModelSerializ
             return value
 
         if value < 0 or value > 100:
-            raise serializers.ValidationError("Normalized score must be between 0 and 100.")
+            raise serializers.ValidationError(
+                "Normalized score must be between 0 and 100."
+            )
 
         return value
+
+
+class ClimateRiskDatasetUploadSerializer(serializers.ModelSerializer):
+    dataset_type_display = serializers.CharField(
+        source="get_dataset_type_display",
+        read_only=True,
+    )
+    status_display = serializers.CharField(
+        source="get_status_display",
+        read_only=True,
+    )
+    uploaded_by_username = serializers.CharField(
+        source="uploaded_by.username",
+        read_only=True,
+    )
+
+    class Meta:
+        model = ClimateRiskDatasetUpload
+        fields = [
+            "id",
+            "dataset_type",
+            "dataset_type_display",
+            "year",
+            "original_filename",
+            "status",
+            "status_display",
+            "row_count",
+            "imported_count",
+            "failed_count",
+            "validation_errors",
+            "summary",
+            "uploaded_by_username",
+            "created_at",
+        ]

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import ClimateRiskDatasetUploadPanel from "../components/ClimateRiskDatasetUploadPanel";
 import ClimateRiskEditPanel from "../components/ClimateRiskEditPanel";
 import ClimateRiskMap from "../components/ClimateRiskMap";
-import { getClimateRiskProfiles } from "../services/api";
 import ClimateRiskParameterPanel from "../components/ClimateRiskParameterPanel";
+import { getClimateRiskProfiles } from "../services/api";
 
 function normalizeName(value) {
   return String(value || "")
@@ -56,15 +57,55 @@ function scoreLabel(value) {
   return "Low";
 }
 
-function MetricRow({ label, value, reverse = false }) {
+function IndexExplanationBox() {
+  return (
+    <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
+      <h2 className="font-bold">How to read the climate risk scores</h2>
+      <p className="mt-2">
+        Risk values shown on this page are normalized indexes from{" "}
+        <strong>0 to 100</strong>. A higher hazard, exposure, or vulnerability
+        score means higher concern. Adaptive capacity is different: a higher
+        adaptive capacity score means stronger ability to cope.
+      </p>
+      <p className="mt-2">
+        Raw climate values such as rainfall anomaly, flood-prone area,
+        temperature, exposed population, and infrastructure counts are stored
+        separately as parameter records.
+      </p>
+
+      <div className="mt-4 grid gap-2 text-xs md:grid-cols-4">
+        <div className="rounded-xl bg-emerald-100 px-3 py-2 text-emerald-800">
+          0–39: Low
+        </div>
+        <div className="rounded-xl bg-amber-100 px-3 py-2 text-amber-800">
+          40–59: Moderate
+        </div>
+        <div className="rounded-xl bg-orange-100 px-3 py-2 text-orange-800">
+          60–74: High
+        </div>
+        <div className="rounded-xl bg-red-100 px-3 py-2 text-red-800">
+          75–100: Very High
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetricRow({ label, value, reverse = false, helperText = "" }) {
   const number = Number(value || 0);
   const width = `${Math.min(Math.max(number, 0), 100)}%`;
 
   return (
     <div>
-      <div className="mb-1 flex justify-between text-sm">
-        <span className="text-slate-500">{label}</span>
-        <span className="font-semibold">{formatNumber(number, 2)}</span>
+      <div className="mb-1 flex justify-between gap-3 text-sm">
+        <div>
+          <span className="text-slate-500">{label}</span>
+          {helperText && (
+            <p className="text-xs text-slate-400">{helperText}</p>
+          )}
+        </div>
+
+        <span className="font-semibold">{formatNumber(number, 2)} / 100</span>
       </div>
 
       <div className="h-2 overflow-hidden rounded-full bg-slate-100">
@@ -125,34 +166,60 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
       </div>
 
       <div className="mt-6 rounded-2xl bg-slate-50 p-5">
-        <p className="text-sm text-slate-500">Overall Risk Score</p>
+        <p className="text-sm text-slate-500">
+          Overall Climate Risk Index
+        </p>
         <p className="mt-2 text-4xl font-bold">
           {formatNumber(selectedProfile.overall_risk_score, 2)}
+          <span className="text-lg font-semibold text-slate-400"> / 100</span>
         </p>
         <p className="mt-1 text-sm text-slate-500">
-          {scoreLabel(selectedProfile.overall_risk_score)} risk
+          Class: {scoreLabel(selectedProfile.overall_risk_score)}
         </p>
       </div>
 
       <div className="mt-6 space-y-4">
-        <MetricRow label="Flood Risk" value={selectedProfile.flood_risk_score} />
         <MetricRow
-          label="Drought Risk"
+          label="Flood Risk Index"
+          value={selectedProfile.flood_risk_score}
+          helperText="Higher score means higher flood concern."
+        />
+
+        <MetricRow
+          label="Drought Risk Index"
           value={selectedProfile.drought_risk_score}
+          helperText="Higher score means higher drought concern."
         />
-        <MetricRow label="Heat Risk" value={selectedProfile.heat_risk_score} />
+
         <MetricRow
-          label="Erosion Risk"
+          label="Heat Risk Index"
+          value={selectedProfile.heat_risk_score}
+          helperText="Higher score means higher heat concern."
+        />
+
+        <MetricRow
+          label="Erosion Risk Index"
           value={selectedProfile.erosion_risk_score}
+          helperText="Higher score means higher erosion concern."
         />
+
         <MetricRow
-          label="Vulnerability"
+          label="Exposure Index"
+          value={selectedProfile.exposure_score}
+          helperText="Higher score means more people/assets are exposed."
+        />
+
+        <MetricRow
+          label="Vulnerability Index"
           value={selectedProfile.vulnerability_score}
+          helperText="Higher score means greater social or economic sensitivity."
         />
+
         <MetricRow
-          label="Adaptive Capacity"
+          label="Adaptive Capacity Index"
           value={selectedProfile.adaptive_capacity_score}
           reverse
+          helperText="Higher score is better; it reduces final risk."
         />
       </div>
 
@@ -170,7 +237,7 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
   );
 }
 
-export default function ClimateRiskPage({ currentUser }) { 
+export default function ClimateRiskPage({ currentUser }) {
   const [riskData, setRiskData] = useState(null);
   const [selectedYear, setSelectedYear] = useState("");
   const [riskLevel, setRiskLevel] = useState("all");
@@ -217,9 +284,11 @@ export default function ClimateRiskPage({ currentUser }) {
   const profiles = riskData?.results || [];
   const summary = riskData?.summary;
   const topLgas = riskData?.top_lgas || [];
+
   const canManageRisk =
-  currentUser?.is_superuser ||
-  ["admin", "analyst"].includes(currentUser?.profile?.role);
+    currentUser?.is_superuser ||
+    ["admin", "analyst"].includes(currentUser?.profile?.role);
+
   useEffect(() => {
     if (!profiles.length) {
       setSelectedLgaName("");
@@ -227,7 +296,8 @@ export default function ClimateRiskPage({ currentUser }) {
     }
 
     const selectedExists = profiles.some(
-      (profile) => normalizeName(profile.lga_name) === normalizeName(selectedLgaName)
+      (profile) =>
+        normalizeName(profile.lga_name) === normalizeName(selectedLgaName)
     );
 
     if (!selectedLgaName || !selectedExists) {
@@ -257,7 +327,7 @@ export default function ClimateRiskPage({ currentUser }) {
   }, [profiles, searchText]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <div className="flex items-center gap-3">
@@ -335,8 +405,13 @@ export default function ClimateRiskPage({ currentUser }) {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
+      <ClimateRiskDatasetUploadPanel
+        canManage={canManageRisk}
+        onUploaded={loadRiskProfiles}
+      />
+
+      <section className="grid items-start gap-6 xl:grid-cols-3">
+        <div className="h-fit self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
           <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
               <h2 className="text-lg font-bold">LGA Risk Choropleth Map</h2>
@@ -377,31 +452,33 @@ export default function ClimateRiskPage({ currentUser }) {
           </div>
         </div>
 
-        <div className="space-y-6">
-            <LGADetailPanel
-                selectedLgaName={selectedLgaName}
-                selectedProfile={selectedProfile}
-            />
+        <div className="h-fit self-start space-y-6">
+          <LGADetailPanel
+            selectedLgaName={selectedLgaName}
+            selectedProfile={selectedProfile}
+          />
 
-            <ClimateRiskEditPanel
-                profile={selectedProfile}
-                canManage={canManageRisk}
-                onSaved={loadRiskProfiles}
-            />
+          <ClimateRiskEditPanel
+            profile={selectedProfile}
+            canManage={canManageRisk}
+            onSaved={loadRiskProfiles}
+          />
         </div>
       </section>
 
       <ClimateRiskParameterPanel
-        lgas={riskData?.results?.map((profile) => ({
+        lgas={
+          riskData?.results?.map((profile) => ({
             lga_id: profile.lga,
             lga_name: profile.lga_name,
-        })) || []}
+          })) || []
+        }
         selectedProfile={selectedProfile}
         canManage={canManageRisk}
       />
 
-      <section className="grid gap-6 xl:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
+      <section className="grid items-start gap-6 xl:grid-cols-3">
+        <div className="h-fit self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
           <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
               <h2 className="text-lg font-bold">LGA Risk Table</h2>
@@ -553,7 +630,7 @@ export default function ClimateRiskPage({ currentUser }) {
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="h-fit self-start space-y-6">
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold">Highest-Risk LGAs</h2>
             <p className="text-sm text-slate-500">
