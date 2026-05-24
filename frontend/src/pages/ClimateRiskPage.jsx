@@ -496,6 +496,8 @@ export default function ClimateRiskPage({ currentUser }) {
         onSelectLgaName={setSelectedLgaName}
       />
 
+      <ClimateRiskEvidenceBrief selectedProfile={selectedProfile} />
+
       <section className="grid items-start gap-6 xl:grid-cols-3">
         <div className="h-fit self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
           <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">

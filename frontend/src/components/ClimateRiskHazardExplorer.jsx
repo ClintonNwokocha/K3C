@@ -43,7 +43,7 @@ const hazardOptions = [
     label: "Erosion",
     title: "Erosion Risk Index",
     description:
-      "Shows relative erosion risk based on slope, soil erodibility, rainfall erosivity, land cover condition and erosion evidence.",
+      "Shows relative erosion risk based on slope, soil erodibility, rainfall erosivity, land-cover condition and erosion evidence.",
     field: "erosion_risk_score",
     higherMeaning: "Higher score means higher erosion concern.",
   },
@@ -61,7 +61,7 @@ const hazardOptions = [
     label: "Vulnerability",
     title: "Vulnerability Index",
     description:
-      "Shows social and economic sensitivity, including poverty, livelihood dependency, population density and service access limitations.",
+      "Shows social and economic sensitivity, including poverty, livelihood dependency, population density and service-access limitations.",
     field: "vulnerability_score",
     higherMeaning: "Higher score means greater vulnerability.",
   },
@@ -162,7 +162,6 @@ export default function ClimateRiskHazardExplorer({
       .sort((a, b) => {
         const aScore = Number(a[activeHazard.field] || 0);
         const bScore = Number(b[activeHazard.field] || 0);
-
         return bScore - aScore;
       })
       .slice(0, 10);
@@ -326,6 +325,12 @@ export default function ClimateRiskHazardExplorer({
                   </button>
                 );
               })}
+
+              {rankedProfiles.length === 0 && (
+                <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                  No LGA risk profiles available yet.
+                </p>
+              )}
             </div>
           </div>
         </div>
