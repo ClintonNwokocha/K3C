@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import ClimateRiskDatasetUploadPanel from "../components/ClimateRiskDatasetUploadPanel";
+import ClimateRiskScoringPanel from "../components/ClimateRiskScoringPanel";
 import ClimateRiskEditPanel from "../components/ClimateRiskEditPanel";
 import ClimateRiskMap from "../components/ClimateRiskMap";
 import ClimateRiskParameterPanel from "../components/ClimateRiskParameterPanel";
@@ -363,6 +364,8 @@ export default function ClimateRiskPage({ currentUser }) {
         </div>
       )}
 
+      <IndexExplanationBox />
+
       <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-sm text-slate-500">LGAs Assessed</p>
@@ -425,13 +428,14 @@ export default function ClimateRiskPage({ currentUser }) {
               onChange={(event) => setMapMetric(event.target.value)}
               className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
             >
-              <option value="overall">Overall Risk</option>
-              <option value="flood">Flood Risk</option>
-              <option value="drought">Drought Risk</option>
-              <option value="heat">Heat Risk</option>
-              <option value="erosion">Erosion Risk</option>
-              <option value="vulnerability">Vulnerability</option>
-              <option value="adaptive_capacity">Adaptive Capacity</option>
+              <option value="overall">Overall Climate Risk index</option>
+              <option value="flood">Flood Risk Index</option>
+              <option value="drought">Drought Risk Index</option>
+              <option value="heat">Heat Risk Index</option>
+              <option value="erosion">Erosion Risk Index</option>
+              <option value="exposure">Exposure Index</option>
+              <option value="vulnerability">Vulnerability Index</option>
+              <option value="adaptive_capacity">Adaptive Capacity Index</option>
             </select>
           </div>
 
@@ -475,6 +479,13 @@ export default function ClimateRiskPage({ currentUser }) {
         }
         selectedProfile={selectedProfile}
         canManage={canManageRisk}
+      />
+
+      <ClimateRiskScoringPanel
+        selectedProfile={selectedProfile}
+        selectedYear={selectedYear}
+        canManage={canManageRisk}
+        onRecalculated={loadRiskProfiles}
       />
 
       <section className="grid items-start gap-6 xl:grid-cols-3">
@@ -530,16 +541,14 @@ export default function ClimateRiskPage({ currentUser }) {
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="px-3 py-3 font-medium">LGA</th>
-                    <th className="px-3 py-3 font-medium">Overall</th>
-                    <th className="px-3 py-3 font-medium">Level</th>
-                    <th className="px-3 py-3 font-medium">Flood</th>
-                    <th className="px-3 py-3 font-medium">Drought</th>
-                    <th className="px-3 py-3 font-medium">Heat</th>
-                    <th className="px-3 py-3 font-medium">Erosion</th>
-                    <th className="px-3 py-3 font-medium">Vulnerability</th>
-                    <th className="px-3 py-3 font-medium">
-                      Adaptive Capacity
-                    </th>
+                    <th className="px-3 py-3 font-medium">Overall /100</th>
+                    <th className="px-3 py-3 font-medium">Flood /100</th>
+                    <th className="px-3 py-3 font-medium">Drought /100</th>
+                    <th className="px-3 py-3 font-medium">Heat /100</th>
+                    <th className="px-3 py-3 font-medium">Erosion /100</th>
+                    <th className="px-3 py-3 font-medium">Exposure /100</th>
+                    <th className="px-3 py-3 font-medium">Vulnerability /100</th>
+                    <th className="px-3 py-3 font-medium">Adaptive Capacity /100</th>
                   </tr>
                 </thead>
 
@@ -593,22 +602,25 @@ export default function ClimateRiskPage({ currentUser }) {
                         </td>
 
                         <td className="px-3 py-4">
-                          {formatNumber(profile.flood_risk_score, 2)}
+                          {formatNumber(profile.flood_risk_score, 2)} / 100
                         </td>
                         <td className="px-3 py-4">
-                          {formatNumber(profile.drought_risk_score, 2)}
+                          {formatNumber(profile.drought_risk_score, 2)} / 100
                         </td>
                         <td className="px-3 py-4">
-                          {formatNumber(profile.heat_risk_score, 2)}
+                          {formatNumber(profile.heat_risk_score, 2)} / 100
                         </td>
                         <td className="px-3 py-4">
-                          {formatNumber(profile.erosion_risk_score, 2)}
+                          {formatNumber(profile.erosion_risk_score, 2)} / 100
                         </td>
                         <td className="px-3 py-4">
-                          {formatNumber(profile.vulnerability_score, 2)}
+                          {formatNumber(profile.exposure_score, 2)} / 100
                         </td>
                         <td className="px-3 py-4">
-                          {formatNumber(profile.adaptive_capacity_score, 2)}
+                          {formatNumber(profile.vulnerability_score, 2)} / 100
+                        </td>
+                        <td className="px-3 py-4">
+                          {formatNumber(profile.adaptive_capacity_score, 2)} / 100
                         </td>
                       </tr>
                     );
@@ -617,7 +629,7 @@ export default function ClimateRiskPage({ currentUser }) {
                   {filteredProfiles.length === 0 && (
                     <tr>
                       <td
-                        colSpan="9"
+                        colSpan="10"
                         className="px-3 py-8 text-center text-slate-500"
                       >
                         No risk profiles found.

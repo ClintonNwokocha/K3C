@@ -284,3 +284,8 @@ export async function uploadClimateRiskDataset(payload) {
   const response = await api.post("/risk/uploads/", formData);
   return response.data;
 }
+
+export async function recalculateClimateRiskScores(payload) {
+  const response = await api.post("/risk/recalculate/", payload);
+  return response.data;
+}

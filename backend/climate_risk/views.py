@@ -67,6 +67,17 @@ SCORE_IMPORT_CONFIG = {
 }
 
 
+CATEGORY_TO_PROFILE_FIELD = {
+    "flood": "flood_risk_score",
+    "drought": "drought_risk_score",
+    "heat": "heat_risk_score",
+    "erosion": "erosion_risk_score",
+    "exposure": "exposure_score",
+    "vulnerability": "vulnerability_score",
+    "adaptive_capacity": "adaptive_capacity_score",
+}
+
+
 COMMON_IGNORED_COLUMNS = {
     "lga_id",
     "lga",
@@ -112,6 +123,16 @@ KADUNA_LGA_CODE_TO_NAME = {
     "19022": "Zangon Kataf",
     "19023": "Zaria",
 }
+
+
+def safe_float(value):
+    if value is None:
+        return None
+
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return value
 
 
 def get_user_profile(user):
@@ -194,6 +215,15 @@ def get_row_value(row, possible_keys):
 
 
 def get_lga_from_row(row, row_number, errors):
+    """
+    Match uploaded GIS/CSV records to LGARegistry.
+
+    Supported identifiers:
+    - lga_id / lga / LGA_ID
+    - lga_name / lganame / LGA_NAME / LGANAME
+    - lga_code / lgacode / LGA_CODE / LGACODE
+    """
+
     lga_id = get_row_value(row, ["lga_id", "lga", "LGA_ID"])
 
     if lga_id:
@@ -293,19 +323,63 @@ def serialize_profile_for_audit(profile):
         "lga_id": profile.lga_id,
         "lga_name": profile.lga.lga_name if profile.lga else None,
         "year": profile.year,
-        "flood_risk_score": profile.flood_risk_score,
-        "drought_risk_score": profile.drought_risk_score,
-        "heat_risk_score": profile.heat_risk_score,
-        "erosion_risk_score": profile.erosion_risk_score,
-        "exposure_score": profile.exposure_score,
-        "vulnerability_score": profile.vulnerability_score,
-        "adaptive_capacity_score": profile.adaptive_capacity_score,
-        "overall_risk_score": profile.overall_risk_score,
+        "flood_risk_score": safe_float(profile.flood_risk_score),
+        "drought_risk_score": safe_float(profile.drought_risk_score),
+        "heat_risk_score": safe_float(profile.heat_risk_score),
+        "erosion_risk_score": safe_float(profile.erosion_risk_score),
+        "exposure_score": safe_float(profile.exposure_score),
+        "vulnerability_score": safe_float(profile.vulnerability_score),
+        "adaptive_capacity_score": safe_float(profile.adaptive_capacity_score),
+        "overall_risk_score": safe_float(profile.overall_risk_score),
         "risk_level": profile.risk_level,
         "dominant_hazard": profile.dominant_hazard,
         "notes": profile.notes,
         "data_source": profile.data_source,
         "is_active": profile.is_active,
+    }
+
+
+def recalculate_profile_from_parameters(profile):
+    """
+    Recalculate category indexes from ClimateRiskParameterRecord.normalized_score.
+
+    Raw values are stored as evidence. This function only uses normalized_score.
+    """
+
+    category_scores = (
+        ClimateRiskParameterRecord.objects
+        .filter(
+            lga=profile.lga,
+            year=profile.year,
+            is_active=True,
+            normalized_score__isnull=False,
+        )
+        .values("category")
+        .annotate(score=Avg("normalized_score"))
+    )
+
+    updated_fields = []
+
+    for row in category_scores:
+        category = row["category"]
+        score = row["score"]
+
+        profile_field = CATEGORY_TO_PROFILE_FIELD.get(category)
+
+        if not profile_field:
+            continue
+
+        setattr(profile, profile_field, score)
+        updated_fields.append(profile_field)
+
+    if updated_fields:
+        profile.data_source = "Calculated from parameter normalized scores"
+        profile.save()
+
+    return {
+        "profile": profile,
+        "updated_fields": updated_fields,
+        "category_count": len(updated_fields),
     }
 
 
@@ -339,8 +413,14 @@ def climate_risk_profiles(request):
     )
 
     total_lgas = profiles.count()
-    average_overall = profiles.aggregate(value=Avg("overall_risk_score")).get("value") or Decimal("0")
-    highest_score = profiles.aggregate(value=Max("overall_risk_score")).get("value") or Decimal("0")
+    average_overall = (
+        profiles.aggregate(value=Avg("overall_risk_score")).get("value")
+        or Decimal("0")
+    )
+    highest_score = (
+        profiles.aggregate(value=Max("overall_risk_score")).get("value")
+        or Decimal("0")
+    )
 
     risk_counts_raw = (
         profiles
@@ -887,4 +967,87 @@ def climate_risk_dataset_uploads(request):
     return Response({
         "message": "Dataset upload processed.",
         "upload": ClimateRiskDatasetUploadSerializer(upload_record).data,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def recalculate_climate_risk_scores(request):
+    if not can_manage_climate_risk(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can recalculate climate risk scores."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    year = request.data.get("year")
+    lga_id = request.data.get("lga")
+
+    if not year:
+        return Response(
+            {"detail": "Year is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        year = int(year)
+    except ValueError:
+        return Response(
+            {"detail": "Year must be a valid number."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    profiles = (
+        ClimateRiskProfile.objects
+        .select_related("lga")
+        .filter(year=year, is_active=True)
+    )
+
+    if lga_id:
+        profiles = profiles.filter(lga_id=lga_id)
+
+    updated_profiles = []
+    skipped_profiles = []
+
+    for profile in profiles:
+        old_value = serialize_profile_for_audit(profile)
+
+        result = recalculate_profile_from_parameters(profile)
+
+        if result["updated_fields"]:
+            updated_profile = result["profile"]
+
+            log_audit_action(
+                request=request,
+                action="recalculated_climate_risk_scores",
+                instance=updated_profile,
+                old_value=old_value,
+                new_value=serialize_profile_for_audit(updated_profile),
+            )
+
+            updated_profiles.append({
+                "id": updated_profile.id,
+                "lga_id": updated_profile.lga_id,
+                "lga_name": updated_profile.lga.lga_name,
+                "year": updated_profile.year,
+                "updated_fields": result["updated_fields"],
+                "overall_risk_score": float(updated_profile.overall_risk_score),
+                "risk_level": updated_profile.risk_level,
+                "dominant_hazard": updated_profile.dominant_hazard,
+            })
+        else:
+            skipped_profiles.append({
+                "id": profile.id,
+                "lga_id": profile.lga_id,
+                "lga_name": profile.lga.lga_name,
+                "year": profile.year,
+                "reason": "No active parameter records with normalized_score found.",
+            })
+
+    return Response({
+        "message": "Climate risk scores recalculated.",
+        "year": year,
+        "updated_count": len(updated_profiles),
+        "skipped_count": len(skipped_profiles),
+        "updated_profiles": updated_profiles,
+        "skipped_profiles": skipped_profiles,
     })
