@@ -5,6 +5,8 @@ import ClimateRiskEditPanel from "../components/ClimateRiskEditPanel";
 import ClimateRiskMap from "../components/ClimateRiskMap";
 import ClimateRiskParameterPanel from "../components/ClimateRiskParameterPanel";
 import { getClimateRiskProfiles } from "../services/api";
+import ClimateRiskHazardExplorer from "../components/ClimateRiskHazardExplorer";
+
 
 function normalizeName(value) {
   return String(value || "")
@@ -486,6 +488,12 @@ export default function ClimateRiskPage({ currentUser }) {
         selectedYear={selectedYear}
         canManage={canManageRisk}
         onRecalculated={loadRiskProfiles}
+      />
+
+      <ClimateRiskHazardExplorer
+        profiles={profiles}
+        selectedLgaName={selectedLgaName}
+        onSelectLgaName={setSelectedLgaName}
       />
 
       <section className="grid items-start gap-6 xl:grid-cols-3">
