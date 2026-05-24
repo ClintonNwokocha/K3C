@@ -289,3 +289,8 @@ export async function recalculateClimateRiskScores(payload) {
   const response = await api.post("/risk/recalculate/", payload);
   return response.data;
 }
+
+export async function normalizeClimateRiskParameters(payload) {
+  const response = await api.post("/risk/normalize-parameters/", payload);
+  return response.data;
+}

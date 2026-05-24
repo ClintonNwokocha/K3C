@@ -5,6 +5,7 @@ from .views import (
     climate_risk_parameter_records,
     climate_risk_profiles,
     recalculate_climate_risk_scores,
+    normalize_climate_risk_parameters,
     update_climate_risk_parameter_record,
     update_climate_risk_profile,
 )
@@ -31,6 +32,13 @@ urlpatterns = [
         climate_risk_dataset_uploads,
         name="climate-risk-dataset-uploads",
     ),
+
+    path(
+        "normalize-parameters/",
+        normalize_climate_risk_parameters,
+        name="normalize-climate-risk-parameters",
+    ),
+
     path(
         "recalculate/",
         recalculate_climate_risk_scores,

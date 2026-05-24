@@ -3,7 +3,7 @@ import io
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
-from django.db.models import Avg, Count, Max
+from django.db.models import Avg, Count, Max, Min
 from django.shortcuts import get_object_or_404
 
 from rest_framework import status
@@ -77,6 +77,17 @@ CATEGORY_TO_PROFILE_FIELD = {
     "adaptive_capacity": "adaptive_capacity_score",
 }
 
+LOWER_VALUE_MEANS_HIGHER_RISK = {
+    # Drought indicators
+    "rainfall_anomaly",
+    "ndvi",
+    "mean_ndvi",
+    "vegetation_condition_index",
+
+    # Vulnerability indicators where higher access means lower vulnerability
+    "access_to_services_index",
+    "service_access_index",
+}
 
 COMMON_IGNORED_COLUMNS = {
     "lga_id",
@@ -336,6 +347,147 @@ def serialize_profile_for_audit(profile):
         "notes": profile.notes,
         "data_source": profile.data_source,
         "is_active": profile.is_active,
+    }
+
+def should_invert_normalization(category, parameter_key):
+    """
+    Normal rule:
+    - For most hazard/exposure/vulnerability indicators, higher raw value = higher risk.
+    - For adaptive capacity, higher raw value = stronger capacity.
+    - For selected indicators like rainfall anomaly and NDVI, lower raw value = higher risk.
+    """
+
+    if category == "adaptive_capacity":
+        return False
+
+    return parameter_key in LOWER_VALUE_MEANS_HIGHER_RISK
+
+
+def calculate_min_max_score(raw_value, minimum_value, maximum_value, invert=False):
+    """
+    Convert a raw parameter value to a 0-100 score using min-max normalization.
+
+    If invert=True:
+    - lower raw value gets higher score.
+    """
+
+    raw_value = Decimal(raw_value)
+    minimum_value = Decimal(minimum_value)
+    maximum_value = Decimal(maximum_value)
+
+    if maximum_value == minimum_value:
+        return Decimal("50.00")
+
+    score = ((raw_value - minimum_value) / (maximum_value - minimum_value)) * Decimal("100")
+
+    if invert:
+        score = Decimal("100") - score
+
+    if score < 0:
+        score = Decimal("0")
+
+    if score > 100:
+        score = Decimal("100")
+
+    return round(score, 2)
+
+
+def normalize_parameter_records(year, lga_id=None, request=None):
+    """
+    Generate normalized_score values from raw_value.
+
+    Scope:
+    - If lga_id is provided, update only that LGA.
+    - But min/max is still calculated using all active LGAs for the same year,
+      category, and parameter_key.
+    """
+
+    all_records = (
+        ClimateRiskParameterRecord.objects
+        .filter(
+            year=year,
+            is_active=True,
+            raw_value__isnull=False,
+        )
+    )
+
+    parameter_groups = (
+        all_records
+        .values("category", "parameter_key")
+        .annotate(
+            minimum_raw=Min("raw_value"),
+            maximum_raw=Max("raw_value"),
+            record_count=Count("id"),
+        )
+    )
+
+    updated_records = []
+    skipped_groups = []
+
+    for group in parameter_groups:
+        category = group["category"]
+        parameter_key = group["parameter_key"]
+        minimum_raw = group["minimum_raw"]
+        maximum_raw = group["maximum_raw"]
+
+        records_to_update = all_records.filter(
+            category=category,
+            parameter_key=parameter_key,
+        )
+
+        if lga_id:
+            records_to_update = records_to_update.filter(lga_id=lga_id)
+
+        if not records_to_update.exists():
+            continue
+
+        invert = should_invert_normalization(category, parameter_key)
+
+        if minimum_raw is None or maximum_raw is None:
+            skipped_groups.append({
+                "category": category,
+                "parameter_key": parameter_key,
+                "reason": "Missing minimum or maximum raw value.",
+            })
+            continue
+
+        for record in records_to_update:
+            old_value = ClimateRiskParameterRecordSerializer(record).data
+
+            record.normalized_score = calculate_min_max_score(
+                raw_value=record.raw_value,
+                minimum_value=minimum_raw,
+                maximum_value=maximum_raw,
+                invert=invert,
+            )
+            record.save(update_fields=["normalized_score", "updated_at"])
+
+            if request:
+                log_audit_action(
+                    request=request,
+                    action="normalized_climate_risk_parameter_record",
+                    instance=record,
+                    old_value=old_value,
+                    new_value=ClimateRiskParameterRecordSerializer(record).data,
+                )
+
+            updated_records.append({
+                "id": record.id,
+                "lga_id": record.lga_id,
+                "lga_name": record.lga.lga_name,
+                "year": record.year,
+                "category": record.category,
+                "parameter_key": record.parameter_key,
+                "raw_value": float(record.raw_value),
+                "normalized_score": float(record.normalized_score),
+                "minimum_raw": float(minimum_raw),
+                "maximum_raw": float(maximum_raw),
+                "inverted": invert,
+            })
+
+    return {
+        "updated_records": updated_records,
+        "skipped_groups": skipped_groups,
     }
 
 
@@ -1050,4 +1202,45 @@ def recalculate_climate_risk_scores(request):
         "skipped_count": len(skipped_profiles),
         "updated_profiles": updated_profiles,
         "skipped_profiles": skipped_profiles,
+    })
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def normalize_climate_risk_parameters(request):
+    if not can_manage_climate_risk(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can normalize climate risk parameters."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    year = request.data.get("year")
+    lga_id = request.data.get("lga")
+
+    if not year:
+        return Response(
+            {"detail": "Year is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        year = int(year)
+    except ValueError:
+        return Response(
+            {"detail": "Year must be a valid number."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    result = normalize_parameter_records(
+        year=year,
+        lga_id=lga_id,
+        request=request,
+    )
+
+    return Response({
+        "message": "Climate risk parameter records normalized.",
+        "year": year,
+        "updated_count": len(result["updated_records"]),
+        "skipped_count": len(result["skipped_groups"]),
+        "updated_records": result["updated_records"],
+        "skipped_groups": result["skipped_groups"],
     })
