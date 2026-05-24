@@ -294,3 +294,18 @@ export async function normalizeClimateRiskParameters(payload) {
   const response = await api.post("/risk/normalize-parameters/", payload);
   return response.data;
 }
+
+export async function getClimateInfrastructureAssets(params = {}) {
+  const response = await api.get("/risk/assets/", { params });
+  return response.data;
+}
+
+export async function createClimateInfrastructureAsset(payload) {
+  const response = await api.post("/risk/assets/", payload);
+  return response.data;
+}
+
+export async function updateClimateInfrastructureAsset(assetId, payload) {
+  const response = await api.patch(`/risk/assets/${assetId}/`, payload);
+  return response.data;
+}

@@ -1,6 +1,8 @@
 from django.urls import path
 
 from .views import (
+    climate_infrastructure_assets,
+    update_climate_infrastructure_asset,
     climate_risk_dataset_uploads,
     climate_risk_parameter_records,
     climate_risk_profiles,
@@ -44,4 +46,17 @@ urlpatterns = [
         recalculate_climate_risk_scores,
         name="recalculate-climate-risk-scores",
     ),
+
+    path(
+    "assets/",
+    climate_infrastructure_assets,
+    name="climate-infrastructure-assets",
+    ),
+    path(
+        "assets/<int:asset_id>/",
+        update_climate_infrastructure_asset,
+        name="update-climate-infrastructure-asset",
+    ),
 ]
+
+    

@@ -15,11 +15,14 @@ from accounts.models import UserProfile
 from audit.utils import log_audit_action
 from core.models import LGARegistry
 from .models import (
+    ClimateInfrastructureAsset,
     ClimateRiskDatasetUpload,
     ClimateRiskParameterRecord,
     ClimateRiskProfile,
 )
 from .serializers import (
+    ClimateInfrastructureAssetCreateUpdateSerializer,
+    ClimateInfrastructureAssetSerializer,
     ClimateRiskDatasetUploadSerializer,
     ClimateRiskParameterRecordCreateUpdateSerializer,
     ClimateRiskParameterRecordSerializer,
@@ -1243,4 +1246,105 @@ def normalize_climate_risk_parameters(request):
         "skipped_count": len(result["skipped_groups"]),
         "updated_records": result["updated_records"],
         "skipped_groups": result["skipped_groups"],
+    })
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def climate_infrastructure_assets(request):
+    if request.method == "GET":
+        year = request.query_params.get("year")
+        lga = request.query_params.get("lga")
+        asset_type = request.query_params.get("asset_type")
+        risk_status = request.query_params.get("risk_status")
+
+        assets = (
+            ClimateInfrastructureAsset.objects
+            .select_related("lga")
+            .filter(is_active=True)
+            .order_by("lga__lga_name", "asset_type", "asset_name")
+        )
+
+        if year:
+            assets = assets.filter(year=year)
+
+        if lga:
+            assets = assets.filter(lga_id=lga)
+
+        if asset_type and asset_type != "all":
+            assets = assets.filter(asset_type=asset_type)
+
+        if risk_status and risk_status != "all":
+            assets = assets.filter(risk_status=risk_status)
+
+        serializer = ClimateInfrastructureAssetSerializer(assets, many=True)
+
+        return Response({
+            "status": "ok",
+            "message": "Infrastructure assets loaded.",
+            "count": assets.count(),
+            "results": serializer.data,
+        })
+
+    if not can_manage_climate_risk(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can create infrastructure assets."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    serializer = ClimateInfrastructureAssetCreateUpdateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    asset = serializer.save()
+
+    log_audit_action(
+        request=request,
+        action="created_climate_infrastructure_asset",
+        instance=asset,
+        old_value=None,
+        new_value=ClimateInfrastructureAssetSerializer(asset).data,
+    )
+
+    return Response(
+        {
+            "message": "Infrastructure asset created successfully.",
+            "asset": ClimateInfrastructureAssetSerializer(asset).data,
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
+def update_climate_infrastructure_asset(request, asset_id):
+    if not can_manage_climate_risk(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can update infrastructure assets."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    asset = get_object_or_404(
+        ClimateInfrastructureAsset.objects.select_related("lga"),
+        id=asset_id,
+    )
+
+    old_value = ClimateInfrastructureAssetSerializer(asset).data
+
+    serializer = ClimateInfrastructureAssetCreateUpdateSerializer(
+        asset,
+        data=request.data,
+        partial=True,
+    )
+    serializer.is_valid(raise_exception=True)
+    updated_asset = serializer.save()
+
+    log_audit_action(
+        request=request,
+        action="updated_climate_infrastructure_asset",
+        instance=updated_asset,
+        old_value=old_value,
+        new_value=ClimateInfrastructureAssetSerializer(updated_asset).data,
+    )
+
+    return Response({
+        "message": "Infrastructure asset updated successfully.",
+        "asset": ClimateInfrastructureAssetSerializer(updated_asset).data,
     })

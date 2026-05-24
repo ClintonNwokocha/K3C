@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from .models import (
+    ClimateInfrastructureAsset,
     ClimateRiskDatasetUpload,
     ClimateRiskParameterRecord,
     ClimateRiskProfile,
@@ -84,4 +85,26 @@ class ClimateRiskDatasetUploadAdmin(admin.ModelAdmin):
         "summary",
         "uploaded_by",
         "created_at",
+    )
+
+@admin.register(ClimateInfrastructureAsset)
+class ClimateInfrastructureAssetAdmin(admin.ModelAdmin):
+    list_display = (
+        "asset_name",
+        "asset_type",
+        "lga",
+        "year",
+        "latitude",
+        "longitude",
+        "exposure_score",
+        "risk_status",
+        "data_source",
+        "is_active",
+    )
+    list_filter = ("year", "asset_type", "risk_status", "is_active")
+    search_fields = (
+        "asset_name",
+        "lga__lga_name",
+        "data_source",
+        "notes",
     )

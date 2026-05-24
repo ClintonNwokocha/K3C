@@ -239,3 +239,72 @@ class ClimateRiskDatasetUpload(models.Model):
 
     def __str__(self):
         return f"{self.get_dataset_type_display()} - {self.year} - {self.status}"
+    
+
+class ClimateInfrastructureAsset(models.Model):
+    class AssetType(models.TextChoices):
+        SCHOOL = "school", "School"
+        HOSPITAL = "hospital", "Hospital"
+        MARKET = "market", "Market"
+        ROAD_BRIDGE = "road_bridge", "Road / Bridge"
+        WATER_FACILITY = "water_facility", "Water Facility"
+        SETTLEMENT = "settlement", "Settlement"
+        GOVERNMENT_FACILITY = "government_facility", "Government Facility"
+        OTHER = "other", "Other"
+
+    class RiskStatus(models.TextChoices):
+        LOW = "low", "Low"
+        MODERATE = "moderate", "Moderate"
+        HIGH = "high", "High"
+        VERY_HIGH = "very_high", "Very High"
+
+    lga = models.ForeignKey(
+        LGARegistry,
+        on_delete=models.CASCADE,
+        related_name="climate_infrastructure_assets",
+    )
+
+    year = models.PositiveIntegerField(default=2025)
+
+    asset_type = models.CharField(
+        max_length=50,
+        choices=AssetType.choices,
+        default=AssetType.OTHER,
+    )
+
+    asset_name = models.CharField(max_length=255)
+
+    latitude = models.DecimalField(max_digits=10, decimal_places=7)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7)
+
+    exposure_score = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        help_text="Normalized exposure score from 0 to 100.",
+    )
+
+    risk_status = models.CharField(
+        max_length=50,
+        choices=RiskStatus.choices,
+        default=RiskStatus.MODERATE,
+    )
+
+    data_source = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+
+    is_active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["lga__lga_name", "asset_type", "asset_name"]
+        indexes = [
+            models.Index(fields=["lga", "year"]),
+            models.Index(fields=["asset_type"]),
+            models.Index(fields=["risk_status"]),
+        ]
+
+    def __str__(self):
+        return f"{self.asset_name} - {self.lga.lga_name}"

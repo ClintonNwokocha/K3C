@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from .models import (
+    ClimateInfrastructureAsset,
     ClimateRiskDatasetUpload,
     ClimateRiskParameterRecord,
     ClimateRiskProfile,
@@ -173,3 +174,62 @@ class ClimateRiskDatasetUploadSerializer(serializers.ModelSerializer):
             "uploaded_by_username",
             "created_at",
         ]
+
+class ClimateInfrastructureAssetSerializer(serializers.ModelSerializer):
+    lga_name = serializers.CharField(source="lga.lga_name", read_only=True)
+    asset_type_display = serializers.CharField(
+        source="get_asset_type_display",
+        read_only=True,
+    )
+    risk_status_display = serializers.CharField(
+        source="get_risk_status_display",
+        read_only=True,
+    )
+
+    class Meta:
+        model = ClimateInfrastructureAsset
+        fields = [
+            "id",
+            "lga",
+            "lga_name",
+            "year",
+            "asset_type",
+            "asset_type_display",
+            "asset_name",
+            "latitude",
+            "longitude",
+            "exposure_score",
+            "risk_status",
+            "risk_status_display",
+            "data_source",
+            "notes",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+
+
+class ClimateInfrastructureAssetCreateUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClimateInfrastructureAsset
+        fields = [
+            "lga",
+            "year",
+            "asset_type",
+            "asset_name",
+            "latitude",
+            "longitude",
+            "exposure_score",
+            "risk_status",
+            "data_source",
+            "notes",
+            "is_active",
+        ]
+
+    def validate_exposure_score(self, value):
+        if value < 0 or value > 100:
+            raise serializers.ValidationError(
+                "Exposure score must be between 0 and 100."
+            )
+
+        return value

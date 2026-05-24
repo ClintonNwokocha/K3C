@@ -6,7 +6,8 @@ import ClimateRiskMap from "../components/ClimateRiskMap";
 import ClimateRiskParameterPanel from "../components/ClimateRiskParameterPanel";
 import { getClimateRiskProfiles } from "../services/api";
 import ClimateRiskHazardExplorer from "../components/ClimateRiskHazardExplorer";
-
+import ClimateRiskEvidenceBrief from "../components/ClimateRiskEvidenceBrief";
+import ClimateInfrastructureAtRiskLayer from "../components/ClimateInfrastructureAtRiskLayer";
 
 function normalizeName(value) {
   return String(value || "")
@@ -498,6 +499,12 @@ export default function ClimateRiskPage({ currentUser }) {
 
       <ClimateRiskEvidenceBrief selectedProfile={selectedProfile} />
 
+      <ClimateInfrastructureAtRiskLayer
+        selectedProfile={selectedProfile}
+        canManage={canManageRisk}
+      />
+      
+
       <section className="grid items-start gap-6 xl:grid-cols-3">
         <div className="h-fit self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
           <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
@@ -552,6 +559,7 @@ export default function ClimateRiskPage({ currentUser }) {
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="px-3 py-3 font-medium">LGA</th>
                     <th className="px-3 py-3 font-medium">Overall /100</th>
+                    <th className="px-3 py-3 font-medium">Level</th>
                     <th className="px-3 py-3 font-medium">Flood /100</th>
                     <th className="px-3 py-3 font-medium">Drought /100</th>
                     <th className="px-3 py-3 font-medium">Heat /100</th>
