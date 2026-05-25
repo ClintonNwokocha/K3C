@@ -362,3 +362,8 @@ export async function getPublicPortalSummary() {
   const response = await api.get("/public/summary/");
   return response.data;
 }
+
+export async function getPublicClimateRiskProfiles(params = {}) {
+  const response = await api.get("/public/climate-risk/", { params });
+  return response.data;
+}

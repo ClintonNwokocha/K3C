@@ -232,6 +232,64 @@ def public_portal_summary(request):
 
 @api_view(["GET"])
 @permission_classes([AllowAny])
+def public_climate_risk_profiles(request):
+    year = request.query_params.get("year")
+
+    latest_year = ClimateRiskProfile.objects.aggregate(
+        value=Max("year")
+    ).get("value")
+
+    profiles = ClimateRiskProfile.objects.select_related("lga").all()
+
+    if year:
+        profiles = profiles.filter(year=year)
+    elif latest_year:
+        profiles = profiles.filter(year=latest_year)
+
+    profiles = profiles.order_by("lga__lga_name")
+
+    results = []
+
+    for profile in profiles:
+        results.append({
+            "id": profile.id,
+            "lga": profile.lga_id,
+            "lga_name": get_lga_name(profile),
+            "year": profile.year,
+            "overall_risk_score": decimal_to_float(profile.overall_risk_score),
+            "risk_level": profile.risk_level,
+            "risk_level_display": profile.get_risk_level_display(),
+            "flood_risk_score": decimal_to_float(profile.flood_risk_score),
+            "drought_risk_score": decimal_to_float(profile.drought_risk_score),
+            "heat_risk_score": decimal_to_float(profile.heat_risk_score),
+            "erosion_risk_score": decimal_to_float(profile.erosion_risk_score),
+            "exposure_score": decimal_to_float(profile.exposure_score),
+            "vulnerability_score": decimal_to_float(profile.vulnerability_score),
+            "adaptive_capacity_score": decimal_to_float(
+                profile.adaptive_capacity_score
+            ),
+        })
+
+    risk_counts = {
+        "low": profiles.filter(risk_level="low").count(),
+        "moderate": profiles.filter(risk_level="moderate").count(),
+        "high": profiles.filter(risk_level="high").count(),
+        "very_high": profiles.filter(risk_level="very_high").count(),
+    }
+
+    return Response({
+        "status": "ok",
+        "message": "Public climate risk profiles loaded.",
+        "summary": {
+            "year": int(year) if year else latest_year,
+            "total_lgas": profiles.count(),
+            "risk_counts": risk_counts,
+        },
+        "results": results,
+    })
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
 def public_report_documents(request):
     report_type = request.query_params.get("report_type")
     reporting_year = request.query_params.get("reporting_year")
