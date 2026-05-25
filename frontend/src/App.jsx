@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import GHGInventoryPage from "./pages/GHGInventoryPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import ClimateRiskPage from "./pages/ClimateRiskPage";
+import ProjectPortfolioPage from "./pages/ProjectPortfolioPage";
 import {
   getCurrentUser,
   getFoundationData,
@@ -145,6 +146,10 @@ function App() {
 
     if (activePage === "risk") {
       return <ClimateRiskPage currentUser={currentUser} />;
+    }
+
+    if (activePage === "projects") {
+      return <ProjectPortfolioPage currentUser={currentUser} />;
     }
 
     const selectedPage = pageDetails[activePage];

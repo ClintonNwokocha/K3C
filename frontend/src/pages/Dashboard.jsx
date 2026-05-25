@@ -1,4 +1,6 @@
 import ExecutiveClimateRiskSummary from "../components/ExecutiveClimateRiskSummary";
+import ExecutiveProjectPortfolioSummary from "../components/ExecutiveProjectPortfolioSummary";
+
 
 function formatNumber(value, maximumFractionDigits = 2) {
   const number = Number(value || 0);
@@ -87,6 +89,7 @@ export default function Dashboard({ health, foundation, ghgSummary }) {
       </section>
 
       <ExecutiveClimateRiskSummary />
+      <ExecutiveProjectPortfolioSummary />
 
       <section className="grid gap-6 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">

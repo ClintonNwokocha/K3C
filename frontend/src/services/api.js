@@ -309,3 +309,18 @@ export async function updateClimateInfrastructureAsset(assetId, payload) {
   const response = await api.patch(`/risk/assets/${assetId}/`, payload);
   return response.data;
 }
+
+export async function getClimateProjects(params = {}) {
+  const response = await api.get("/portfolio/projects/", { params });
+  return response.data;
+}
+
+export async function createClimateProject(payload) {
+  const response = await api.post("/portfolio/projects/", payload);
+  return response.data;
+}
+
+export async function updateClimateProject(projectId, payload) {
+  const response = await api.patch(`/portfolio/projects/${projectId}/`, payload);
+  return response.data;
+}

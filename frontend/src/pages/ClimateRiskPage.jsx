@@ -11,7 +11,7 @@ import ClimateInfrastructureAtRiskLayer from "../components/ClimateInfrastructur
 import ClimateInfrastructureAssetImportPanel from "../components/ClimateInfrastructureAssetImportPanel";
 import ClimateRiskDataQualityPanel from "../components/ClimateRiskDataQualityPanel";
 import ClimateRiskScoringTransparencyPanel from "../components/ClimateRiskScoringTransparencyPanel";
-
+import ClimateRiskLinkedProjectsPanel from "../components/ClimateRiskLinkedProjectsPanel";
 
 function normalizeName(value) {
   return String(value || "")
@@ -110,6 +110,7 @@ const climateRiskTabs = [
   { key: "infrastructure", label: "Infrastructure" },
   { key: "quality", label: "Data Quality" },
   { key: "transparency", label: "Scoring Transparency" },
+  { key: "projects", label: "Linked Projects" },
   { key: "table", label: "Risk Table" },
 ];
 
@@ -906,6 +907,13 @@ export default function ClimateRiskPage({ currentUser }) {
 
       {activeTab === "transparency" && (
         <ClimateRiskScoringTransparencyPanel selectedProfile={selectedProfile} />
+      )}
+
+      {activeTab === "projects" && (
+        <ClimateRiskLinkedProjectsPanel
+          selectedProfile={selectedProfile}
+          canManage={canManageRisk}
+        />
       )}
 
       {activeTab === "table" && (
