@@ -191,6 +191,7 @@ class ClimateRiskDatasetUpload(models.Model):
             "Adaptive Capacity Scores CSV",
         )
         PARAMETER_RECORDS = "parameter_records", "Generic Parameter Records CSV"
+        INFRASTRUCTURE_ASSETS = "infrastructure_assets", "Infrastructure Assets CSV"
 
     class Status(models.TextChoices):
         PROCESSING = "processing", "Processing"

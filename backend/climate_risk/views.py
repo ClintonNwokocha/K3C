@@ -996,6 +996,285 @@ def import_parameter_records_csv(upload_record, rows, fieldnames, request):
 
     return imported_count, len(rows) - imported_count, errors
 
+def normalize_asset_type(value):
+    text = (
+        str(value or "")
+        .strip()
+        .lower()
+        .replace(" ", "_")
+        .replace("-", "_")
+        .replace("/", "_")
+    )
+
+    aliases = {
+        "school": "school",
+        "schools": "school",
+        "hospital": "hospital",
+        "hospitals": "hospital",
+        "health_facility": "hospital",
+        "clinic": "hospital",
+        "market": "market",
+        "markets": "market",
+        "road": "road_bridge",
+        "bridge": "road_bridge",
+        "road_bridge": "road_bridge",
+        "road___bridge": "road_bridge",
+        "water": "water_facility",
+        "water_facility": "water_facility",
+        "settlement": "settlement",
+        "settlements": "settlement",
+        "government": "government_facility",
+        "government_facility": "government_facility",
+        "govt_facility": "government_facility",
+        "other": "other",
+    }
+
+    return aliases.get(text, text)
+
+
+def derive_risk_status_from_score(score):
+    if score >= 75:
+        return ClimateInfrastructureAsset.RiskStatus.VERY_HIGH
+
+    if score >= 60:
+        return ClimateInfrastructureAsset.RiskStatus.HIGH
+
+    if score >= 40:
+        return ClimateInfrastructureAsset.RiskStatus.MODERATE
+
+    return ClimateInfrastructureAsset.RiskStatus.LOW
+
+
+def import_infrastructure_assets_csv(upload_record, rows, fieldnames, request):
+    required_columns = {
+        "asset_type",
+        "asset_name",
+        "latitude",
+        "longitude",
+    }
+
+    identifier_columns = {
+        "lga_id",
+        "lga",
+        "LGA_ID",
+        "lga_name",
+        "lganame",
+        "LGA_NAME",
+        "LGANAME",
+        "lga_code",
+        "lgacode",
+        "LGA_CODE",
+        "LGACODE",
+    }
+
+    errors = []
+    imported_count = 0
+
+    missing_columns = required_columns - set(fieldnames)
+
+    if missing_columns:
+        errors.append({
+            "row": 0,
+            "field": "columns",
+            "error": f"Missing required columns: {', '.join(sorted(missing_columns))}.",
+        })
+        return 0, len(rows), errors
+
+    if not identifier_columns.intersection(set(fieldnames)):
+        errors.append({
+            "row": 0,
+            "field": "lga_identifier",
+            "error": "CSV must include one LGA identifier column: lga_id, lga_name, lganame, lga_code, or lgacode.",
+        })
+        return 0, len(rows), errors
+
+    valid_asset_types = {
+        choice[0] for choice in ClimateInfrastructureAsset.AssetType.choices
+    }
+
+    valid_risk_statuses = {
+        choice[0] for choice in ClimateInfrastructureAsset.RiskStatus.choices
+    }
+
+    for index, row in enumerate(rows, start=2):
+        lga = get_lga_from_row(row, index, errors)
+
+        if not lga:
+            continue
+
+        row_year = row.get("year") or upload_record.year
+
+        try:
+            row_year = int(row_year)
+        except ValueError:
+            errors.append({
+                "row": index,
+                "field": "year",
+                "error": f"Invalid year: {row_year}.",
+            })
+            continue
+
+        asset_type = normalize_asset_type(row.get("asset_type"))
+
+        if asset_type not in valid_asset_types:
+            errors.append({
+                "row": index,
+                "field": "asset_type",
+                "error": f"Invalid asset_type: {row.get('asset_type')}.",
+            })
+            continue
+
+        asset_name = str(row.get("asset_name") or "").strip()
+
+        if not asset_name:
+            errors.append({
+                "row": index,
+                "field": "asset_name",
+                "error": "Asset name is required.",
+            })
+            continue
+
+        latitude = decimal_from_value(row.get("latitude"))
+        longitude = decimal_from_value(row.get("longitude"))
+
+        if latitude is None:
+            errors.append({
+                "row": index,
+                "field": "latitude",
+                "error": "Latitude must be numeric.",
+            })
+            continue
+
+        if longitude is None:
+            errors.append({
+                "row": index,
+                "field": "longitude",
+                "error": "Longitude must be numeric.",
+            })
+            continue
+
+        if latitude < -90 or latitude > 90:
+            errors.append({
+                "row": index,
+                "field": "latitude",
+                "error": "Latitude must be between -90 and 90.",
+            })
+            continue
+
+        if longitude < -180 or longitude > 180:
+            errors.append({
+                "row": index,
+                "field": "longitude",
+                "error": "Longitude must be between -180 and 180.",
+            })
+            continue
+
+        exposure_score = decimal_from_value(row.get("exposure_score"))
+
+        if exposure_score is None:
+            exposure_score = Decimal("0")
+
+        if exposure_score < 0 or exposure_score > 100:
+            errors.append({
+                "row": index,
+                "field": "exposure_score",
+                "error": "Exposure score must be between 0 and 100.",
+            })
+            continue
+
+        risk_status = str(row.get("risk_status") or "").strip().lower()
+
+        if not risk_status:
+            risk_status = derive_risk_status_from_score(exposure_score)
+
+        if risk_status not in valid_risk_statuses:
+            errors.append({
+                "row": index,
+                "field": "risk_status",
+                "error": f"Invalid risk_status: {risk_status}.",
+            })
+            continue
+
+        existing_asset = (
+            ClimateInfrastructureAsset.objects
+            .filter(
+                lga=lga,
+                year=row_year,
+                asset_type=asset_type,
+                asset_name=asset_name,
+                latitude=latitude,
+                longitude=longitude,
+            )
+            .first()
+        )
+
+        if existing_asset:
+            asset = existing_asset
+            old_value = {
+                "id": asset.id,
+                "asset_name": asset.asset_name,
+                "asset_type": asset.asset_type,
+                "lga_id": asset.lga_id,
+                "year": asset.year,
+                "latitude": str(asset.latitude),
+                "longitude": str(asset.longitude),
+                "exposure_score": str(asset.exposure_score),
+                "risk_status": asset.risk_status,
+                "data_source": asset.data_source,
+                "notes": asset.notes,
+            }
+
+            asset.exposure_score = exposure_score
+            asset.risk_status = risk_status
+            asset.data_source = row.get("data_source") or upload_record.original_filename
+            asset.notes = row.get("notes", "")
+            asset.is_active = True
+            asset.save()
+
+            action = "updated_climate_infrastructure_asset_import"
+        else:
+            asset = ClimateInfrastructureAsset.objects.create(
+                lga=lga,
+                year=row_year,
+                asset_type=asset_type,
+                asset_name=asset_name,
+                latitude=latitude,
+                longitude=longitude,
+                exposure_score=exposure_score,
+                risk_status=risk_status,
+                data_source=row.get("data_source") or upload_record.original_filename,
+                notes=row.get("notes", ""),
+                is_active=True,
+            )
+
+            old_value = None
+            action = "created_climate_infrastructure_asset_import"
+
+        log_audit_action(
+            request=request,
+            action=action,
+            instance=asset,
+            old_value=old_value,
+            new_value={
+                "id": asset.id,
+                "asset_name": asset.asset_name,
+                "asset_type": asset.asset_type,
+                "lga_id": asset.lga_id,
+                "lga_name": asset.lga.lga_name,
+                "year": asset.year,
+                "latitude": str(asset.latitude),
+                "longitude": str(asset.longitude),
+                "exposure_score": str(asset.exposure_score),
+                "risk_status": asset.risk_status,
+                "data_source": asset.data_source,
+                "notes": asset.notes,
+            },
+        )
+
+        imported_count += 1
+
+    return imported_count, len(rows) - imported_count, errors
+
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
@@ -1070,6 +1349,13 @@ def climate_risk_dataset_uploads(request):
                 )
             elif dataset_type == ClimateRiskDatasetUpload.DatasetType.PARAMETER_RECORDS:
                 imported_count, failed_count, errors = import_parameter_records_csv(
+                    upload_record=upload_record,
+                    rows=rows,
+                    fieldnames=fieldnames,
+                    request=request,
+                )
+            elif dataset_type == ClimateRiskDatasetUpload.DatasetType.INFRASTRUCTURE_ASSETS:
+                imported_count, failed_count, errors = import_infrastructure_assets_csv(
                     upload_record=upload_record,
                     rows=rows,
                     fieldnames=fieldnames,

@@ -8,6 +8,8 @@ import { getClimateRiskProfiles } from "../services/api";
 import ClimateRiskHazardExplorer from "../components/ClimateRiskHazardExplorer";
 import ClimateRiskEvidenceBrief from "../components/ClimateRiskEvidenceBrief";
 import ClimateInfrastructureAtRiskLayer from "../components/ClimateInfrastructureAtRiskLayer";
+import ClimateInfrastructureAssetImportPanel from "../components/ClimateInfrastructureAssetImportPanel";
+
 
 function normalizeName(value) {
   return String(value || "")
@@ -246,6 +248,7 @@ export default function ClimateRiskPage({ currentUser }) {
   const [selectedYear, setSelectedYear] = useState("");
   const [riskLevel, setRiskLevel] = useState("all");
   const [searchText, setSearchText] = useState("");
+  const [infrastructureRefreshKey, setInfrastructureRefreshKey] = useState(0);
   const [mapMetric, setMapMetric] = useState("overall");
   const [selectedLgaName, setSelectedLgaName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -499,7 +502,16 @@ export default function ClimateRiskPage({ currentUser }) {
 
       <ClimateRiskEvidenceBrief selectedProfile={selectedProfile} />
 
+      <ClimateInfrastructureAssetImportPanel
+        selectedProfile={selectedProfile}
+        canManage={canManageRisk}
+        onImported={() =>
+          setInfrastructureRefreshKey((currentValue) => currentValue + 1)
+        }
+      />
+
       <ClimateInfrastructureAtRiskLayer
+        key={`infrastructure-${selectedProfile?.id || "none"}-${infrastructureRefreshKey}`}
         selectedProfile={selectedProfile}
         canManage={canManageRisk}
       />
