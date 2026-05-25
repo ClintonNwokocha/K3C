@@ -1,3 +1,4 @@
+import ProjectPortfolioExportPanel from "../components/ProjectPortfolioExportPanel";
 import ProjectPortfolioStatusBoard from "../components/ProjectPortfolioStatusBoard";
 import ProjectPortfolioMapView from "../components/ProjectPortfolioMapView";
 import ProjectPortfolioImportPanel from "../components/ProjectPortfolioImportPanel";
@@ -432,6 +433,12 @@ export default function ProjectPortfolioPage({ currentUser }) {
         onImported={loadProjects}
       />
 
+      <ProjectPortfolioExportPanel
+        projects={projects}
+        filteredProjects={filteredProjects}
+        summary={summary}
+      />
+
       <ProjectPortfolioMapView projects={projects} />
 
       <ProjectPortfolioStatusBoard
@@ -857,6 +864,32 @@ export default function ProjectPortfolioPage({ currentUser }) {
                   {item.label}
                 </option>
               ))}
+            </select>
+
+            <select
+                value={filters.priority}
+                onChange={(event) => updateFilter("priority", event.target.value)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                >
+                <option value="all">All priorities</option>
+                {priorityOptions.map((item) => (
+                    <option key={item.value} value={item.value}>
+                    {item.label}
+                    </option>
+                ))}
+            </select>
+
+            <select
+                value={filters.lga}
+                onChange={(event) => updateFilter("lga", event.target.value)}
+                className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                >
+                <option value="">All LGAs</option>
+                {lgaOptions.map((item) => (
+                    <option key={item.lga_id} value={item.lga_id}>
+                    {item.lga_name}
+                    </option>
+                ))}
             </select>
 
             <input
