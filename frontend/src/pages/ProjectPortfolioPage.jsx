@@ -3,6 +3,7 @@ import {
   createClimateProject,
   getClimateProjects,
   getClimateRiskProfiles,
+  updateClimateProject,
 } from "../services/api";
 
 const projectTypeOptions = [
@@ -91,10 +92,43 @@ function getOptionLabel(options, value) {
   return options.find((item) => item.value === value)?.label || value || "—";
 }
 
+function normalizeDateForInput(value) {
+  if (!value) return "";
+  return String(value).slice(0, 10);
+}
+
+function buildFormFromProject(project) {
+  return {
+    title: project.title || "",
+    project_code: project.project_code || "",
+    project_type: project.project_type || "adaptation",
+    sector: project.sector || "other",
+    status: project.status || "proposed",
+    priority: project.priority || "medium",
+    lga: project.lga ? String(project.lga) : "",
+    description: project.description || "",
+    implementing_agency: project.implementing_agency || "",
+    funding_source: project.funding_source || "",
+    estimated_budget_naira: String(project.estimated_budget_naira || "0"),
+    expected_ghg_reduction_tco2e: String(
+      project.expected_ghg_reduction_tco2e || "0"
+    ),
+    expected_beneficiaries: String(project.expected_beneficiaries || "0"),
+    start_date: normalizeDateForInput(project.start_date),
+    end_date: normalizeDateForInput(project.end_date),
+    climate_risk_relevance: project.climate_risk_relevance || "",
+    location_notes: project.location_notes || "",
+    is_active: project.is_active !== false,
+  };
+}
+
 export default function ProjectPortfolioPage({ currentUser }) {
   const [projectsData, setProjectsData] = useState(null);
   const [lgaOptions, setLgaOptions] = useState([]);
   const [form, setForm] = useState(initialForm);
+  const [editingProject, setEditingProject] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
+
   const [filters, setFilters] = useState({
     project_type: "all",
     sector: "all",
@@ -103,6 +137,7 @@ export default function ProjectPortfolioPage({ currentUser }) {
     lga: "",
     search: "",
   });
+
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -128,6 +163,14 @@ export default function ProjectPortfolioPage({ currentUser }) {
 
       const data = await getClimateProjects(params);
       setProjectsData(data);
+
+      if (selectedProject) {
+        const refreshedProject = (data.results || []).find(
+          (project) => project.id === selectedProject.id
+        );
+
+        setSelectedProject(refreshedProject || null);
+      }
     } catch (err) {
       console.error(err);
       setError("Could not load project portfolio.");
@@ -183,7 +226,10 @@ export default function ProjectPortfolioPage({ currentUser }) {
       return (
         String(project.title || "").toLowerCase().includes(search) ||
         String(project.project_code || "").toLowerCase().includes(search) ||
-        String(project.implementing_agency || "").toLowerCase().includes(search)
+        String(project.implementing_agency || "")
+          .toLowerCase()
+          .includes(search) ||
+        String(project.lga_name || "").toLowerCase().includes(search)
       );
     });
   }, [projects, filters.search]);
@@ -200,6 +246,30 @@ export default function ProjectPortfolioPage({ currentUser }) {
       ...current,
       [field]: value,
     }));
+  }
+
+  function resetForm() {
+    setForm(initialForm);
+    setEditingProject(null);
+    setShowForm(false);
+  }
+
+  function handleEditProject(project) {
+    setEditingProject(project);
+    setSelectedProject(project);
+    setForm(buildFormFromProject(project));
+    setShowForm(true);
+    setMessage("");
+    setError("");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  }
+
+  function handleViewProject(project) {
+    setSelectedProject(project);
   }
 
   async function handleSubmit(event) {
@@ -225,10 +295,20 @@ export default function ProjectPortfolioPage({ currentUser }) {
     };
 
     try {
-      await createClimateProject(payload);
+      if (editingProject) {
+        const result = await updateClimateProject(editingProject.id, payload);
 
-      setMessage("Climate project created successfully.");
+        setMessage("Climate project updated successfully.");
+        setSelectedProject(result.project);
+      } else {
+        const result = await createClimateProject(payload);
+
+        setMessage("Climate project created successfully.");
+        setSelectedProject(result.project);
+      }
+
       setForm(initialForm);
+      setEditingProject(null);
       setShowForm(false);
       await loadProjects();
     } catch (err) {
@@ -236,7 +316,9 @@ export default function ProjectPortfolioPage({ currentUser }) {
       setError(
         err?.response?.data
           ? JSON.stringify(err.response.data)
-          : "Could not create climate project."
+          : editingProject
+            ? "Could not update climate project."
+            : "Could not create climate project."
       );
     } finally {
       setIsSaving(false);
@@ -272,10 +354,19 @@ export default function ProjectPortfolioPage({ currentUser }) {
           {canManage && (
             <button
               type="button"
-              onClick={() => setShowForm((current) => !current)}
+              onClick={() => {
+                if (showForm && !editingProject) {
+                  setShowForm(false);
+                  return;
+                }
+
+                setEditingProject(null);
+                setForm(initialForm);
+                setShowForm(true);
+              }}
               className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
             >
-              {showForm ? "Hide Form" : "Add Project"}
+              {showForm && !editingProject ? "Hide Form" : "Add Project"}
             </button>
           )}
         </div>
@@ -338,12 +429,27 @@ export default function ProjectPortfolioPage({ currentUser }) {
           onSubmit={handleSubmit}
           className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
         >
-          <div className="mb-5">
-            <h2 className="text-lg font-bold">Create Climate Project</h2>
-            <p className="text-sm text-slate-500">
-              Add an adaptation, mitigation or cross-cutting project to the
-              portfolio.
-            </p>
+          <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-start">
+            <div>
+              <h2 className="text-lg font-bold">
+                {editingProject ? "Edit Climate Project" : "Create Climate Project"}
+              </h2>
+              <p className="text-sm text-slate-500">
+                {editingProject
+                  ? "Update project status, priority, budget, outcomes and implementation details."
+                  : "Add an adaptation, mitigation or cross-cutting project to the portfolio."}
+              </p>
+            </div>
+
+            {editingProject && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                Cancel Editing
+              </button>
+            )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
@@ -617,9 +723,71 @@ export default function ProjectPortfolioPage({ currentUser }) {
             disabled={isSaving}
             className="mt-5 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
-            {isSaving ? "Saving..." : "Save Project"}
+            {isSaving
+              ? "Saving..."
+              : editingProject
+                ? "Update Project"
+                : "Save Project"}
           </button>
         </form>
+      )}
+
+      {selectedProject && (
+        <section className="rounded-2xl border border-blue-200 bg-blue-50 p-6 text-blue-900 shadow-sm">
+          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
+            <div>
+              <p className="text-sm font-medium">Selected Project Detail</p>
+              <h2 className="mt-1 text-2xl font-bold">
+                {selectedProject.title}
+              </h2>
+              <p className="mt-2 text-sm">
+                {selectedProject.description || "No description provided."}
+              </p>
+            </div>
+
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => handleEditProject(selectedProject)}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+              >
+                Edit Selected Project
+              </button>
+            )}
+          </div>
+
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl bg-white p-4">
+              <p className="text-xs text-blue-700">Status</p>
+              <p className="mt-1 font-bold">
+                {selectedProject.status_display ||
+                  getOptionLabel(statusOptions, selectedProject.status)}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white p-4">
+              <p className="text-xs text-blue-700">Priority</p>
+              <p className="mt-1 font-bold">
+                {selectedProject.priority_display ||
+                  getOptionLabel(priorityOptions, selectedProject.priority)}
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white p-4">
+              <p className="text-xs text-blue-700">LGA</p>
+              <p className="mt-1 font-bold">
+                {selectedProject.lga_name || "Statewide / Not specified"}
+              </p>
+            </div>
+          </div>
+
+          {selectedProject.climate_risk_relevance && (
+            <div className="mt-4 rounded-xl bg-white p-4 text-sm">
+              <p className="font-semibold">Climate Risk Relevance</p>
+              <p className="mt-1">{selectedProject.climate_risk_relevance}</p>
+            </div>
+          )}
+        </section>
       )}
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -627,7 +795,8 @@ export default function ProjectPortfolioPage({ currentUser }) {
           <div>
             <h2 className="text-lg font-bold">Project Register</h2>
             <p className="text-sm text-slate-500">
-              Filter and review climate projects across LGAs and sectors.
+              Filter and review climate projects across LGAs and sectors. Click
+              View for details or Edit to update a project.
             </p>
           </div>
 
@@ -686,7 +855,7 @@ export default function ProjectPortfolioPage({ currentUser }) {
           <p className="text-sm text-slate-500">Loading projects...</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left text-sm">
+            <table className="w-full min-w-[1250px] text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-slate-500">
                   <th className="px-3 py-3 font-medium">Project</th>
@@ -698,6 +867,7 @@ export default function ProjectPortfolioPage({ currentUser }) {
                   <th className="px-3 py-3 font-medium">Budget</th>
                   <th className="px-3 py-3 font-medium">GHG Reduction</th>
                   <th className="px-3 py-3 font-medium">Beneficiaries</th>
+                  <th className="px-3 py-3 font-medium">Actions</th>
                 </tr>
               </thead>
 
@@ -705,7 +875,9 @@ export default function ProjectPortfolioPage({ currentUser }) {
                 {filteredProjects.map((project) => (
                   <tr
                     key={project.id}
-                    className="border-b border-slate-100 last:border-0"
+                    className={`border-b border-slate-100 last:border-0 ${
+                      selectedProject?.id === project.id ? "bg-blue-50" : ""
+                    }`}
                   >
                     <td className="px-3 py-4">
                       <p className="font-semibold">{project.title}</p>
@@ -762,13 +934,35 @@ export default function ProjectPortfolioPage({ currentUser }) {
                     <td className="px-3 py-4">
                       {formatNumber(project.expected_beneficiaries, 0)}
                     </td>
+
+                    <td className="px-3 py-4">
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleViewProject(project)}
+                          className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                        >
+                          View
+                        </button>
+
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => handleEditProject(project)}
+                            className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
 
                 {filteredProjects.length === 0 && (
                   <tr>
                     <td
-                      colSpan="9"
+                      colSpan="10"
                       className="px-3 py-8 text-center text-slate-500"
                     >
                       No climate projects found.
