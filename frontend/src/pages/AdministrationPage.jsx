@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import AuditTrailPanel from "../components/AuditTrailPanel";
 import {
   createManagedUser,
   getManagedUsers,
@@ -419,6 +420,9 @@ export default function AdministrationPage({ foundation }) {
           )}
         </div>
       </section>
+      
+      <AuditTrailPanel />
+
     </div>
   );
 }
