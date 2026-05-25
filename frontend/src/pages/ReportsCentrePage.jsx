@@ -1,3 +1,4 @@
+import ReportsCentreExportPanel from "../components/ReportsCentreExportPanel";
 import { useEffect, useMemo, useState } from "react";
 import {
   createReportDocument,
@@ -381,6 +382,12 @@ export default function ReportsCentrePage({ currentUser }) {
           </p>
         </div>
       </section>
+
+      <ReportsCentreExportPanel
+        reports={reports}
+        filteredReports={filteredReports}
+        summary={summary}
+      />
 
       {canManage && showForm && (
         <form
