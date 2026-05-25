@@ -12,6 +12,9 @@ import ClimateInfrastructureAssetImportPanel from "../components/ClimateInfrastr
 import ClimateRiskDataQualityPanel from "../components/ClimateRiskDataQualityPanel";
 import ClimateRiskScoringTransparencyPanel from "../components/ClimateRiskScoringTransparencyPanel";
 import ClimateRiskLinkedProjectsPanel from "../components/ClimateRiskLinkedProjectsPanel";
+import { canManageClimateRisk } from "../utils/permissions";
+
+
 
 function normalizeName(value) {
   return String(value || "")

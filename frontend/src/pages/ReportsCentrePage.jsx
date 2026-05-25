@@ -1,4 +1,5 @@
 import ReportsCentreExportPanel from "../components/ReportsCentreExportPanel";
+import { canManageReports } from "../utils/permissions";
 import { useEffect, useMemo, useState } from "react";
 import {
   createReportDocument,
@@ -113,9 +114,7 @@ export default function ReportsCentrePage({ currentUser }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const canManage =
-    currentUser?.is_superuser ||
-    ["admin", "analyst"].includes(currentUser?.profile?.role);
+  const canManage = canManageReports(currentUser);
 
   async function loadReports() {
     setIsLoading(true);

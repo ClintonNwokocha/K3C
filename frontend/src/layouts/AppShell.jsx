@@ -9,37 +9,38 @@ import {
   Settings,
   ShieldCheck,
 } from "lucide-react";
+import { canAccessAdministration } from "../utils/permissions";
 
 const navItems = [
   {
     key: "dashboard",
     name: "Executive Dashboard",
     icon: Home,
-    allowedRoles: ["admin", "analyst", "sector_focal_point"],
+    allowedRoles: ["admin", "analyst", "sector_focal_point", "reviewer", "viewer"],
   },
   {
     key: "risk",
     name: "Climate Risk Map",
     icon: CloudSun,
-    allowedRoles: ["admin", "analyst"],
+    allowedRoles: ["admin", "analyst", "sector_focal_point", "reviewer", "viewer"],
   },
   {
     key: "ghg",
     name: "GHG Inventory",
     icon: Leaf,
-    allowedRoles: ["admin", "analyst", "sector_focal_point"],
+    allowedRoles: ["admin", "analyst", "sector_focal_point", "reviewer"],
   },
   {
     key: "projects",
     name: "Project Portfolio",
     icon: FolderKanban,
-    allowedRoles: ["admin", "analyst", "sector_focal_point"],
+    allowedRoles: ["admin", "analyst", "sector_focal_point", "reviewer", "viewer"],
   },
   {
     key: "reports",
     name: "Reports Centre",
     icon: FileText,
-    allowedRoles: ["admin", "analyst"],
+    allowedRoles: ["admin", "analyst", "reviewer", "viewer"],
   },
   {
     key: "administration",
@@ -54,10 +55,26 @@ function formatRole(role) {
     admin: "Admin",
     analyst: "Analyst",
     sector_focal_point: "Sector Focal Point",
+    reviewer: "Reviewer",
+    viewer: "Viewer",
     public: "Public",
   };
 
   return labels[role] || "Unknown";
+}
+
+function canSeeNavItem(item, currentUser) {
+  if (currentUser?.is_superuser) {
+    return true;
+  }
+
+  if (item.key === "administration") {
+    return canAccessAdministration(currentUser);
+  }
+
+  const role = currentUser?.profile?.role || "public";
+
+  return item.allowedRoles.includes(role);
 }
 
 export default function AppShell({
@@ -70,7 +87,7 @@ export default function AppShell({
   const role = currentUser?.profile?.role || "public";
 
   const visibleNavItems = navItems.filter((item) =>
-    item.allowedRoles.includes(role)
+    canSeeNavItem(item, currentUser)
   );
 
   return (
@@ -80,6 +97,7 @@ export default function AppShell({
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500">
             <ShieldCheck size={24} />
           </div>
+
           <div>
             <h1 className="text-lg font-bold leading-tight">KS-CCC</h1>
             <p className="text-xs text-slate-300">Climate Command Center</p>
@@ -94,6 +112,7 @@ export default function AppShell({
             return (
               <button
                 key={item.key}
+                type="button"
                 onClick={() => onPageChange(item.key)}
                 className={`flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left text-sm transition ${
                   isActive
@@ -113,9 +132,9 @@ export default function AppShell({
             <p className="text-xs uppercase tracking-wide text-slate-400">
               Current Role
             </p>
-            <p className="mt-1 font-semibold text-white">
-              {formatRole(role)}
-            </p>
+
+            <p className="mt-1 font-semibold text-white">{formatRole(role)}</p>
+
             <p className="mt-1 text-xs text-slate-400">
               {currentUser?.username || "Signed-in user"}
             </p>
@@ -141,6 +160,7 @@ export default function AppShell({
               </div>
 
               <button
+                type="button"
                 onClick={onLogout}
                 className="flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 transition hover:bg-slate-100"
               >

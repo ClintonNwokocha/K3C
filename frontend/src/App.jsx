@@ -10,6 +10,7 @@ import GHGInventoryPage from "./pages/GHGInventoryPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import ClimateRiskPage from "./pages/ClimateRiskPage";
 import ProjectPortfolioPage from "./pages/ProjectPortfolioPage";
+import { canAccessAdministration } from "./utils/permissions";
 import {
   getCurrentUser,
   getFoundationData,
@@ -140,6 +141,15 @@ function App() {
     }
 
     if (activePage === "administration") {
+      if (!canAccessAdministration(currentUser)) {
+        return (
+          <PlaceholderPage
+            title="Access Restricted"
+            description="You do not have permission to access the Administration module."
+          />
+        );
+      }
+
       return <AdministrationPage foundation={foundation} />;
     }
 

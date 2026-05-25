@@ -1,6 +1,7 @@
 import ProjectPortfolioExportPanel from "../components/ProjectPortfolioExportPanel";
 import ProjectPortfolioStatusBoard from "../components/ProjectPortfolioStatusBoard";
 import ProjectPortfolioMapView from "../components/ProjectPortfolioMapView";
+import { canManageProjectPortfolio } from "../utils/permissions";
 import ProjectPortfolioImportPanel from "../components/ProjectPortfolioImportPanel";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -148,9 +149,7 @@ export default function ProjectPortfolioPage({ currentUser }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  const canManage =
-    currentUser?.is_superuser ||
-    ["admin", "analyst"].includes(currentUser?.profile?.role);
+  const canManage = canManageProjectPortfolio(currentUser);
 
   async function loadProjects() {
     setIsLoading(true);
