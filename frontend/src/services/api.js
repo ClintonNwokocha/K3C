@@ -352,3 +352,13 @@ export async function updateReportDocument(reportId, formData) {
   const response = await api.patch(`/reports/documents/${reportId}/`, formData);
   return response.data;
 }
+
+export async function getPublicReportDocuments(params = {}) {
+  const response = await api.get("/public/reports/", { params });
+  return response.data;
+}
+
+export async function getPublicPortalSummary() {
+  const response = await api.get("/public/summary/");
+  return response.data;
+}

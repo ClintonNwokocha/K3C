@@ -37,6 +37,7 @@ urlpatterns = [
     path("api/risk/", include("climate_risk.urls")),
     path("api/reports/", include("reports.urls")),
     path("api/portfolio/", include("projects.urls")),
+    path("api/public/", include("public_portal.urls")),
 ]
 
 if settings.DEBUG:

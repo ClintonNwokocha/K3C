@@ -4,6 +4,8 @@ import AppShell from "./layouts/AppShell";
 import AdministrationPage from "./pages/AdministrationPage";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import PublicReportsPage from "./pages/PublicReportsPage";
+import PublicPortalPage from "./pages/PublicPortalPage";
 import GHGInventoryPage from "./pages/GHGInventoryPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import ClimateRiskPage from "./pages/ClimateRiskPage";
@@ -168,17 +170,28 @@ function App() {
     );
   }
 
-  if (isLoading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-        Loading KS-CCC...
-      </main>
-    );
-  }
+    const isPublicPortalRoute = window.location.pathname === "/public";
+    const isPublicReportsRoute = window.location.pathname === "/public/reports";
 
-  if (!currentUser) {
-    return <Login onLogin={handleLogin} error={authError} />;
-  }
+    if (isPublicPortalRoute) {
+      return <PublicPortalPage />;
+    }
+
+    if (isPublicReportsRoute) {
+      return <PublicReportsPage />;
+    }
+
+    if (isLoading) {
+      return (
+        <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+          Loading KS-CCC...
+        </main>
+      );
+    }
+
+    if (!currentUser) {
+      return <Login onLogin={handleLogin} error={authError} />;
+    }
 
   return (
     <AppShell
