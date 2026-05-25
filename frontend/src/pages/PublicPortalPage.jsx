@@ -1,3 +1,7 @@
+import {
+  PublicPortalFooter,
+  PublicPortalHeader,
+} from "../components/PublicPortalChrome";
 import { useEffect, useMemo, useState } from "react";
 import { getPublicPortalSummary } from "../services/api";
 
@@ -99,47 +103,11 @@ export default function PublicPortalPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <section className="border-b border-slate-200 bg-slate-950 px-6 py-12 text-white">
-        <div className="mx-auto max-w-7xl">
-          <div className="flex flex-col justify-between gap-6 md:flex-row md:items-start">
-            <div>
-              <p className="text-sm font-medium text-emerald-300">
-                Kaduna State Climate Command Centre
-              </p>
-              <h1 className="mt-3 text-4xl font-bold tracking-tight">
-                Public Climate Action Portal
-              </h1>
-              <p className="mt-3 max-w-3xl text-slate-300">
-                Explore public climate risk summaries, climate action projects,
-                and published reports from the Kaduna State Climate Command
-                Centre.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.href = "/public/reports";
-                }}
-                className="rounded-full bg-emerald-500 px-5 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
-              >
-                View Reports
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.href = "/";
-                }}
-                className="rounded-full border border-white/20 px-5 py-2 text-sm font-semibold text-white hover:bg-white/10"
-              >
-                Staff Login
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+      <PublicPortalHeader
+        activePage="home"
+        title="Public Climate Action Portal"
+        description="Explore public climate risk summaries, climate action projects, and published reports from the Kaduna State Climate Command Centre."
+      />
 
       <section className="mx-auto max-w-7xl space-y-6 px-6 py-8">
         {error && (
@@ -431,6 +399,8 @@ export default function PublicPortalPage() {
           </>
         )}
       </section>
+      
+      <PublicPortalFooter />
     </main>
   );
 }
