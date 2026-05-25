@@ -1,5 +1,8 @@
-from decimal import Decimal
+import csv
+import io
+from decimal import Decimal, InvalidOperation
 
+from django.db import transaction
 from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404
 
@@ -10,6 +13,7 @@ from rest_framework.response import Response
 
 from accounts.models import UserProfile
 from audit.utils import log_audit_action
+from core.models import LGARegistry
 from .models import ClimateProject
 from .serializers import (
     ClimateProjectCreateUpdateSerializer,
@@ -38,6 +42,312 @@ def can_manage_projects(user):
 
 def serialize_project_for_audit(project):
     return ClimateProjectSerializer(project).data
+
+
+def decimal_from_value(value):
+    if value is None:
+        return Decimal("0")
+
+    text = str(value).strip()
+
+    if text == "":
+        return Decimal("0")
+
+    try:
+        return Decimal(text)
+    except InvalidOperation:
+        return None
+
+
+def int_from_value(value):
+    if value is None:
+        return 0
+
+    text = str(value).strip()
+
+    if text == "":
+        return 0
+
+    try:
+        return int(float(text))
+    except ValueError:
+        return None
+
+
+def normalize_lga_name(value):
+    return (
+        str(value or "")
+        .strip()
+        .lower()
+        .replace("’", "'")
+        .replace("`", "'")
+        .replace("ʻ", "'")
+        .replace("-", " ")
+        .replace("_", " ")
+    )
+
+
+def get_row_value(row, possible_keys):
+    for key in possible_keys:
+        value = row.get(key)
+
+        if value is not None and str(value).strip() != "":
+            return str(value).strip()
+
+    return ""
+
+
+def get_lga_from_project_row(row, row_number, errors):
+    lga_id = get_row_value(row, ["lga_id", "lga", "LGA_ID"])
+
+    if lga_id:
+        try:
+            return LGARegistry.objects.get(lga_id=int(lga_id))
+        except (ValueError, LGARegistry.DoesNotExist):
+            errors.append({
+                "row": row_number,
+                "field": "lga_id",
+                "error": f"Invalid lga_id: {lga_id}.",
+            })
+            return None
+
+    lga_name = get_row_value(
+        row,
+        [
+            "lga_name",
+            "lganame",
+            "LGA_NAME",
+            "LGANAME",
+            "LGAName",
+            "name",
+            "NAME",
+        ],
+    )
+
+    if lga_name:
+        normalized_input = normalize_lga_name(lga_name)
+
+        for lga in LGARegistry.objects.all():
+            if normalize_lga_name(lga.lga_name) == normalized_input:
+                return lga
+
+        errors.append({
+            "row": row_number,
+            "field": "lga_name",
+            "error": f"Could not match LGA name: {lga_name}.",
+        })
+        return None
+
+    return None
+
+
+def read_csv_rows(uploaded_file):
+    raw_text = uploaded_file.read().decode("utf-8-sig")
+    stream = io.StringIO(raw_text)
+    reader = csv.DictReader(stream)
+    return list(reader), reader.fieldnames or []
+
+
+def normalize_choice(value, default_value):
+    text = str(value or "").strip().lower().replace(" ", "_").replace("-", "_")
+
+    if not text:
+        return default_value
+
+    return text
+
+
+def import_projects_csv(uploaded_file, request):
+    rows, fieldnames = read_csv_rows(uploaded_file)
+
+    required_columns = {"title"}
+    missing_columns = required_columns - set(fieldnames)
+
+    errors = []
+    imported_count = 0
+    updated_count = 0
+
+    if missing_columns:
+        errors.append({
+            "row": 0,
+            "field": "columns",
+            "error": f"Missing required columns: {', '.join(sorted(missing_columns))}.",
+        })
+        return {
+            "row_count": len(rows),
+            "imported_count": 0,
+            "updated_count": 0,
+            "failed_count": len(rows),
+            "errors": errors,
+        }
+
+    valid_project_types = {choice[0] for choice in ClimateProject.ProjectType.choices}
+    valid_sectors = {choice[0] for choice in ClimateProject.Sector.choices}
+    valid_statuses = {choice[0] for choice in ClimateProject.Status.choices}
+    valid_priorities = {choice[0] for choice in ClimateProject.Priority.choices}
+
+    for index, row in enumerate(rows, start=2):
+        title = str(row.get("title") or "").strip()
+
+        if not title:
+            errors.append({
+                "row": index,
+                "field": "title",
+                "error": "Project title is required.",
+            })
+            continue
+
+        project_code = str(row.get("project_code") or "").strip()
+
+        project_type = normalize_choice(
+            row.get("project_type"),
+            ClimateProject.ProjectType.ADAPTATION,
+        )
+
+        sector = normalize_choice(
+            row.get("sector"),
+            ClimateProject.Sector.OTHER,
+        )
+
+        status_value = normalize_choice(
+            row.get("status"),
+            ClimateProject.Status.PROPOSED,
+        )
+
+        priority = normalize_choice(
+            row.get("priority"),
+            ClimateProject.Priority.MEDIUM,
+        )
+
+        if project_type not in valid_project_types:
+            errors.append({
+                "row": index,
+                "field": "project_type",
+                "error": f"Invalid project_type: {project_type}.",
+            })
+            continue
+
+        if sector not in valid_sectors:
+            errors.append({
+                "row": index,
+                "field": "sector",
+                "error": f"Invalid sector: {sector}.",
+            })
+            continue
+
+        if status_value not in valid_statuses:
+            errors.append({
+                "row": index,
+                "field": "status",
+                "error": f"Invalid status: {status_value}.",
+            })
+            continue
+
+        if priority not in valid_priorities:
+            errors.append({
+                "row": index,
+                "field": "priority",
+                "error": f"Invalid priority: {priority}.",
+            })
+            continue
+
+        estimated_budget_naira = decimal_from_value(row.get("estimated_budget_naira"))
+        expected_ghg_reduction_tco2e = decimal_from_value(
+            row.get("expected_ghg_reduction_tco2e")
+        )
+        expected_beneficiaries = int_from_value(row.get("expected_beneficiaries"))
+
+        if estimated_budget_naira is None or estimated_budget_naira < 0:
+            errors.append({
+                "row": index,
+                "field": "estimated_budget_naira",
+                "error": "Budget must be a non-negative number.",
+            })
+            continue
+
+        if (
+            expected_ghg_reduction_tco2e is None
+            or expected_ghg_reduction_tco2e < 0
+        ):
+            errors.append({
+                "row": index,
+                "field": "expected_ghg_reduction_tco2e",
+                "error": "Expected GHG reduction must be a non-negative number.",
+            })
+            continue
+
+        if expected_beneficiaries is None or expected_beneficiaries < 0:
+            errors.append({
+                "row": index,
+                "field": "expected_beneficiaries",
+                "error": "Expected beneficiaries must be a non-negative integer.",
+            })
+            continue
+
+        lga = get_lga_from_project_row(row, index, errors)
+
+        start_date = str(row.get("start_date") or "").strip() or None
+        end_date = str(row.get("end_date") or "").strip() or None
+
+        defaults = {
+            "title": title,
+            "project_type": project_type,
+            "sector": sector,
+            "status": status_value,
+            "priority": priority,
+            "lga": lga,
+            "description": row.get("description", ""),
+            "implementing_agency": row.get("implementing_agency", ""),
+            "funding_source": row.get("funding_source", ""),
+            "estimated_budget_naira": estimated_budget_naira,
+            "expected_ghg_reduction_tco2e": expected_ghg_reduction_tco2e,
+            "expected_beneficiaries": expected_beneficiaries,
+            "start_date": start_date,
+            "end_date": end_date,
+            "climate_risk_relevance": row.get("climate_risk_relevance", ""),
+            "location_notes": row.get("location_notes", ""),
+            "created_by": request.user,
+            "is_active": True,
+        }
+
+        if project_code:
+            project, created = ClimateProject.objects.update_or_create(
+                project_code=project_code,
+                defaults=defaults,
+            )
+        else:
+            project = ClimateProject.objects.create(
+                project_code="",
+                **defaults,
+            )
+            created = True
+
+        log_audit_action(
+            request=request,
+            action=(
+                "created_climate_project_import"
+                if created
+                else "updated_climate_project_import"
+            ),
+            instance=project,
+            old_value=None,
+            new_value=serialize_project_for_audit(project),
+        )
+
+        if created:
+            imported_count += 1
+        else:
+            updated_count += 1
+
+    failed_count = len(rows) - imported_count - updated_count
+
+    return {
+        "row_count": len(rows),
+        "imported_count": imported_count,
+        "updated_count": updated_count,
+        "failed_count": failed_count,
+        "errors": errors,
+    }
 
 
 @api_view(["GET", "POST"])
@@ -208,4 +518,45 @@ def climate_project_detail(request, project_id):
     return Response({
         "message": "Climate project updated successfully.",
         "project": ClimateProjectSerializer(updated_project).data,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def import_climate_projects(request):
+    if not can_manage_projects(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can import climate projects."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    uploaded_file = request.FILES.get("file")
+
+    if not uploaded_file:
+        return Response(
+            {"detail": "CSV file is required."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    if not uploaded_file.name.lower().endswith(".csv"):
+        return Response(
+            {"detail": "Only CSV files are supported."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    try:
+        with transaction.atomic():
+            result = import_projects_csv(uploaded_file, request)
+    except Exception as exc:
+        return Response(
+            {
+                "detail": "Project import failed.",
+                "error": str(exc),
+            },
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    return Response({
+        "message": "Climate project CSV import processed.",
+        "result": result,
     })

@@ -1,3 +1,4 @@
+import ProjectPortfolioImportPanel from "../components/ProjectPortfolioImportPanel";
 import { useEffect, useMemo, useState } from "react";
 import {
   createClimateProject,
@@ -423,6 +424,11 @@ export default function ProjectPortfolioPage({ currentUser }) {
           </p>
         </div>
       </section>
+      
+      <ProjectPortfolioImportPanel
+        canManage={canManage}
+        onImported={loadProjects}
+      />
 
       {canManage && showForm && (
         <form
