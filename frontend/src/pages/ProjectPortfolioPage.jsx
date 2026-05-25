@@ -1,3 +1,4 @@
+import ProjectPortfolioStatusBoard from "../components/ProjectPortfolioStatusBoard";
 import ProjectPortfolioMapView from "../components/ProjectPortfolioMapView";
 import ProjectPortfolioImportPanel from "../components/ProjectPortfolioImportPanel";
 import { useEffect, useMemo, useState } from "react";
@@ -432,6 +433,13 @@ export default function ProjectPortfolioPage({ currentUser }) {
       />
 
       <ProjectPortfolioMapView projects={projects} />
+
+      <ProjectPortfolioStatusBoard
+        projects={filteredProjects}
+        canManage={canManage}
+        onViewProject={handleViewProject}
+        onEditProject={handleEditProject}
+      />
 
       {canManage && showForm && (
         <form
