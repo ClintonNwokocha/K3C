@@ -1,4 +1,5 @@
 import {
+  PublicEmptyState,
   PublicPortalFooter,
   PublicPortalHeader,
 } from "../components/PublicPortalChrome";
@@ -210,9 +211,10 @@ export default function PublicReportsPage() {
           {isLoading ? (
             <p className="text-sm text-slate-500">Loading public reports...</p>
           ) : reports.length === 0 ? (
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-              No published public reports are available yet.
-            </div>
+            <PublicEmptyState
+                title="No published public reports yet"
+                message="Reports will appear here after they are marked as Published and Public in the internal Reports Centre."
+            />
           ) : (
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {reports.map((report) => (

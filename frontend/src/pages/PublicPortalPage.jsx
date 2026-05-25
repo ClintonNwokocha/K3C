@@ -1,4 +1,5 @@
 import {
+  PublicDataNotice,
   PublicPortalFooter,
   PublicPortalHeader,
 } from "../components/PublicPortalChrome";
@@ -111,7 +112,7 @@ export default function PublicPortalPage() {
         description="Explore public climate risk summaries, climate action projects, and published reports from the Kaduna State Climate Command Centre."
       />
 
-      <section className="mx-auto max-w-7xl space-y-6 px-6 py-8">
+      <section className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 sm:py-8">
         {error && (
           <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
@@ -394,14 +395,7 @@ export default function PublicPortalPage() {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
-              <p className="font-bold">Public Data Notice</p>
-              <p className="mt-2">
-                This public portal provides summary-level information. Official
-                datasets, detailed technical reports, and validated documents
-                should be accessed through the published reports portal.
-              </p>
-            </section>
+            <PublicDataNotice />
           </>
         )}
       </section>
