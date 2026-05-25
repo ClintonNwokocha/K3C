@@ -9,6 +9,8 @@ import ClimateRiskHazardExplorer from "../components/ClimateRiskHazardExplorer";
 import ClimateRiskEvidenceBrief from "../components/ClimateRiskEvidenceBrief";
 import ClimateInfrastructureAtRiskLayer from "../components/ClimateInfrastructureAtRiskLayer";
 import ClimateInfrastructureAssetImportPanel from "../components/ClimateInfrastructureAssetImportPanel";
+import ClimateRiskDataQualityPanel from "../components/ClimateRiskDataQualityPanel";
+
 
 
 function normalizeName(value) {
@@ -67,12 +69,14 @@ function IndexExplanationBox() {
   return (
     <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
       <h2 className="font-bold">How to read the climate risk scores</h2>
+
       <p className="mt-2">
         Risk values shown on this page are normalized indexes from{" "}
         <strong>0 to 100</strong>. A higher hazard, exposure, or vulnerability
         score means higher concern. Adaptive capacity is different: a higher
         adaptive capacity score means stronger ability to cope.
       </p>
+
       <p className="mt-2">
         Raw climate values such as rainfall anomaly, flood-prone area,
         temperature, exposed population, and infrastructure counts are stored
@@ -97,6 +101,40 @@ function IndexExplanationBox() {
   );
 }
 
+const climateRiskTabs = [
+  { key: "overview", label: "Overview" },
+  { key: "map", label: "Risk Map" },
+  { key: "data", label: "Data & Scoring" },
+  { key: "hazards", label: "Hazard Explorer" },
+  { key: "evidence", label: "Evidence Brief" },
+  { key: "infrastructure", label: "Infrastructure" },
+  { key: "quality", label: "Data Quality" },
+  { key: "table", label: "Risk Table" },
+];
+
+function ClimateRiskTabNavigation({ activeTab, onChange }) {
+  return (
+    <div className="sticky top-0 z-20 rounded-2xl border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur">
+      <div className="flex flex-wrap gap-2">
+        {climateRiskTabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => onChange(tab.key)}
+            className={`rounded-xl px-4 py-2 text-sm font-semibold transition ${
+              activeTab === tab.key
+                ? "bg-emerald-600 text-white"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function MetricRow({ label, value, reverse = false, helperText = "" }) {
   const number = Number(value || 0);
   const width = `${Math.min(Math.max(number, 0), 100)}%`;
@@ -116,7 +154,10 @@ function MetricRow({ label, value, reverse = false, helperText = "" }) {
 
       <div className="h-2 overflow-hidden rounded-full bg-slate-100">
         <div
-          className={`h-full rounded-full ${getMetricBarClass(number, reverse)}`}
+          className={`h-full rounded-full ${getMetricBarClass(
+            number,
+            reverse
+          )}`}
           style={{ width }}
         />
       </div>
@@ -172,9 +213,7 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
       </div>
 
       <div className="mt-6 rounded-2xl bg-slate-50 p-5">
-        <p className="text-sm text-slate-500">
-          Overall Climate Risk Index
-        </p>
+        <p className="text-sm text-slate-500">Overall Climate Risk Index</p>
         <p className="mt-2 text-4xl font-bold">
           {formatNumber(selectedProfile.overall_risk_score, 2)}
           <span className="text-lg font-semibold text-slate-400"> / 100</span>
@@ -243,10 +282,446 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
   );
 }
 
+function SummaryCards({ summary }) {
+  return (
+    <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-slate-500">LGAs Assessed</p>
+        <h2 className="mt-3 text-2xl font-bold">
+          {summary?.total_lgas || 0}
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Active risk profiles in current view.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-slate-500">Average Risk Index</p>
+        <h2 className="mt-3 text-2xl font-bold">
+          {formatNumber(summary?.average_overall_risk, 2)}
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Weighted average across selected LGAs.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-slate-500">Highest Risk Index</p>
+        <h2 className="mt-3 text-2xl font-bold text-red-600">
+          {formatNumber(summary?.highest_overall_risk, 2)}
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Highest overall score in current view.
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-sm text-slate-500">High / Very High LGAs</p>
+        <h2 className="mt-3 text-2xl font-bold text-orange-600">
+          {summary?.high_or_very_high_count || 0}
+        </h2>
+        <p className="mt-2 text-sm text-slate-500">
+          Priority LGAs for adaptation planning.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function RiskMapSection({
+  profiles,
+  mapMetric,
+  setMapMetric,
+  selectedLgaName,
+  setSelectedLgaName,
+  selectedProfile,
+  canManageRisk,
+  loadRiskProfiles,
+}) {
+  return (
+    <section className="grid items-start gap-6 xl:grid-cols-3">
+      <div className="h-fit self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
+        <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <div>
+            <h2 className="text-lg font-bold">LGA Risk Choropleth Map</h2>
+            <p className="text-sm text-slate-500">
+              Click an LGA polygon to open its full risk detail panel.
+            </p>
+          </div>
+
+          <select
+            value={mapMetric}
+            onChange={(event) => setMapMetric(event.target.value)}
+            className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          >
+            <option value="overall">Overall Climate Risk Index</option>
+            <option value="flood">Flood Risk Index</option>
+            <option value="drought">Drought Risk Index</option>
+            <option value="heat">Heat Risk Index</option>
+            <option value="erosion">Erosion Risk Index</option>
+            <option value="exposure">Exposure Index</option>
+            <option value="vulnerability">Vulnerability Index</option>
+            <option value="adaptive_capacity">Adaptive Capacity Index</option>
+          </select>
+        </div>
+
+        <ClimateRiskMap
+          profiles={profiles}
+          metric={mapMetric}
+          selectedLgaName={selectedLgaName}
+          onSelectLgaName={setSelectedLgaName}
+        />
+
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
+          The map first checks for{" "}
+          <code className="rounded bg-amber-100 px-1">
+            public/data/kaduna_lgas.geojson
+          </code>
+          . If that official file is unavailable, it uses the development
+          placeholder boundary.
+        </div>
+      </div>
+
+      <div className="h-fit self-start space-y-6">
+        <LGADetailPanel
+          selectedLgaName={selectedLgaName}
+          selectedProfile={selectedProfile}
+        />
+
+        <ClimateRiskEditPanel
+          profile={selectedProfile}
+          canManage={canManageRisk}
+          onSaved={loadRiskProfiles}
+        />
+      </div>
+    </section>
+  );
+}
+
+function DataAndScoringSection({
+  riskData,
+  selectedProfile,
+  selectedYear,
+  canManageRisk,
+  loadRiskProfiles,
+}) {
+  return (
+    <>
+      <ClimateRiskDatasetUploadPanel
+        canManage={canManageRisk}
+        onUploaded={loadRiskProfiles}
+      />
+
+      <ClimateRiskParameterPanel
+        lgas={
+          riskData?.results?.map((profile) => ({
+            lga_id: profile.lga,
+            lga_name: profile.lga_name,
+          })) || []
+        }
+        selectedProfile={selectedProfile}
+        canManage={canManageRisk}
+      />
+
+      <ClimateRiskScoringPanel
+        selectedProfile={selectedProfile}
+        selectedYear={selectedYear}
+        canManage={canManageRisk}
+        onRecalculated={loadRiskProfiles}
+      />
+    </>
+  );
+}
+
+function InfrastructureSection({
+  selectedProfile,
+  canManageRisk,
+  infrastructureRefreshKey,
+  setInfrastructureRefreshKey,
+}) {
+  return (
+    <>
+      <ClimateInfrastructureAssetImportPanel
+        selectedProfile={selectedProfile}
+        canManage={canManageRisk}
+        onImported={() =>
+          setInfrastructureRefreshKey((currentValue) => currentValue + 1)
+        }
+      />
+
+      <ClimateInfrastructureAtRiskLayer
+        key={`infrastructure-${
+          selectedProfile?.id || "none"
+        }-${infrastructureRefreshKey}`}
+        selectedProfile={selectedProfile}
+        canManage={canManageRisk}
+      />
+    </>
+  );
+}
+
+function RiskTableSection({
+  riskData,
+  selectedYear,
+  setSelectedYear,
+  riskLevel,
+  setRiskLevel,
+  searchText,
+  setSearchText,
+  isLoading,
+  filteredProfiles,
+  selectedLgaName,
+  setSelectedLgaName,
+  topLgas,
+  summary,
+}) {
+  return (
+    <section className="grid items-start gap-6 xl:grid-cols-3">
+      <div className="h-fit self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
+        <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
+          <div>
+            <h2 className="text-lg font-bold">LGA Risk Table</h2>
+            <p className="text-sm text-slate-500">
+              Filter and compare climate risk across LGAs. Click a row to
+              update the detail panel.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            <select
+              value={selectedYear}
+              onChange={(event) => setSelectedYear(event.target.value)}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            >
+              {(riskData?.available_years || []).map((year) => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={riskLevel}
+              onChange={(event) => setRiskLevel(event.target.value)}
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            >
+              <option value="all">All risk levels</option>
+              <option value="low">Low</option>
+              <option value="moderate">Moderate</option>
+              <option value="high">High</option>
+              <option value="very_high">Very High</option>
+            </select>
+
+            <input
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              placeholder="Search LGA..."
+              className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+            />
+          </div>
+        </div>
+
+        {isLoading ? (
+          <p className="text-slate-500">Loading climate risk profiles...</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1000px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500">
+                  <th className="px-3 py-3 font-medium">LGA</th>
+                  <th className="px-3 py-3 font-medium">Overall /100</th>
+                  <th className="px-3 py-3 font-medium">Level</th>
+                  <th className="px-3 py-3 font-medium">Flood /100</th>
+                  <th className="px-3 py-3 font-medium">Drought /100</th>
+                  <th className="px-3 py-3 font-medium">Heat /100</th>
+                  <th className="px-3 py-3 font-medium">Erosion /100</th>
+                  <th className="px-3 py-3 font-medium">Exposure /100</th>
+                  <th className="px-3 py-3 font-medium">
+                    Vulnerability /100
+                  </th>
+                  <th className="px-3 py-3 font-medium">
+                    Adaptive Capacity /100
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {filteredProfiles.map((profile) => {
+                  const isSelected =
+                    normalizeName(selectedLgaName) ===
+                    normalizeName(profile.lga_name);
+
+                  return (
+                    <tr
+                      key={profile.id}
+                      onClick={() => setSelectedLgaName(profile.lga_name)}
+                      className={`cursor-pointer border-b border-slate-100 transition last:border-0 hover:bg-slate-50 ${
+                        isSelected ? "bg-emerald-50" : ""
+                      }`}
+                    >
+                      <td className="px-3 py-4 font-semibold">
+                        {profile.lga_name}
+                      </td>
+
+                      <td className="px-3 py-4">
+                        <div className="flex items-center gap-3">
+                          <span className="w-12 font-semibold">
+                            {formatNumber(profile.overall_risk_score, 2)}
+                          </span>
+                          <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100">
+                            <div
+                              className={`h-full rounded-full ${getRiskBarClass(
+                                profile.risk_level
+                              )}`}
+                              style={{
+                                width: `${Math.min(
+                                  Number(profile.overall_risk_score || 0),
+                                  100
+                                )}%`,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-3 py-4">
+                        <span
+                          className={`rounded-full px-3 py-1 text-xs font-medium ${getRiskClass(
+                            profile.risk_level
+                          )}`}
+                        >
+                          {profile.risk_level_display}
+                        </span>
+                      </td>
+
+                      <td className="px-3 py-4">
+                        {formatNumber(profile.flood_risk_score, 2)} / 100
+                      </td>
+                      <td className="px-3 py-4">
+                        {formatNumber(profile.drought_risk_score, 2)} / 100
+                      </td>
+                      <td className="px-3 py-4">
+                        {formatNumber(profile.heat_risk_score, 2)} / 100
+                      </td>
+                      <td className="px-3 py-4">
+                        {formatNumber(profile.erosion_risk_score, 2)} / 100
+                      </td>
+                      <td className="px-3 py-4">
+                        {formatNumber(profile.exposure_score, 2)} / 100
+                      </td>
+                      <td className="px-3 py-4">
+                        {formatNumber(profile.vulnerability_score, 2)} / 100
+                      </td>
+                      <td className="px-3 py-4">
+                        {formatNumber(profile.adaptive_capacity_score, 2)} /
+                        100
+                      </td>
+                    </tr>
+                  );
+                })}
+
+                {filteredProfiles.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan="10"
+                      className="px-3 py-8 text-center text-slate-500"
+                    >
+                      No risk profiles found.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="h-fit self-start space-y-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold">Highest-Risk LGAs</h2>
+          <p className="text-sm text-slate-500">
+            Top LGAs by overall climate risk score.
+          </p>
+
+          <div className="mt-5 space-y-3">
+            {topLgas.map((profile, index) => (
+              <button
+                key={profile.id}
+                onClick={() => setSelectedLgaName(profile.lga_name)}
+                className="w-full rounded-xl border border-slate-200 p-4 text-left transition hover:bg-slate-50"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">
+                      {index + 1}. {profile.lga_name}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {profile.risk_level_display}
+                    </p>
+                  </div>
+
+                  <span className="text-lg font-bold">
+                    {formatNumber(profile.overall_risk_score, 2)}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h2 className="text-lg font-bold">Risk Level Distribution</h2>
+
+          <div className="mt-5 space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Low</span>
+              <span className="font-semibold">
+                {summary?.risk_counts?.low || 0}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-slate-500">Moderate</span>
+              <span className="font-semibold">
+                {summary?.risk_counts?.moderate || 0}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-slate-500">High</span>
+              <span className="font-semibold">
+                {summary?.risk_counts?.high || 0}
+              </span>
+            </div>
+
+            <div className="flex justify-between">
+              <span className="text-slate-500">Very High</span>
+              <span className="font-semibold">
+                {summary?.risk_counts?.very_high || 0}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
+          <h2 className="font-bold">Boundary/Data Notice</h2>
+          <p className="mt-2">
+            Use official Kaduna LGA boundaries before production. The risk
+            scores are still development seed scores and should later be
+            replaced with validated hazard, exposure, vulnerability and
+            adaptive-capacity datasets.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function ClimateRiskPage({ currentUser }) {
   const [riskData, setRiskData] = useState(null);
   const [selectedYear, setSelectedYear] = useState("");
   const [riskLevel, setRiskLevel] = useState("all");
+  const [activeTab, setActiveTab] = useState("overview");
   const [searchText, setSearchText] = useState("");
   const [infrastructureRefreshKey, setInfrastructureRefreshKey] = useState(0);
   const [mapMetric, setMapMetric] = useState("overall");
@@ -357,6 +832,7 @@ export default function ClimateRiskPage({ currentUser }) {
         </div>
 
         <button
+          type="button"
           onClick={loadRiskProfiles}
           className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
         >
@@ -372,384 +848,78 @@ export default function ClimateRiskPage({ currentUser }) {
 
       <IndexExplanationBox />
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">LGAs Assessed</p>
-          <h2 className="mt-3 text-2xl font-bold">
-            {summary?.total_lgas || 0}
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Active risk profiles in current view.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">Average Risk Score</p>
-          <h2 className="mt-3 text-2xl font-bold">
-            {formatNumber(summary?.average_overall_risk, 2)}
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Weighted average across selected LGAs.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">Highest Risk Score</p>
-          <h2 className="mt-3 text-2xl font-bold text-red-600">
-            {formatNumber(summary?.highest_overall_risk, 2)}
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Highest overall score in current view.
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">High / Very High LGAs</p>
-          <h2 className="mt-3 text-2xl font-bold text-orange-600">
-            {summary?.high_or_very_high_count || 0}
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Priority LGAs for adaptation planning.
-          </p>
-        </div>
-      </section>
-
-      <ClimateRiskDatasetUploadPanel
-        canManage={canManageRisk}
-        onUploaded={loadRiskProfiles}
+      <ClimateRiskTabNavigation
+        activeTab={activeTab}
+        onChange={setActiveTab}
       />
 
-      <section className="grid items-start gap-6 xl:grid-cols-3">
-        <div className="h-fit self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-          <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-            <div>
-              <h2 className="text-lg font-bold">LGA Risk Choropleth Map</h2>
-              <p className="text-sm text-slate-500">
-                Click an LGA polygon to open its full risk detail panel.
-              </p>
-            </div>
+      {activeTab === "overview" && <SummaryCards summary={summary} />}
 
-            <select
-              value={mapMetric}
-              onChange={(event) => setMapMetric(event.target.value)}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="overall">Overall Climate Risk index</option>
-              <option value="flood">Flood Risk Index</option>
-              <option value="drought">Drought Risk Index</option>
-              <option value="heat">Heat Risk Index</option>
-              <option value="erosion">Erosion Risk Index</option>
-              <option value="exposure">Exposure Index</option>
-              <option value="vulnerability">Vulnerability Index</option>
-              <option value="adaptive_capacity">Adaptive Capacity Index</option>
-            </select>
-          </div>
+      {activeTab === "map" && (
+        <RiskMapSection
+          profiles={profiles}
+          mapMetric={mapMetric}
+          setMapMetric={setMapMetric}
+          selectedLgaName={selectedLgaName}
+          setSelectedLgaName={setSelectedLgaName}
+          selectedProfile={selectedProfile}
+          canManageRisk={canManageRisk}
+          loadRiskProfiles={loadRiskProfiles}
+        />
+      )}
 
-          <ClimateRiskMap
-            profiles={profiles}
-            metric={mapMetric}
-            selectedLgaName={selectedLgaName}
-            onSelectLgaName={setSelectedLgaName}
-          />
+      {activeTab === "data" && (
+        <DataAndScoringSection
+          riskData={riskData}
+          selectedProfile={selectedProfile}
+          selectedYear={selectedYear}
+          canManageRisk={canManageRisk}
+          loadRiskProfiles={loadRiskProfiles}
+        />
+      )}
 
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
-            The map first checks for{" "}
-            <code className="rounded bg-amber-100 px-1">
-              public/data/kaduna_lgas.geojson
-            </code>
-            . If that official file is unavailable, it uses the development
-            placeholder boundary.
-          </div>
-        </div>
+      {activeTab === "hazards" && (
+        <ClimateRiskHazardExplorer
+          profiles={profiles}
+          selectedLgaName={selectedLgaName}
+          onSelectLgaName={setSelectedLgaName}
+        />
+      )}
 
-        <div className="h-fit self-start space-y-6">
-          <LGADetailPanel
-            selectedLgaName={selectedLgaName}
-            selectedProfile={selectedProfile}
-          />
+      {activeTab === "evidence" && (
+        <ClimateRiskEvidenceBrief selectedProfile={selectedProfile} />
+      )}
 
-          <ClimateRiskEditPanel
-            profile={selectedProfile}
-            canManage={canManageRisk}
-            onSaved={loadRiskProfiles}
-          />
-        </div>
-      </section>
+      {activeTab === "infrastructure" && (
+        <InfrastructureSection
+          selectedProfile={selectedProfile}
+          canManageRisk={canManageRisk}
+          infrastructureRefreshKey={infrastructureRefreshKey}
+          setInfrastructureRefreshKey={setInfrastructureRefreshKey}
+        />
+      )}
 
-      <ClimateRiskParameterPanel
-        lgas={
-          riskData?.results?.map((profile) => ({
-            lga_id: profile.lga,
-            lga_name: profile.lga_name,
-          })) || []
-        }
-        selectedProfile={selectedProfile}
-        canManage={canManageRisk}
-      />
+      {activeTab === "quality" && (
+        <ClimateRiskDataQualityPanel profiles={profiles} />
+      )}
 
-      <ClimateRiskScoringPanel
-        selectedProfile={selectedProfile}
-        selectedYear={selectedYear}
-        canManage={canManageRisk}
-        onRecalculated={loadRiskProfiles}
-      />
-
-      <ClimateRiskHazardExplorer
-        profiles={profiles}
-        selectedLgaName={selectedLgaName}
-        onSelectLgaName={setSelectedLgaName}
-      />
-
-      <ClimateRiskEvidenceBrief selectedProfile={selectedProfile} />
-
-      <ClimateInfrastructureAssetImportPanel
-        selectedProfile={selectedProfile}
-        canManage={canManageRisk}
-        onImported={() =>
-          setInfrastructureRefreshKey((currentValue) => currentValue + 1)
-        }
-      />
-
-      <ClimateInfrastructureAtRiskLayer
-        key={`infrastructure-${selectedProfile?.id || "none"}-${infrastructureRefreshKey}`}
-        selectedProfile={selectedProfile}
-        canManage={canManageRisk}
-      />
-      
-
-      <section className="grid items-start gap-6 xl:grid-cols-3">
-        <div className="h-fit self-start rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-          <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">
-            <div>
-              <h2 className="text-lg font-bold">LGA Risk Table</h2>
-              <p className="text-sm text-slate-500">
-                Filter and compare climate risk across LGAs. Click a row to
-                update the detail panel.
-              </p>
-            </div>
-
-            <div className="flex flex-wrap gap-3">
-              <select
-                value={selectedYear}
-                onChange={(event) => setSelectedYear(event.target.value)}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              >
-                {(riskData?.available_years || []).map((year) => (
-                  <option key={year} value={year}>
-                    {year}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={riskLevel}
-                onChange={(event) => setRiskLevel(event.target.value)}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              >
-                <option value="all">All risk levels</option>
-                <option value="low">Low</option>
-                <option value="moderate">Moderate</option>
-                <option value="high">High</option>
-                <option value="very_high">Very High</option>
-              </select>
-
-              <input
-                value={searchText}
-                onChange={(event) => setSearchText(event.target.value)}
-                placeholder="Search LGA..."
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-            </div>
-          </div>
-
-          {isLoading ? (
-            <p className="text-slate-500">Loading climate risk profiles...</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1000px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 text-slate-500">
-                    <th className="px-3 py-3 font-medium">LGA</th>
-                    <th className="px-3 py-3 font-medium">Overall /100</th>
-                    <th className="px-3 py-3 font-medium">Level</th>
-                    <th className="px-3 py-3 font-medium">Flood /100</th>
-                    <th className="px-3 py-3 font-medium">Drought /100</th>
-                    <th className="px-3 py-3 font-medium">Heat /100</th>
-                    <th className="px-3 py-3 font-medium">Erosion /100</th>
-                    <th className="px-3 py-3 font-medium">Exposure /100</th>
-                    <th className="px-3 py-3 font-medium">Vulnerability /100</th>
-                    <th className="px-3 py-3 font-medium">Adaptive Capacity /100</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {filteredProfiles.map((profile) => {
-                    const isSelected =
-                      normalizeName(selectedLgaName) ===
-                      normalizeName(profile.lga_name);
-
-                    return (
-                      <tr
-                        key={profile.id}
-                        onClick={() => setSelectedLgaName(profile.lga_name)}
-                        className={`cursor-pointer border-b border-slate-100 transition last:border-0 hover:bg-slate-50 ${
-                          isSelected ? "bg-emerald-50" : ""
-                        }`}
-                      >
-                        <td className="px-3 py-4 font-semibold">
-                          {profile.lga_name}
-                        </td>
-
-                        <td className="px-3 py-4">
-                          <div className="flex items-center gap-3">
-                            <span className="w-12 font-semibold">
-                              {formatNumber(profile.overall_risk_score, 2)}
-                            </span>
-                            <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100">
-                              <div
-                                className={`h-full rounded-full ${getRiskBarClass(
-                                  profile.risk_level
-                                )}`}
-                                style={{
-                                  width: `${Math.min(
-                                    Number(profile.overall_risk_score || 0),
-                                    100
-                                  )}%`,
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-
-                        <td className="px-3 py-4">
-                          <span
-                            className={`rounded-full px-3 py-1 text-xs font-medium ${getRiskClass(
-                              profile.risk_level
-                            )}`}
-                          >
-                            {profile.risk_level_display}
-                          </span>
-                        </td>
-
-                        <td className="px-3 py-4">
-                          {formatNumber(profile.flood_risk_score, 2)} / 100
-                        </td>
-                        <td className="px-3 py-4">
-                          {formatNumber(profile.drought_risk_score, 2)} / 100
-                        </td>
-                        <td className="px-3 py-4">
-                          {formatNumber(profile.heat_risk_score, 2)} / 100
-                        </td>
-                        <td className="px-3 py-4">
-                          {formatNumber(profile.erosion_risk_score, 2)} / 100
-                        </td>
-                        <td className="px-3 py-4">
-                          {formatNumber(profile.exposure_score, 2)} / 100
-                        </td>
-                        <td className="px-3 py-4">
-                          {formatNumber(profile.vulnerability_score, 2)} / 100
-                        </td>
-                        <td className="px-3 py-4">
-                          {formatNumber(profile.adaptive_capacity_score, 2)} / 100
-                        </td>
-                      </tr>
-                    );
-                  })}
-
-                  {filteredProfiles.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan="10"
-                        className="px-3 py-8 text-center text-slate-500"
-                      >
-                        No risk profiles found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <div className="h-fit self-start space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold">Highest-Risk LGAs</h2>
-            <p className="text-sm text-slate-500">
-              Top LGAs by overall climate risk score.
-            </p>
-
-            <div className="mt-5 space-y-3">
-              {topLgas.map((profile, index) => (
-                <button
-                  key={profile.id}
-                  onClick={() => setSelectedLgaName(profile.lga_name)}
-                  className="w-full rounded-xl border border-slate-200 p-4 text-left transition hover:bg-slate-50"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-semibold">
-                        {index + 1}. {profile.lga_name}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {profile.risk_level_display}
-                      </p>
-                    </div>
-
-                    <span className="text-lg font-bold">
-                      {formatNumber(profile.overall_risk_score, 2)}
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold">Risk Level Distribution</h2>
-
-            <div className="mt-5 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Low</span>
-                <span className="font-semibold">
-                  {summary?.risk_counts?.low || 0}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-slate-500">Moderate</span>
-                <span className="font-semibold">
-                  {summary?.risk_counts?.moderate || 0}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-slate-500">High</span>
-                <span className="font-semibold">
-                  {summary?.risk_counts?.high || 0}
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-slate-500">Very High</span>
-                <span className="font-semibold">
-                  {summary?.risk_counts?.very_high || 0}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800">
-            <h2 className="font-bold">Boundary/Data Notice</h2>
-            <p className="mt-2">
-              Use official Kaduna LGA boundaries before production. The risk
-              scores are still development seed scores and should later be
-              replaced with validated hazard, exposure, vulnerability and
-              adaptive-capacity datasets.
-            </p>
-          </div>
-        </div>
-      </section>
+      {activeTab === "table" && (
+        <RiskTableSection
+          riskData={riskData}
+          selectedYear={selectedYear}
+          setSelectedYear={setSelectedYear}
+          riskLevel={riskLevel}
+          setRiskLevel={setRiskLevel}
+          searchText={searchText}
+          setSearchText={setSearchText}
+          isLoading={isLoading}
+          filteredProfiles={filteredProfiles}
+          selectedLgaName={selectedLgaName}
+          setSelectedLgaName={setSelectedLgaName}
+          topLgas={topLgas}
+          summary={summary}
+        />
+      )}
     </div>
   );
 }
