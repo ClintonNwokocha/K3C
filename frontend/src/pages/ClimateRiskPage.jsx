@@ -10,7 +10,7 @@ import ClimateRiskEvidenceBrief from "../components/ClimateRiskEvidenceBrief";
 import ClimateInfrastructureAtRiskLayer from "../components/ClimateInfrastructureAtRiskLayer";
 import ClimateInfrastructureAssetImportPanel from "../components/ClimateInfrastructureAssetImportPanel";
 import ClimateRiskDataQualityPanel from "../components/ClimateRiskDataQualityPanel";
-
+import ClimateRiskScoringTransparencyPanel from "../components/ClimateRiskScoringTransparencyPanel";
 
 
 function normalizeName(value) {
@@ -109,6 +109,7 @@ const climateRiskTabs = [
   { key: "evidence", label: "Evidence Brief" },
   { key: "infrastructure", label: "Infrastructure" },
   { key: "quality", label: "Data Quality" },
+  { key: "transparency", label: "Scoring Transparency" },
   { key: "table", label: "Risk Table" },
 ];
 
@@ -901,6 +902,10 @@ export default function ClimateRiskPage({ currentUser }) {
 
       {activeTab === "quality" && (
         <ClimateRiskDataQualityPanel profiles={profiles} />
+      )}
+
+      {activeTab === "transparency" && (
+        <ClimateRiskScoringTransparencyPanel selectedProfile={selectedProfile} />
       )}
 
       {activeTab === "table" && (
