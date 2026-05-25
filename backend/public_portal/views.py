@@ -351,3 +351,98 @@ def public_report_documents(request):
         },
         "results": results,
     })
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def public_climate_projects(request):
+    project_type = request.query_params.get("project_type")
+    sector = request.query_params.get("sector")
+    status_filter = request.query_params.get("status")
+    search = request.query_params.get("search")
+
+    projects = (
+        ClimateProject.objects
+        .select_related("lga")
+        .filter(is_active=True)
+        .order_by("-created_at", "title")
+    )
+
+    if project_type and project_type != "all":
+        projects = projects.filter(project_type=project_type)
+
+    if sector and sector != "all":
+        projects = projects.filter(sector=sector)
+
+    if status_filter and status_filter != "all":
+        projects = projects.filter(status=status_filter)
+
+    if search:
+        projects = projects.filter(title__icontains=search)
+
+    total_budget = projects.aggregate(
+        value=Sum("estimated_budget_naira")
+    ).get("value") or Decimal("0.00")
+
+    total_ghg_reduction = projects.aggregate(
+        value=Sum("expected_ghg_reduction_tco2e")
+    ).get("value") or Decimal("0.000")
+
+    total_beneficiaries = projects.aggregate(
+        value=Sum("expected_beneficiaries")
+    ).get("value") or 0
+
+    by_status = {
+        key: 0 for key, _label in ClimateProject.Status.choices
+    }
+
+    for row in projects.values("status").annotate(count=Count("id")):
+        by_status[row["status"]] = row["count"]
+
+    by_type = {
+        key: 0 for key, _label in ClimateProject.ProjectType.choices
+    }
+
+    for row in projects.values("project_type").annotate(count=Count("id")):
+        by_type[row["project_type"]] = row["count"]
+
+    results = []
+
+    for project in projects:
+        results.append({
+            "id": project.id,
+            "title": project.title,
+            "project_code": project.project_code,
+            "project_type": project.project_type,
+            "project_type_display": project.get_project_type_display(),
+            "sector": project.sector,
+            "sector_display": project.get_sector_display(),
+            "status": project.status,
+            "status_display": project.get_status_display(),
+            "priority": project.priority,
+            "priority_display": project.get_priority_display(),
+            "lga": project.lga_id,
+            "lga_name": getattr(project.lga, "lga_name", "") if project.lga else "",
+            "estimated_budget_naira": decimal_to_float(
+                project.estimated_budget_naira
+            ),
+            "expected_ghg_reduction_tco2e": decimal_to_float(
+                project.expected_ghg_reduction_tco2e
+            ),
+            "expected_beneficiaries": project.expected_beneficiaries,
+            "climate_risk_relevance": project.climate_risk_relevance,
+        })
+
+    return Response({
+        "status": "ok",
+        "message": "Public climate projects loaded.",
+        "summary": {
+            "total_projects": projects.count(),
+            "total_budget_naira": decimal_to_float(total_budget),
+            "total_expected_ghg_reduction_tco2e": decimal_to_float(
+                total_ghg_reduction
+            ),
+            "total_expected_beneficiaries": total_beneficiaries,
+            "by_status": by_status,
+            "by_type": by_type,
+        },
+        "results": results,
+    })

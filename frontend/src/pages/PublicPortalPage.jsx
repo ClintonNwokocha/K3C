@@ -5,7 +5,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { getPublicPortalSummary } from "../services/api";
 import PublicClimateRiskMapPreview from "../components/PublicClimateRiskMapPreview";
-
+import PublicProjectMapPreview from "../components/PublicProjectMapPreview";
 
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -138,6 +138,8 @@ export default function PublicPortalPage() {
             </section>
 
             <PublicClimateRiskMapPreview />
+
+            <PublicProjectMapPreview />
 
             <section className="grid gap-6 xl:grid-cols-3">
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
