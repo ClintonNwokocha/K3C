@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import ReportsCentrePage from "./pages/ReportsCentrePage";
 import AppShell from "./layouts/AppShell";
 import AdministrationPage from "./pages/AdministrationPage";
 import Dashboard from "./pages/Dashboard";
@@ -152,7 +153,12 @@ function App() {
       return <ProjectPortfolioPage currentUser={currentUser} />;
     }
 
+    if (activePage === "reports") {
+      return <ReportsCentrePage currentUser={currentUser} />;
+    }
+
     const selectedPage = pageDetails[activePage];
+
 
     return (
       <PlaceholderPage

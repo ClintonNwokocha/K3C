@@ -337,3 +337,18 @@ export async function importClimateProjectsCsv(file) {
 
   return response.data;
 }
+
+export async function getReportDocuments(params = {}) {
+  const response = await api.get("/reports/documents/", { params });
+  return response.data;
+}
+
+export async function createReportDocument(formData) {
+  const response = await api.post("/reports/documents/", formData);
+  return response.data;
+}
+
+export async function updateReportDocument(reportId, formData) {
+  const response = await api.patch(`/reports/documents/${reportId}/`, formData);
+  return response.data;
+}
