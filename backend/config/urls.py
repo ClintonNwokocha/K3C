@@ -17,7 +17,8 @@ Including another URLconf
 from django.contrib import admin
 from django.http import JsonResponse
 from django.urls import path, include
-
+from django.conf import settings
+from django.conf.urls.static import static
 
 def home(request):
     return JsonResponse({
@@ -34,5 +35,9 @@ urlpatterns = [
     path("api/accounts/", include("accounts.urls")),
     path("api/ghg/", include("ghg.urls")),
     path("api/risk/", include("climate_risk.urls")),
+    path("api/reports/", include("reports.urls")),
     path("api/portfolio/", include("projects.urls")),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
