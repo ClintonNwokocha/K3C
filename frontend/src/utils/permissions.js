@@ -1,12 +1,14 @@
 export const USER_ROLES = {
   ADMIN: "admin",
   ANALYST: "analyst",
+  SECTOR_FOCAL_POINT: "sector_focal_point",
   REVIEWER: "reviewer",
   VIEWER: "viewer",
+  PUBLIC: "public",
 };
 
 export function getUserRole(user) {
-  return user?.profile?.role || "";
+  return user?.profile?.role || USER_ROLES.PUBLIC;
 }
 
 export function isSuperuser(user) {
@@ -27,7 +29,11 @@ export function canAccessAdministration(user) {
 }
 
 export function canManageGHGInventory(user) {
-  return hasRole(user, [USER_ROLES.ADMIN, USER_ROLES.ANALYST]);
+  return hasRole(user, [
+    USER_ROLES.ADMIN,
+    USER_ROLES.ANALYST,
+    USER_ROLES.SECTOR_FOCAL_POINT,
+  ]);
 }
 
 export function canReviewGHGInventory(user) {
@@ -43,7 +49,11 @@ export function canManageClimateRisk(user) {
 }
 
 export function canManageProjectPortfolio(user) {
-  return hasRole(user, [USER_ROLES.ADMIN, USER_ROLES.ANALYST]);
+  return hasRole(user, [
+    USER_ROLES.ADMIN,
+    USER_ROLES.ANALYST,
+    USER_ROLES.SECTOR_FOCAL_POINT,
+  ]);
 }
 
 export function canManageReports(user) {
@@ -54,6 +64,7 @@ export function canViewInternalModules(user) {
   return hasRole(user, [
     USER_ROLES.ADMIN,
     USER_ROLES.ANALYST,
+    USER_ROLES.SECTOR_FOCAL_POINT,
     USER_ROLES.REVIEWER,
     USER_ROLES.VIEWER,
   ]);

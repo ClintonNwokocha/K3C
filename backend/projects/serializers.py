@@ -91,9 +91,23 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
             "is_active",
         ]
 
+    def validate_title(self, value):
+        value = str(value or "").strip()
+
+        if not value:
+            raise serializers.ValidationError("Project title is required.")
+
+        if len(value) < 3:
+            raise serializers.ValidationError(
+                "Project title must be at least 3 characters."
+            )
+
+        return value
+
     def validate_estimated_budget_naira(self, value):
         if value < 0:
             raise serializers.ValidationError("Budget cannot be negative.")
+
         return value
 
     def validate_expected_ghg_reduction_tco2e(self, value):
@@ -101,6 +115,7 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Expected GHG reduction cannot be negative."
             )
+
         return value
 
     def validate_expected_beneficiaries(self, value):
@@ -108,4 +123,25 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "Expected beneficiaries cannot be negative."
             )
+
         return value
+
+    def validate(self, attrs):
+        start_date = attrs.get("start_date")
+        end_date = attrs.get("end_date")
+
+        if self.instance:
+            if start_date is None:
+                start_date = self.instance.start_date
+
+            if end_date is None:
+                end_date = self.instance.end_date
+
+        if start_date and end_date and end_date < start_date:
+            raise serializers.ValidationError(
+                {
+                    "end_date": "End date cannot be earlier than start date."
+                }
+            )
+
+        return attrs
