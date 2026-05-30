@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://127.0.0.1:8000/api";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -79,6 +79,11 @@ export async function createEnergyEntry(payload) {
   return response.data;
 }
 
+export async function updateEnergyEntry(entryId, payload) {
+  const response = await api.patch(`/ghg/energy/entries/${entryId}/`, payload);
+  return response.data;
+}
+
 export async function submitEnergyEntry(entryId) {
   const response = await api.post(`/ghg/energy/entries/${entryId}/submit/`);
   return response.data;
@@ -90,17 +95,15 @@ export async function getEnergyReviewQueue() {
 }
 
 export async function reviewEnergyEntry(entryId, payload) {
-  const response = await api.post(`/ghg/energy/entries/${entryId}/review/`, payload);
+  const response = await api.post(
+    `/ghg/energy/entries/${entryId}/review/`,
+    payload
+  );
   return response.data;
 }
 
 export async function getGHGDashboardSummary() {
   const response = await api.get("/ghg/dashboard-summary/");
-  return response.data;
-}
-
-export async function updateEnergyEntry(entryId, payload) {
-  const response = await api.patch(`/ghg/energy/entries/${entryId}/`, payload);
   return response.data;
 }
 
@@ -120,12 +123,17 @@ export async function createAgricultureEntry(payload) {
 }
 
 export async function updateAgricultureEntry(entryId, payload) {
-  const response = await api.patch(`/ghg/agriculture/entries/${entryId}/`, payload);
+  const response = await api.patch(
+    `/ghg/agriculture/entries/${entryId}/`,
+    payload
+  );
   return response.data;
 }
 
 export async function submitAgricultureEntry(entryId) {
-  const response = await api.post(`/ghg/agriculture/entries/${entryId}/submit/`);
+  const response = await api.post(
+    `/ghg/agriculture/entries/${entryId}/submit/`
+  );
   return response.data;
 }
 
@@ -135,7 +143,10 @@ export async function getAgricultureReviewQueue() {
 }
 
 export async function reviewAgricultureEntry(entryId, payload) {
-  const response = await api.post(`/ghg/agriculture/entries/${entryId}/review/`, payload);
+  const response = await api.post(
+    `/ghg/agriculture/entries/${entryId}/review/`,
+    payload
+  );
   return response.data;
 }
 
@@ -170,7 +181,10 @@ export async function getWasteReviewQueue() {
 }
 
 export async function reviewWasteEntry(entryId, payload) {
-  const response = await api.post(`/ghg/waste/entries/${entryId}/review/`, payload);
+  const response = await api.post(
+    `/ghg/waste/entries/${entryId}/review/`,
+    payload
+  );
   return response.data;
 }
 
@@ -205,7 +219,10 @@ export async function getIPPUReviewQueue() {
 }
 
 export async function reviewIPPUEntry(entryId, payload) {
-  const response = await api.post(`/ghg/ippu/entries/${entryId}/review/`, payload);
+  const response = await api.post(
+    `/ghg/ippu/entries/${entryId}/review/`,
+    payload
+  );
   return response.data;
 }
 
@@ -240,7 +257,10 @@ export async function getLULUCFReviewQueue() {
 }
 
 export async function reviewLULUCFEntry(entryId, payload) {
-  const response = await api.post(`/ghg/lulucf/entries/${entryId}/review/`, payload);
+  const response = await api.post(
+    `/ghg/lulucf/entries/${entryId}/review/`,
+    payload
+  );
   return response.data;
 }
 
@@ -281,7 +301,12 @@ export async function uploadClimateRiskDataset(payload) {
   formData.append("year", payload.year);
   formData.append("file", payload.file);
 
-  const response = await api.post("/risk/uploads/", formData);
+  const response = await api.post("/risk/uploads/", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
   return response.data;
 }
 
@@ -344,12 +369,22 @@ export async function getReportDocuments(params = {}) {
 }
 
 export async function createReportDocument(formData) {
-  const response = await api.post("/reports/documents/", formData);
+  const response = await api.post("/reports/documents/", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
   return response.data;
 }
 
 export async function updateReportDocument(reportId, formData) {
-  const response = await api.patch(`/reports/documents/${reportId}/`, formData);
+  const response = await api.patch(`/reports/documents/${reportId}/`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
   return response.data;
 }
 

@@ -70,23 +70,12 @@ function getFeatureDisplayName(feature) {
 function getRiskColor(value) {
   const number = Number(value || 0);
 
-  if (number >= 75) return "#ef4444";
-  if (number >= 60) return "#f97316";
-  if (number >= 40) return "#f59e0b";
-  if (number > 0) return "#22c55e";
+  if (number >= 75) return "#B91C1C";
+  if (number >= 60) return "#EA580C";
+  if (number >= 40) return "#C8A84A";
+  if (number > 0) return "#4E7492";
 
-  return "#cbd5e1";
-}
-
-function getRiskLabel(value) {
-  const number = Number(value || 0);
-
-  if (number >= 75) return "Very High";
-  if (number >= 60) return "High";
-  if (number >= 40) return "Moderate";
-  if (number > 0) return "Low";
-
-  return "No Data";
+  return "#DFE3E4";
 }
 
 function buildProfileLookup(profiles) {
@@ -107,7 +96,7 @@ function FitGeoJsonBounds({ geoJsonData }) {
 
       if (bounds.isValid()) {
         map.fitBounds(bounds, {
-          padding: [30, 30],
+          padding: [24, 24],
           maxZoom: 9,
         });
       }
@@ -128,7 +117,7 @@ function ResetMapButton({ geoJsonData }) {
 
       if (bounds.isValid()) {
         map.fitBounds(bounds, {
-          padding: [30, 30],
+          padding: [24, 24],
           maxZoom: 9,
         });
         return;
@@ -144,48 +133,46 @@ function ResetMapButton({ geoJsonData }) {
     <button
       type="button"
       onClick={handleReset}
-      className="absolute right-4 top-4 z-[650] rounded-xl border border-slate-200 bg-white/95 px-4 py-2 text-xs font-semibold text-slate-700 shadow-lg backdrop-blur hover:bg-slate-50"
+      className="absolute right-4 top-4 z-[650] rounded-md bg-[#0B1726] px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] text-white shadow-lg hover:bg-[#214560]"
     >
-      Reset View
+      Reset
     </button>
   );
 }
 
 function MapLegend() {
   const items = [
-    { label: "Low", color: "#22c55e", range: "0–39" },
-    { label: "Moderate", color: "#f59e0b", range: "40–59" },
-    { label: "High", color: "#f97316", range: "60–74" },
-    { label: "Very High", color: "#ef4444", range: "75–100" },
-    { label: "No Data", color: "#cbd5e1", range: "—" },
+    { label: "Low", color: "#4E7492", range: "0–39" },
+    { label: "Moderate", color: "#C8A84A", range: "40–59" },
+    { label: "High", color: "#EA580C", range: "60–74" },
+    { label: "Very High", color: "#B91C1C", range: "75–100" },
+    { label: "No Data", color: "#DFE3E4", range: "—" },
   ];
 
   return (
-    <div className="absolute bottom-4 left-4 z-[650] w-64 rounded-2xl border border-slate-200 bg-white/95 p-4 text-xs shadow-lg backdrop-blur">
-      <p className="mb-3 font-bold text-slate-800">Climate Risk Legend</p>
+    <div className="absolute bottom-4 left-4 z-[650] rounded-lg border border-slate-200 bg-white/95 p-4 text-xs shadow-lg backdrop-blur">
+      <p className="mb-3 font-bold uppercase tracking-[0.1em] text-[#0B1726]">
+        Risk Legend
+      </p>
 
-      <div className="space-y-2">
+      <div className="grid gap-2">
         {items.map((item) => (
           <div
             key={item.label}
-            className="flex items-center justify-between gap-3"
+            className="flex items-center justify-between gap-6"
           >
             <div className="flex items-center gap-2">
               <span
-                className="h-3 w-3 rounded-full border border-white shadow-sm"
+                className="h-3 w-3 rounded-sm"
                 style={{ backgroundColor: item.color }}
               />
               <span className="text-slate-600">{item.label}</span>
             </div>
 
-            <span className="font-semibold text-slate-500">{item.range}</span>
+            <span className="font-bold text-slate-400">{item.range}</span>
           </div>
         ))}
       </div>
-
-      <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-        Risk indexes are normalized from 0 to 100.
-      </p>
     </div>
   );
 }
@@ -273,9 +260,9 @@ export default function PublicClimateRiskMapPreview() {
 
     return {
       color: "#ffffff",
-      weight: 1.5,
+      weight: 1.4,
       fillColor: getRiskColor(score),
-      fillOpacity: profile ? 0.78 : 0.45,
+      fillOpacity: profile ? 0.82 : 0.45,
       opacity: 1,
       dashArray: profile ? "" : "2",
     };
@@ -301,9 +288,7 @@ export default function PublicClimateRiskMapPreview() {
           profile.overall_risk_score,
           2
         )} / 100</strong></span><br/>
-        <span>Risk Class: ${escapeHtml(
-          profile.risk_level_display || getRiskLabel(profile.overall_risk_score)
-        )}</span><br/>
+        <span>Risk Class: ${escapeHtml(profile.risk_level_display)}</span><br/>
         <span>Flood: ${formatNumber(profile.flood_risk_score, 2)} / 100</span><br/>
         <span>Drought: ${formatNumber(profile.drought_risk_score, 2)} / 100</span><br/>
         <span>Heat: ${formatNumber(profile.heat_risk_score, 2)} / 100</span><br/>
@@ -326,8 +311,8 @@ export default function PublicClimateRiskMapPreview() {
       mouseover: (event) => {
         event.target.setStyle({
           weight: 4,
-          color: "#0f172a",
-          fillOpacity: 0.9,
+          color: "#0B1726",
+          fillOpacity: 0.95,
         });
 
         if (event.target.bringToFront) {
@@ -340,102 +325,59 @@ export default function PublicClimateRiskMapPreview() {
     });
   }
 
+  if (dataError) {
+    return (
+      <div className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-700">
+        {dataError}
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex h-[360px] items-center justify-center rounded-lg bg-[#DFE3E4] text-sm text-slate-500">
+        Loading climate risk map...
+      </div>
+    );
+  }
+
+  if (mapError) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
+        {mapError}
+      </div>
+    );
+  }
+
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-start">
-        <div>
-          <p className="text-sm font-medium text-emerald-700">
-            Public Climate Risk Map
-          </p>
-          <h2 className="mt-1 text-2xl font-bold">
-            Kaduna LGA Risk Preview
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-500">
-            Public map preview of LGA-level climate risk. Click an LGA to view
-            its public risk summary.
-          </p>
-        </div>
+    <div className="relative overflow-hidden rounded-lg border border-[#D0D7DB] bg-[#DFE3E4]">
+      <MapContainer
+        center={KADUNA_CENTER}
+        zoom={KADUNA_ZOOM}
+        minZoom={6}
+        maxZoom={15}
+        maxBounds={NIGERIA_BOUNDS}
+        maxBoundsViscosity={1.0}
+        scrollWheelZoom={false}
+        style={{ height: "360px", width: "100%" }}
+      >
+        <TileLayer
+          attribution="&copy; OpenStreetMap contributors"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-        <button
-          type="button"
-          onClick={loadRiskProfiles}
-          className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-        >
-          Refresh Map Data
-        </button>
-      </div>
+        <FitGeoJsonBounds geoJsonData={geoJsonData} />
+        <ResetMapButton geoJsonData={geoJsonData} />
 
-      {dataError && (
-        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {dataError}
-        </div>
-      )}
+        <GeoJSON
+          key={`${summary.year || "latest"}-${profiles.length}`}
+          data={geoJsonData}
+          style={getFeatureStyle}
+          onEachFeature={onEachFeature}
+        />
+      </MapContainer>
 
-      <div className="mb-5 grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl bg-slate-50 p-4">
-          <p className="text-sm text-slate-500">Map Year</p>
-          <p className="mt-2 text-2xl font-bold">{summary.year || "—"}</p>
-        </div>
-
-        <div className="rounded-2xl bg-slate-50 p-4">
-          <p className="text-sm text-slate-500">LGAs Mapped</p>
-          <p className="mt-2 text-2xl font-bold">{summary.total_lgas || 0}</p>
-        </div>
-
-        <div className="rounded-2xl bg-orange-50 p-4">
-          <p className="text-sm text-orange-700">High Risk</p>
-          <p className="mt-2 text-2xl font-bold text-orange-700">
-            {summary.risk_counts?.high || 0}
-          </p>
-        </div>
-
-        <div className="rounded-2xl bg-red-50 p-4">
-          <p className="text-sm text-red-700">Very High Risk</p>
-          <p className="mt-2 text-2xl font-bold text-red-700">
-            {summary.risk_counts?.very_high || 0}
-          </p>
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
-          Loading public climate risk map...
-        </div>
-      ) : mapError ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-          {mapError}
-        </div>
-      ) : (
-        <div className="relative overflow-hidden rounded-2xl border border-slate-200">
-          <MapContainer
-            center={KADUNA_CENTER}
-            zoom={KADUNA_ZOOM}
-            minZoom={6}
-            maxZoom={15}
-            maxBounds={NIGERIA_BOUNDS}
-            maxBoundsViscosity={1.0}
-            scrollWheelZoom={false}
-            style={{ height: "460px", width: "100%" }}
-          >
-            <TileLayer
-              attribution="&copy; OpenStreetMap contributors"
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-
-            <FitGeoJsonBounds geoJsonData={geoJsonData} />
-            <ResetMapButton geoJsonData={geoJsonData} />
-
-            <GeoJSON
-              key={`${summary.year || "latest"}-${profiles.length}`}
-              data={geoJsonData}
-              style={getFeatureStyle}
-              onEachFeature={onEachFeature}
-            />
-          </MapContainer>
-
-          <MapLegend />
-        </div>
-      )}
-    </section>
+      <MapLegend />
+    </div>
   );
 }

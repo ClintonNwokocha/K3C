@@ -1,12 +1,27 @@
-function PublicNavButton({ label, active, onClick }) {
+const BRAND = {
+  commandNavy: "#0B1726",
+  officialBlue: "#214560",
+  dataBlue: "#4E7492",
+  climateTeal: "#2292A4",
+  mistGrey: "#DFE3E4",
+  gold: "#C8A84A",
+};
+
+function PublicNavButton({ label, active, onClick, variant = "ghost" }) {
+  const baseClass =
+    "rounded-sm px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition";
+
+  const activeClass = "bg-[#C8A84A] text-[#0B1726]";
+  const primaryClass = "bg-[#2292A4] text-white hover:bg-[#1d7f90]";
+  const ghostClass =
+    "border border-white/15 text-white/75 hover:border-white/35 hover:text-white";
+
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-        active
-          ? "bg-emerald-400 text-slate-950 shadow-sm"
-          : "border border-white/20 text-white hover:bg-white/10"
+      className={`${baseClass} ${
+        active ? activeClass : variant === "primary" ? primaryClass : ghostClass
       }`}
     >
       {label}
@@ -18,24 +33,40 @@ export function PublicPortalHeader({
   activePage = "home",
   title,
   description,
+  tag = "Public climate intelligence portal",
+  stats = [],
+  showStats = false,
+  compact = false,
+  showActions = true,
+  primaryActionLabel = "Explore Risk Landscape",
+  secondaryActionLabel = "View Reports",
+  onPrimaryAction,
+  onSecondaryAction,
 }) {
   return (
-    <section className="border-b border-slate-800 bg-slate-950 px-4 py-8 text-white sm:px-6 sm:py-10">
-      <div className="mx-auto max-w-7xl">
-        <div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-start">
-          <div className="max-w-4xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-300 sm:text-sm">
-              Kaduna State Climate Command Centre
-            </p>
+    <header className="bg-[#0B1726] font-['DM_Sans'] text-white">
+      <nav className="border-b border-white/10 px-4 py-4 sm:px-8 lg:px-10">
+        <div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 lg:flex-row lg:items-center">
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = "/public";
+            }}
+            className="flex items-center gap-3 text-left"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-[#2292A4]">
+              <span className="text-sm font-black text-white">K</span>
+            </div>
 
-            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl md:text-5xl">
-              {title}
-            </h1>
-
-            <p className="mt-4 max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
-              {description}
-            </p>
-          </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-white">
+                Kaduna Climate Command Centre
+              </p>
+              <p className="mt-1 text-xs text-white/50">
+                Climate intelligence, evidence and reporting portal
+              </p>
+            </div>
+          </button>
 
           <div className="flex flex-wrap gap-3">
             <PublicNavButton
@@ -54,67 +85,165 @@ export function PublicPortalHeader({
               }}
             />
 
-            <button
-              type="button"
+            <PublicNavButton
+              label="Staff Login"
+              variant="primary"
               onClick={() => {
                 window.location.href = "/";
               }}
-              className="rounded-full border border-white/20 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-            >
-              Staff Login
-            </button>
+            />
           </div>
         </div>
+      </nav>
 
-        <div className="mt-8 grid gap-4 border-t border-white/10 pt-6 text-sm text-slate-300 md:grid-cols-3">
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="font-semibold text-white">Climate Risk</p>
-            <p className="mt-1">
-              Public summaries of climate risk conditions across Kaduna LGAs.
+      <section
+        className={`border-b border-white/10 px-4 sm:px-8 lg:px-10 ${
+          compact ? "py-16" : "py-20 lg:py-24"
+        }`}
+      >
+        <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
+          <div>
+            <p className="mb-6 text-xs font-black uppercase tracking-[0.2em] text-[#C8A84A]">
+              {tag}
             </p>
+
+            <h1 className="max-w-4xl font-['Playfair_Display'] text-5xl font-bold leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl">
+              {title}
+            </h1>
+
+            <p className="mt-7 max-w-2xl text-base font-light leading-8 text-white/70 sm:text-lg">
+              {description}
+            </p>
+
+            {showActions && (
+              <div className="mt-8 flex flex-wrap gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof onPrimaryAction === "function") {
+                      onPrimaryAction();
+                      return;
+                    }
+
+                    const section = document.getElementById("risk-landscape");
+                    section?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="rounded-sm bg-[#C8A84A] px-7 py-4 text-sm font-black uppercase tracking-[0.08em] text-[#0B1726] transition hover:bg-[#d8b85c]"
+                >
+                  {primaryActionLabel}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof onSecondaryAction === "function") {
+                      onSecondaryAction();
+                      return;
+                    }
+
+                    window.location.href = "/public/reports";
+                  }}
+                  className="rounded-sm border border-white/35 px-7 py-4 text-sm font-black uppercase tracking-[0.08em] text-white/85 transition hover:border-[#C8A84A] hover:text-white"
+                >
+                  {secondaryActionLabel}
+                </button>
+              </div>
+            )}
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="font-semibold text-white">Climate Action</p>
-            <p className="mt-1">
-              Portfolio-level view of projects, expected beneficiaries and
-              mitigation outcomes.
+          <div className="hidden border-l border-white/10 pl-10 lg:block">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/40">
+              Portal purpose
             </p>
-          </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="font-semibold text-white">Reports</p>
-            <p className="mt-1">
-              Published public reports, briefs and validated documents.
-            </p>
+            <div className="mt-6 space-y-5 text-sm leading-7 text-white/65">
+              <p>
+                Provides public-facing access to climate risk summaries,
+                priority climate action projects, published reports and evidence
+                documents.
+              </p>
+
+              <p>
+                Designed to support transparency, coordination and evidence-led
+                decision making across Kaduna State.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+
+      {showStats && stats.length > 0 && (
+        <section className="border-b border-white/10 bg-[#091320] px-4 sm:px-8 lg:px-10">
+          <div className="mx-auto grid max-w-7xl divide-y divide-white/10 md:grid-cols-4 md:divide-x md:divide-y-0">
+            {stats.map((stat) => (
+              <div key={stat.label} className="py-6 md:px-6 first:md:pl-0">
+                <p className="font-['Playfair_Display'] text-4xl font-bold text-white">
+                  {stat.value}
+                </p>
+
+                <p className="mt-2 text-[11px] font-black uppercase tracking-[0.14em] text-white/45">
+                  {stat.label}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </header>
+  );
+}
+
+export function PublicSectionIntro({ eyebrow, title, description }) {
+  return (
+    <div>
+      {eyebrow && (
+        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#2292A4]">
+          {eyebrow}
+        </p>
+      )}
+
+      <h2 className="font-['Playfair_Display'] text-4xl font-bold leading-tight text-[#0B1726]">
+        {title}
+      </h2>
+
+      {description && (
+        <p className="mt-4 max-w-2xl text-sm font-light leading-7 text-slate-600">
+          {description}
+        </p>
+      )}
+    </div>
   );
 }
 
 export function PublicPortalFooter() {
   return (
-    <footer className="border-t border-slate-200 bg-white px-4 py-8 sm:px-6">
-      <div className="mx-auto flex max-w-7xl flex-col justify-between gap-6 text-sm text-slate-500 md:flex-row md:items-center">
+    <footer className="bg-[#0B1726] px-4 py-10 font-['DM_Sans'] text-xs text-white/50 sm:px-8 lg:px-10">
+      <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1fr_auto] md:items-end">
         <div>
-          <p className="font-semibold text-slate-800">
+          <p className="font-black uppercase tracking-[0.14em] text-white">
             Kaduna State Climate Command Centre
           </p>
-          <p className="mt-1 max-w-2xl">
-            Public climate information portal for summary-level communication,
-            official documents and climate action visibility.
+
+          <p className="mt-3 max-w-xl leading-6 text-white/50">
+            Public climate intelligence, evidence and reporting portal for
+            summary-level climate risk, project and reports information.
+          </p>
+
+          <p className="mt-4 text-white/60">
+            Powered by{" "}
+            <span className="font-bold text-white">
+              Quintessence Environmental Consult
+            </span>
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-6">
           <button
             type="button"
             onClick={() => {
               window.location.href = "/public";
             }}
-            className="font-semibold text-slate-600 hover:text-emerald-700"
+            className="hover:text-white"
           >
             Public Home
           </button>
@@ -124,7 +253,7 @@ export function PublicPortalFooter() {
             onClick={() => {
               window.location.href = "/public/reports";
             }}
-            className="font-semibold text-slate-600 hover:text-emerald-700"
+            className="hover:text-white"
           >
             Reports
           </button>
@@ -134,11 +263,17 @@ export function PublicPortalFooter() {
             onClick={() => {
               window.location.href = "/";
             }}
-            className="font-semibold text-slate-600 hover:text-emerald-700"
+            className="hover:text-white"
           >
             Staff Login
           </button>
         </div>
+      </div>
+
+      <div className="mx-auto mt-8 max-w-7xl border-t border-white/10 pt-6">
+        <p className="uppercase tracking-[0.12em] text-white/35">
+          © 2026 Kaduna State Climate Command Centre. All rights reserved.
+        </p>
       </div>
     </footer>
   );
@@ -146,23 +281,20 @@ export function PublicPortalFooter() {
 
 export function PublicDataNotice() {
   return (
-    <section className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
-      <p className="font-bold">Public Data Notice</p>
-      <p className="mt-2">
-        This public portal provides summary-level information for awareness and
-        communication. Official datasets, validated technical documents and
-        detailed evidence should be accessed through the published reports
-        portal.
-      </p>
+    <section className="border-l-4 border-[#2292A4] bg-white px-5 py-4 font-['DM_Sans'] text-xs leading-6 text-slate-600">
+      <strong className="text-[#0B1726]">Public data notice:</strong> This
+      portal provides summary-level information for public awareness and
+      communication. Official datasets, validated technical documents and
+      detailed evidence should be accessed through the published reports portal.
     </section>
   );
 }
 
 export function PublicEmptyState({ title, message }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-      <p className="font-semibold text-slate-700">{title}</p>
-      <p className="mt-2">{message}</p>
+    <div className="rounded-sm border border-dashed border-[#B8C2C8] bg-white p-6 text-sm text-slate-500">
+      <p className="font-bold text-[#0B1726]">{title}</p>
+      <p className="mt-2 leading-6">{message}</p>
     </div>
   );
 }

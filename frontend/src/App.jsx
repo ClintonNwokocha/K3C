@@ -133,9 +133,9 @@ function App() {
     if (activePage === "dashboard") {
       return (
         <Dashboard
-          health={health}
           foundation={foundation}
-          ghgSummary={ghgSummary}
+          currentUser={currentUser}
+          onPageChange={setActivePage}
         />
       );
     }

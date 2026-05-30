@@ -64,7 +64,28 @@ const PLACEHOLDER_LGA_GEOJSON = {
   ],
 };
 
-const metricOptions = [
+const analysisModes = [
+  {
+    key: "where",
+    title: "Where",
+    label: "Where are projects concentrated?",
+    helper: "Map and rank LGAs by project activity.",
+  },
+  {
+    key: "funders",
+    title: "Funders",
+    label: "Who funds more?",
+    helper: "Rank funding sources by investment and outcomes.",
+  },
+  {
+    key: "agencies",
+    title: "Agencies",
+    label: "Who implements more?",
+    helper: "Rank implementing agencies by delivery footprint.",
+  },
+];
+
+const measureOptions = [
   { value: "count", label: "Project Count" },
   { value: "budget", label: "Budget" },
   { value: "ghg", label: "Expected GHG Reduction" },
@@ -90,7 +111,7 @@ function formatNumber(value, maximumFractionDigits = 2) {
 }
 
 function formatMoney(value) {
-  return `₦${formatNumber(value, 2)}`;
+  return `₦${formatNumber(value, 0)}`;
 }
 
 function escapeHtml(value) {
@@ -131,37 +152,53 @@ function getFeatureDisplayName(feature) {
   return String(Object.values(properties)[0] || "Unnamed LGA").trim();
 }
 
-function getMetricValue(stats, metric) {
+function getMeasureLabel(measure) {
+  return (
+    measureOptions.find((item) => item.value === measure)?.label || "Projects"
+  );
+}
+
+function getMeasureValue(stats, measure) {
   if (!stats) return 0;
 
-  if (metric === "budget") return stats.totalBudget;
-  if (metric === "ghg") return stats.totalGhgReduction;
-  if (metric === "beneficiaries") return stats.totalBeneficiaries;
+  if (measure === "budget") return stats.totalBudget;
+  if (measure === "ghg") return stats.totalGhgReduction;
+  if (measure === "beneficiaries") return stats.totalBeneficiaries;
 
   return stats.projectCount;
 }
 
-function getMetricLabel(metric) {
-  return metricOptions.find((item) => item.value === metric)?.label || "Projects";
-}
-
-function formatMetricValue(value, metric) {
-  if (metric === "budget") return formatMoney(value);
-  if (metric === "ghg") return `${formatNumber(value, 3)} tCO₂e`;
-  if (metric === "beneficiaries") return `${formatNumber(value, 0)} people`;
+function formatMeasureValue(value, measure) {
+  if (measure === "budget") return formatMoney(value);
+  if (measure === "ghg") return `${formatNumber(value, 3)} tCO₂e`;
+  if (measure === "beneficiaries") return `${formatNumber(value, 0)} people`;
 
   return `${formatNumber(value, 0)} project(s)`;
 }
 
 function getChoroplethColor(value, maxValue) {
-  if (!value || value <= 0) return "#e2e8f0";
+  if (!value || value <= 0) return "#DFE3E4";
 
   const ratio = maxValue > 0 ? value / maxValue : 0;
 
-  if (ratio >= 0.75) return "#16a34a";
-  if (ratio >= 0.5) return "#22c55e";
-  if (ratio >= 0.25) return "#86efac";
-  return "#dcfce7";
+  if (ratio >= 0.75) return "#214560";
+  if (ratio >= 0.5) return "#4E7492";
+  if (ratio >= 0.25) return "#2292A4";
+  return "#B9D8DE";
+}
+
+function getProjectEntity(project, mode) {
+  if (mode === "funders") return project.funding_source || "Not specified";
+  if (mode === "agencies") return project.implementing_agency || "Not specified";
+  return project.lga_name || "Statewide / Not specified";
+}
+
+function buildEntityOptions(projects, mode) {
+  if (mode === "where") return [];
+
+  return Array.from(new Set(projects.map((project) => getProjectEntity(project, mode))))
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
 }
 
 function buildLgaStats(projects) {
@@ -171,14 +208,20 @@ function buildLgaStats(projects) {
 
     if (!lookup[key]) {
       lookup[key] = {
+        label: lgaName,
         lgaName,
         projectCount: 0,
         totalBudget: 0,
         totalGhgReduction: 0,
         totalBeneficiaries: 0,
+        fundingSources: {},
+        implementingAgencies: {},
         projects: [],
       };
     }
+
+    const fundingSource = project.funding_source || "Not specified";
+    const implementingAgency = project.implementing_agency || "Not specified";
 
     lookup[key].projectCount += 1;
     lookup[key].totalBudget += Number(project.estimated_budget_naira || 0);
@@ -186,10 +229,54 @@ function buildLgaStats(projects) {
       project.expected_ghg_reduction_tco2e || 0
     );
     lookup[key].totalBeneficiaries += Number(project.expected_beneficiaries || 0);
+    lookup[key].fundingSources[fundingSource] =
+      (lookup[key].fundingSources[fundingSource] || 0) + 1;
+    lookup[key].implementingAgencies[implementingAgency] =
+      (lookup[key].implementingAgencies[implementingAgency] || 0) + 1;
     lookup[key].projects.push(project);
 
     return lookup;
   }, {});
+}
+
+function buildEntityStats(projects, mode) {
+  return projects.reduce((lookup, project) => {
+    const label = getProjectEntity(project, mode);
+    const key = normalizeName(label);
+
+    if (!lookup[key]) {
+      lookup[key] = {
+        label,
+        projectCount: 0,
+        totalBudget: 0,
+        totalGhgReduction: 0,
+        totalBeneficiaries: 0,
+        lgas: {},
+        projects: [],
+      };
+    }
+
+    const lgaName = project.lga_name || "Statewide / Not specified";
+
+    lookup[key].projectCount += 1;
+    lookup[key].totalBudget += Number(project.estimated_budget_naira || 0);
+    lookup[key].totalGhgReduction += Number(
+      project.expected_ghg_reduction_tco2e || 0
+    );
+    lookup[key].totalBeneficiaries += Number(project.expected_beneficiaries || 0);
+    lookup[key].lgas[lgaName] = (lookup[key].lgas[lgaName] || 0) + 1;
+    lookup[key].projects.push(project);
+
+    return lookup;
+  }, {});
+}
+
+function summarizeDictionary(dictionary, maxItems = 3) {
+  return Object.entries(dictionary || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, maxItems)
+    .map(([label, count]) => `${label} (${count})`)
+    .join(", ");
 }
 
 function FitGeoJsonBounds({ geoJsonData }) {
@@ -240,45 +327,243 @@ function ResetMapButton({ geoJsonData }) {
     <button
       type="button"
       onClick={handleReset}
-      className="absolute right-4 top-4 z-[650] rounded-xl border border-slate-200 bg-white/95 px-4 py-2 text-xs font-semibold text-slate-700 shadow-lg backdrop-blur hover:bg-slate-50"
+      className="absolute right-4 top-4 z-[650] rounded-md border border-[#CAD2D7] bg-white/95 px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#214560] shadow-lg backdrop-blur hover:border-[#2292A4] hover:text-[#2292A4]"
     >
       Reset View
     </button>
   );
 }
 
-function MapLegend({ metric }) {
+function MapLegend({ measure, activeEntity }) {
   return (
-    <div className="absolute bottom-4 left-4 z-[650] w-64 rounded-2xl border border-slate-200 bg-white/95 p-4 text-xs shadow-lg backdrop-blur">
-      <p className="mb-3 font-bold text-slate-800">
-        {getMetricLabel(metric)} Legend
+    <div className="absolute bottom-4 left-4 z-[650] w-72 rounded-xl border border-[#CAD2D7] bg-white/95 p-4 text-xs shadow-lg backdrop-blur">
+      <p className="mb-3 font-black text-[#0B1726]">
+        {getMeasureLabel(measure)} Legend
       </p>
 
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-slate-200" />
+          <span className="h-3 w-3 rounded-sm bg-[#DFE3E4]" />
           <span className="text-slate-600">No linked project</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-green-100" />
+          <span className="h-3 w-3 rounded-sm bg-[#B9D8DE]" />
           <span className="text-slate-600">Lower concentration</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-green-300" />
+          <span className="h-3 w-3 rounded-sm bg-[#2292A4]" />
           <span className="text-slate-600">Moderate concentration</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-full bg-green-600" />
+          <span className="h-3 w-3 rounded-sm bg-[#214560]" />
           <span className="text-slate-600">Highest concentration</span>
         </div>
       </div>
 
-      <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
-        Map values are relative to the projects in the current filtered view.
+      <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] leading-5 text-slate-500">
+        Map values are relative to the current project view.
+        {activeEntity ? ` Focus: ${activeEntity}.` : ""}
       </p>
+    </div>
+  );
+}
+
+function AnalysisModeSelector({ mode, setMode }) {
+  return (
+    <div className="grid gap-3 lg:grid-cols-3">
+      {analysisModes.map((item) => {
+        const isActive = mode === item.key;
+
+        return (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setMode(item.key)}
+            className={`rounded-xl border p-4 text-left transition ${
+              isActive
+                ? "border-[#214560] bg-[#214560] text-white shadow-sm"
+                : "border-[#CAD2D7] bg-white text-[#0B1726] hover:border-[#2292A4]"
+            }`}
+          >
+            <p
+              className={`text-xs font-black uppercase tracking-[0.12em] ${
+                isActive ? "text-[#C8A84A]" : "text-[#2292A4]"
+              }`}
+            >
+              {item.title}
+            </p>
+            <p className="mt-2 font-black">{item.label}</p>
+            <p
+              className={`mt-2 text-xs leading-5 ${
+                isActive ? "text-white/70" : "text-slate-500"
+              }`}
+            >
+              {item.helper}
+            </p>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SummaryPanel({
+  projects,
+  lgaStats,
+  statewideProjects,
+  measure,
+  mode,
+  activeEntity,
+}) {
+  const modeLabel =
+    analysisModes.find((item) => item.key === mode)?.title || "Where";
+
+  return (
+    <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-5">
+      <h3 className="font-black text-[#0B1726]">Map Summary</h3>
+
+      <div className="mt-4 space-y-3 text-sm">
+        <div className="flex justify-between gap-4">
+          <span className="text-slate-500">Projects in view</span>
+          <span className="font-black text-[#0B1726]">{projects.length}</span>
+        </div>
+
+        <div className="flex justify-between gap-4">
+          <span className="text-slate-500">LGAs with projects</span>
+          <span className="font-black text-[#0B1726]">
+            {
+              Object.values(lgaStats).filter(
+                (stats) =>
+                  stats.lgaName !== "Statewide / Not specified" &&
+                  stats.projectCount > 0
+              ).length
+            }
+          </span>
+        </div>
+
+        <div className="flex justify-between gap-4">
+          <span className="text-slate-500">Statewide projects</span>
+          <span className="font-black text-[#0B1726]">
+            {statewideProjects.length}
+          </span>
+        </div>
+
+        <div className="flex justify-between gap-4">
+          <span className="text-slate-500">Analysis</span>
+          <span className="text-right font-black text-[#0B1726]">
+            {modeLabel}
+          </span>
+        </div>
+
+        <div className="flex justify-between gap-4">
+          <span className="text-slate-500">Measure</span>
+          <span className="text-right font-black text-[#0B1726]">
+            {getMeasureLabel(measure)}
+          </span>
+        </div>
+
+        {activeEntity && (
+          <div className="flex justify-between gap-4">
+            <span className="text-slate-500">Focus</span>
+            <span
+              title={activeEntity}
+              className="max-w-[170px] truncate text-right font-black text-[#0B1726]"
+            >
+              {activeEntity}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RankingPanel({ rankedItems, measure, mode }) {
+  const title =
+    mode === "funders"
+      ? "Top Funding Sources"
+      : mode === "agencies"
+        ? "Top Implementing Agencies"
+        : "Top LGAs";
+
+  const description =
+    mode === "funders"
+      ? `Ranked by ${getMeasureLabel(measure).toLowerCase()} to show who is investing more.`
+      : mode === "agencies"
+        ? `Ranked by ${getMeasureLabel(measure).toLowerCase()} to show who is implementing more.`
+        : `Ranked by ${getMeasureLabel(measure).toLowerCase()}.`;
+
+  return (
+    <div className="rounded-xl border border-[#CAD2D7] bg-white p-5">
+      <h3 className="font-black text-[#0B1726]">{title}</h3>
+
+      <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
+
+      <div className="mt-4 space-y-3">
+        {rankedItems.map((stats, index) => {
+          const value = getMeasureValue(stats, measure);
+
+          return (
+            <div
+              key={stats.label || stats.lgaName}
+              className="rounded-xl border border-[#CAD2D7] p-4"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p
+                    title={stats.label || stats.lgaName}
+                    className="truncate font-black text-[#0B1726]"
+                  >
+                    {index + 1}. {stats.label || stats.lgaName}
+                  </p>
+
+                  <p className="mt-1 text-xs text-slate-500">
+                    {stats.projectCount} project(s)
+                  </p>
+                </div>
+
+                <p className="shrink-0 text-right text-sm font-black text-[#0B1726]">
+                  {formatMeasureValue(value, measure)}
+                </p>
+              </div>
+
+              {mode !== "where" && (
+                <div className="mt-3 grid gap-2 border-t border-[#E6EAEC] pt-3 text-xs">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-400">Budget</span>
+                    <span className="font-bold text-[#0B1726]">
+                      {formatMoney(stats.totalBudget)}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-400">GHG</span>
+                    <span className="font-bold text-[#0B1726]">
+                      {formatNumber(stats.totalGhgReduction, 3)} tCO₂e
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-3">
+                    <span className="text-slate-400">Beneficiaries</span>
+                    <span className="font-bold text-[#0B1726]">
+                      {formatNumber(stats.totalBeneficiaries, 0)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {rankedItems.length === 0 && (
+          <p className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4 text-sm text-slate-500">
+            No project data available for this view.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -287,30 +572,53 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
   const [geoJsonData, setGeoJsonData] = useState(PLACEHOLDER_LGA_GEOJSON);
   const [isUsingPlaceholder, setIsUsingPlaceholder] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const [metric, setMetric] = useState("count");
+  const [mode, setMode] = useState("where");
+  const [measure, setMeasure] = useState("count");
+  const [activeEntity, setActiveEntity] = useState("all");
 
-  const lgaStats = useMemo(() => buildLgaStats(projects), [projects]);
+  const entityOptions = useMemo(
+    () => buildEntityOptions(projects, mode),
+    [projects, mode]
+  );
+
+  const focusedProjects = useMemo(() => {
+    if (mode === "where" || activeEntity === "all") return projects;
+
+    return projects.filter(
+      (project) => getProjectEntity(project, mode) === activeEntity
+    );
+  }, [projects, mode, activeEntity]);
+
+  const lgaStats = useMemo(() => buildLgaStats(focusedProjects), [focusedProjects]);
 
   const statewideProjects = useMemo(() => {
-    return projects.filter((project) => !project.lga);
-  }, [projects]);
+    return focusedProjects.filter((project) => !project.lga);
+  }, [focusedProjects]);
 
-  const maxMetricValue = useMemo(() => {
+  const rankedItems = useMemo(() => {
+    if (mode === "where") {
+      return Object.values(lgaStats)
+        .filter((stats) => stats.lgaName !== "Statewide / Not specified")
+        .sort((a, b) => getMeasureValue(b, measure) - getMeasureValue(a, measure))
+        .slice(0, 8);
+    }
+
+    return Object.values(buildEntityStats(projects, mode))
+      .sort((a, b) => getMeasureValue(b, measure) - getMeasureValue(a, measure))
+      .slice(0, 8);
+  }, [projects, lgaStats, mode, measure]);
+
+  const maxMeasureValue = useMemo(() => {
     const values = Object.values(lgaStats).map((stats) =>
-      getMetricValue(stats, metric)
+      getMeasureValue(stats, measure)
     );
 
     return Math.max(...values, 0);
-  }, [lgaStats, metric]);
+  }, [lgaStats, measure]);
 
-  const rankedLgas = useMemo(() => {
-    return Object.values(lgaStats)
-      .filter((stats) => stats.lgaName !== "Statewide / Not specified")
-      .sort(
-        (a, b) => getMetricValue(b, metric) - getMetricValue(a, metric)
-      )
-      .slice(0, 8);
-  }, [lgaStats, metric]);
+  useEffect(() => {
+    setActiveEntity("all");
+  }, [mode]);
 
   useEffect(() => {
     let isMounted = true;
@@ -363,13 +671,13 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
 
   function getFeatureStyle(feature) {
     const stats = getFeatureStats(feature);
-    const value = getMetricValue(stats, metric);
+    const value = getMeasureValue(stats, measure);
 
     return {
       color: "#ffffff",
       weight: 1.5,
-      fillColor: getChoroplethColor(value, maxMetricValue),
-      fillOpacity: value > 0 ? 0.78 : 0.45,
+      fillColor: getChoroplethColor(value, maxMeasureValue),
+      fillOpacity: value > 0 ? 0.82 : 0.45,
       opacity: 1,
       dashArray: value > 0 ? "" : "2",
     };
@@ -378,7 +686,7 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
   function buildPopupHtml(feature) {
     const lgaName = getFeatureDisplayName(feature);
     const stats = getFeatureStats(feature);
-    const value = getMetricValue(stats, metric);
+    const value = getMeasureValue(stats, measure);
 
     if (!stats) {
       return `
@@ -389,11 +697,14 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
       `;
     }
 
+    const topFunders = summarizeDictionary(stats.fundingSources);
+    const topAgencies = summarizeDictionary(stats.implementingAgencies);
+
     return `
-      <div style="min-width: 240px;">
+      <div style="min-width: 270px;">
         <strong>${escapeHtml(lgaName)}</strong><br/>
-        <span>${escapeHtml(getMetricLabel(metric))}: <strong>${escapeHtml(
-      formatMetricValue(value, metric)
+        <span>${escapeHtml(getMeasureLabel(measure))}: <strong>${escapeHtml(
+      formatMeasureValue(value, measure)
     )}</strong></span><br/>
         <span>Projects: ${formatNumber(stats.projectCount, 0)}</span><br/>
         <span>Budget: ${escapeHtml(formatMoney(stats.totalBudget))}</span><br/>
@@ -404,6 +715,13 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
         <span>Beneficiaries: ${formatNumber(
           stats.totalBeneficiaries,
           0
+        )}</span><br/>
+        <hr/>
+        <span><strong>Top Funders:</strong> ${escapeHtml(
+          topFunders || "Not specified"
+        )}</span><br/>
+        <span><strong>Top Agencies:</strong> ${escapeHtml(
+          topAgencies || "Not specified"
         )}</span>
       </div>
     `;
@@ -428,8 +746,8 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
       mouseover: (event) => {
         event.target.setStyle({
           weight: 4,
-          color: "#0f172a",
-          fillOpacity: 0.9,
+          color: "#0B1726",
+          fillOpacity: 0.94,
         });
 
         if (event.target.bringToFront) {
@@ -442,38 +760,63 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
     });
   }
 
-  return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-5 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-        <div>
-          <p className="text-sm font-medium text-emerald-700">
-            Portfolio Map View
-          </p>
-          <h2 className="mt-1 text-2xl font-bold">
-            Climate Projects by LGA
-          </h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-500">
-            Spatial view of project concentration across Kaduna LGAs. The map
-            uses the same official LGA boundary file used by the Climate Risk
-            module where available.
-          </p>
-        </div>
+  const focusLabel = mode !== "where" && activeEntity !== "all" ? activeEntity : "";
 
+  return (
+    <div>
+      <div className="mb-5">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#2292A4]">
+          Portfolio intelligence map
+        </p>
+
+        <h2 className="mt-2 text-2xl font-black text-[#0B1726]">
+          Climate project investment and implementation view
+        </h2>
+
+        <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
+          Explore where projects are concentrated, who funds more, and which
+          agencies are implementing more climate action.
+        </p>
+      </div>
+
+      <AnalysisModeSelector mode={mode} setMode={setMode} />
+
+      <div className="mt-4 grid gap-3 lg:grid-cols-[280px_1fr]">
         <select
-          value={metric}
-          onChange={(event) => setMetric(event.target.value)}
-          className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          value={measure}
+          onChange={(event) => setMeasure(event.target.value)}
+          className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10"
         >
-          {metricOptions.map((item) => (
+          {measureOptions.map((item) => (
             <option key={item.value} value={item.value}>
-              {item.label}
+              Compare by: {item.label}
             </option>
           ))}
         </select>
+
+        {mode !== "where" && (
+          <select
+            value={activeEntity}
+            onChange={(event) => setActiveEntity(event.target.value)}
+            className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10"
+          >
+            <option value="all">
+              {mode === "funders"
+                ? "Show all funding sources on map"
+                : "Show all implementing agencies on map"}
+            </option>
+
+            {entityOptions.map((item) => (
+              <option key={item} value={item}>
+                Focus map on: {item}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
-      <div className="grid items-start gap-6 xl:grid-cols-3">
-        <div className="relative h-fit self-start overflow-hidden rounded-2xl border border-slate-200 xl:col-span-2">
+      <div className="mt-6 grid items-start gap-6 xl:grid-cols-3">
+        <div className="relative h-fit self-start overflow-hidden rounded-xl border border-[#CAD2D7] xl:col-span-2">
           <MapContainer
             center={KADUNA_CENTER}
             zoom={KADUNA_ZOOM}
@@ -482,7 +825,7 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
             maxBounds={NIGERIA_BOUNDS}
             maxBoundsViscosity={1.0}
             scrollWheelZoom={false}
-            style={{ height: "440px", width: "100%" }}
+            style={{ height: "460px", width: "100%" }}
           >
             <TileLayer
               attribution="&copy; OpenStreetMap contributors"
@@ -493,100 +836,38 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
             <ResetMapButton geoJsonData={geoJsonData} />
 
             <GeoJSON
-              key={`${metric}-${isUsingPlaceholder ? "placeholder" : "official"}-${projects.length}`}
+              key={`${mode}-${measure}-${activeEntity}-${
+                isUsingPlaceholder ? "placeholder" : "official"
+              }-${focusedProjects.length}`}
               data={geoJsonData}
               style={getFeatureStyle}
               onEachFeature={onEachFeature}
             />
           </MapContainer>
 
-          <MapLegend metric={metric} />
+          <MapLegend measure={measure} activeEntity={focusLabel} />
 
           {loadError && (
-            <div className="absolute bottom-4 right-4 z-[650] max-w-xs rounded-2xl border border-amber-200 bg-amber-50/95 p-4 text-xs text-amber-800 shadow-lg backdrop-blur">
-              <p className="font-bold">Boundary Notice</p>
-              <p className="mt-1">{loadError}</p>
+            <div className="absolute bottom-4 right-4 z-[650] max-w-xs rounded-xl border border-amber-200 bg-amber-50/95 p-4 text-xs text-amber-800 shadow-lg backdrop-blur">
+              <p className="font-black">Boundary Notice</p>
+              <p className="mt-1 leading-5">{loadError}</p>
             </div>
           )}
         </div>
 
         <div className="h-fit self-start space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-            <h3 className="font-bold">Map Summary</h3>
+          <SummaryPanel
+            projects={focusedProjects}
+            lgaStats={lgaStats}
+            statewideProjects={statewideProjects}
+            measure={measure}
+            mode={mode}
+            activeEntity={focusLabel}
+          />
 
-            <div className="mt-4 space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Projects in view</span>
-                <span className="font-semibold">{projects.length}</span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-slate-500">LGAs with projects</span>
-                <span className="font-semibold">
-                  {
-                    Object.values(lgaStats).filter(
-                      (stats) =>
-                        stats.lgaName !== "Statewide / Not specified" &&
-                        stats.projectCount > 0
-                    ).length
-                  }
-                </span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-slate-500">Statewide projects</span>
-                <span className="font-semibold">{statewideProjects.length}</span>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-slate-500">Current metric</span>
-                <span className="font-semibold">{getMetricLabel(metric)}</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <h3 className="font-bold">Top LGAs</h3>
-            <p className="mt-1 text-sm text-slate-500">
-              Ranked by {getMetricLabel(metric).toLowerCase()}.
-            </p>
-
-            <div className="mt-4 space-y-3">
-              {rankedLgas.map((stats, index) => {
-                const value = getMetricValue(stats, metric);
-
-                return (
-                  <div
-                    key={stats.lgaName}
-                    className="rounded-xl border border-slate-200 p-4"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold">
-                          {index + 1}. {stats.lgaName}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {stats.projectCount} project(s)
-                        </p>
-                      </div>
-
-                      <p className="text-right text-sm font-bold">
-                        {formatMetricValue(value, metric)}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {rankedLgas.length === 0 && (
-                <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                  No LGA-linked projects available yet.
-                </p>
-              )}
-            </div>
-          </div>
+          <RankingPanel rankedItems={rankedItems} measure={measure} mode={mode} />
         </div>
       </div>
-    </section>
+    </div>
   );
 }

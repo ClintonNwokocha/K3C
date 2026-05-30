@@ -1,9 +1,17 @@
+import { useEffect, useMemo, useState } from "react";
 import ProjectPortfolioExportPanel from "../components/ProjectPortfolioExportPanel";
 import ProjectPortfolioStatusBoard from "../components/ProjectPortfolioStatusBoard";
 import ProjectPortfolioMapView from "../components/ProjectPortfolioMapView";
-import { canManageProjectPortfolio } from "../utils/permissions";
 import ProjectPortfolioImportPanel from "../components/ProjectPortfolioImportPanel";
-import { useEffect, useMemo, useState } from "react";
+import {
+  CommandButton,
+  CommandNotice,
+  CommandPageHeader,
+  CommandSection,
+  CommandStatCard,
+  CommandTabs,
+} from "../components/CommandUI";
+import { canManageProjectPortfolio } from "../utils/permissions";
 import {
   createClimateProject,
   getClimateProjects,
@@ -67,14 +75,27 @@ const initialForm = {
   is_active: true,
 };
 
+const baseTabs = [
+  { key: "overview", label: "Overview" },
+  { key: "map", label: "Project Map" },
+  { key: "board", label: "Status Board" },
+  { key: "import_export", label: "Import / Export" },
+  { key: "register", label: "Project Register" },
+];
+
+const formTab = { key: "form", label: "Add / Edit Project" };
+
+const inputClass =
+  "w-full rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10";
+
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, {
     maximumFractionDigits,
   });
 }
 
-function formatMoney(value) {
-  return `₦${formatNumber(value, 2)}`;
+function formatMoney(value, maximumFractionDigits = 0) {
+  return `₦${formatNumber(value, maximumFractionDigits)}`;
 }
 
 function getStatusClass(status) {
@@ -89,8 +110,8 @@ function getStatusClass(status) {
 function getPriorityClass(priority) {
   if (priority === "very_high") return "bg-red-50 text-red-700";
   if (priority === "high") return "bg-orange-50 text-orange-700";
-  if (priority === "medium") return "bg-amber-50 text-amber-700";
-  return "bg-emerald-50 text-emerald-700";
+  if (priority === "medium") return "bg-[#C8A84A]/15 text-[#0B1726]";
+  return "bg-[#4E7492]/10 text-[#214560]";
 }
 
 function getOptionLabel(options, value) {
@@ -127,12 +148,824 @@ function buildFormFromProject(project) {
   };
 }
 
+function getStatusCounts(projects) {
+  return statusOptions.reduce((counts, item) => {
+    counts[item.value] = projects.filter(
+      (project) => project.status === item.value
+    ).length;
+    return counts;
+  }, {});
+}
+
+function ProjectSummaryCards({ summary }) {
+  return (
+    <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <CommandStatCard
+        label="Total Projects"
+        value={summary.total_projects || 0}
+        helper="Active projects in current view."
+        tone="blue"
+      />
+
+      <CommandStatCard
+        label="Total Budget"
+        value={formatMoney(summary.total_budget_naira, 0)}
+        helper="Estimated portfolio value."
+        tone="navy"
+      />
+
+      <CommandStatCard
+        label="Expected GHG Reduction"
+        value={formatNumber(summary.total_expected_ghg_reduction_tco2e, 3)}
+        helper="tCO₂e expected."
+        tone="teal"
+      />
+
+      <CommandStatCard
+        label="Expected Beneficiaries"
+        value={formatNumber(summary.total_expected_beneficiaries, 0)}
+        helper="People expected to benefit."
+        tone="gold"
+      />
+    </section>
+  );
+}
+
+function SelectedProjectDetail({
+  selectedProject,
+  canManage,
+  onEditProject,
+  onClear,
+}) {
+  if (!selectedProject) {
+    return (
+      <CommandSection
+        eyebrow="Selected project"
+        title="No project selected"
+        description="Click View on any project card, board item, or register row to inspect its details here."
+      >
+        <div className="rounded-xl border border-dashed border-[#CAD2D7] bg-[#DFE3E4]/35 p-5 text-sm text-slate-500">
+          Project details will appear here after selection.
+        </div>
+      </CommandSection>
+    );
+  }
+
+  return (
+    <CommandSection
+      eyebrow="Selected project"
+      title={selectedProject.title}
+      description={
+        selectedProject.description || "No project description provided."
+      }
+      actions={
+        <div className="flex flex-wrap gap-3">
+          {canManage && (
+            <CommandButton
+              variant="primary"
+              onClick={() => onEditProject(selectedProject)}
+            >
+              Edit Project
+            </CommandButton>
+          )}
+
+          <CommandButton variant="outline" onClick={onClear}>
+            Clear Selection
+          </CommandButton>
+        </div>
+      }
+    >
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            Status
+          </p>
+          <p className="mt-2 font-black text-[#0B1726]">
+            {selectedProject.status_display ||
+              getOptionLabel(statusOptions, selectedProject.status)}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            Priority
+          </p>
+          <p className="mt-2 font-black text-[#0B1726]">
+            {selectedProject.priority_display ||
+              getOptionLabel(priorityOptions, selectedProject.priority)}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            LGA
+          </p>
+          <p className="mt-2 font-black text-[#0B1726]">
+            {selectedProject.lga_name || "Statewide / Not specified"}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            Implementing Agency
+          </p>
+          <p className="mt-2 font-black text-[#0B1726]">
+            {selectedProject.implementing_agency || "Not specified"}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            Funding Source
+          </p>
+          <p className="mt-2 font-black text-[#0B1726]">
+            {selectedProject.funding_source || "Not specified"}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            Budget
+          </p>
+          <p className="mt-2 font-black text-[#0B1726]">
+            {formatMoney(selectedProject.estimated_budget_naira, 0)}
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            GHG Reduction
+          </p>
+          <p className="mt-2 font-black text-[#0B1726]">
+            {formatNumber(selectedProject.expected_ghg_reduction_tco2e, 3)}{" "}
+            tCO₂e
+          </p>
+        </div>
+
+        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+            Beneficiaries
+          </p>
+          <p className="mt-2 font-black text-[#0B1726]">
+            {formatNumber(selectedProject.expected_beneficiaries, 0)}
+          </p>
+        </div>
+      </div>
+
+      {selectedProject.climate_risk_relevance && (
+        <div className="mt-5 rounded-xl border border-[#CAD2D7] bg-white p-4 text-sm">
+          <p className="font-black text-[#0B1726]">Climate Risk Relevance</p>
+          <p className="mt-2 leading-6 text-slate-600">
+            {selectedProject.climate_risk_relevance}
+          </p>
+        </div>
+      )}
+
+      {selectedProject.location_notes && (
+        <div className="mt-5 rounded-xl border border-[#CAD2D7] bg-white p-4 text-sm">
+          <p className="font-black text-[#0B1726]">Location Notes</p>
+          <p className="mt-2 leading-6 text-slate-600">
+            {selectedProject.location_notes}
+          </p>
+        </div>
+      )}
+    </CommandSection>
+  );
+}
+
+function PortfolioOverview({
+  projects,
+  selectedProject,
+  canManage,
+  onEditProject,
+  onClearSelectedProject,
+  setActiveTab,
+}) {
+  const statusCounts = useMemo(() => getStatusCounts(projects), [projects]);
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+      <CommandSection
+        eyebrow="Portfolio status"
+        title="Implementation snapshot"
+        description="A quick leadership-level view of project movement across implementation states."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          {statusOptions.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setActiveTab("board")}
+              className="rounded-xl border border-[#CAD2D7] bg-white p-4 text-left transition hover:border-[#4E7492]/60 hover:bg-[#DFE3E4]/35"
+            >
+              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                {item.label}
+              </p>
+              <p className="mt-2 text-2xl font-black text-[#0B1726]">
+                {statusCounts[item.value] || 0}
+              </p>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-3">
+          <CommandButton variant="outline" onClick={() => setActiveTab("map")}>
+            Open Map
+          </CommandButton>
+          <CommandButton variant="outline" onClick={() => setActiveTab("board")}>
+            Open Board
+          </CommandButton>
+          <CommandButton
+            variant="outline"
+            onClick={() => setActiveTab("register")}
+          >
+            Open Register
+          </CommandButton>
+        </div>
+      </CommandSection>
+
+      <SelectedProjectDetail
+        selectedProject={selectedProject}
+        canManage={canManage}
+        onEditProject={onEditProject}
+        onClear={onClearSelectedProject}
+      />
+    </div>
+  );
+}
+
+function ProjectFormSection({
+  form,
+  updateForm,
+  editingProject,
+  isSaving,
+  canManage,
+  lgaOptions,
+  onSubmit,
+  onCancel,
+}) {
+  if (!canManage) {
+    return (
+      <CommandNotice title="Access restricted" tone="gold">
+        You do not have permission to create or edit project portfolio records.
+      </CommandNotice>
+    );
+  }
+
+  return (
+    <form onSubmit={onSubmit}>
+      <CommandSection
+        eyebrow={editingProject ? "Edit project" : "Create project"}
+        title={editingProject ? "Edit Climate Project" : "Create Climate Project"}
+        description={
+          editingProject
+            ? "Update project status, priority, budget, outcomes and implementation details."
+            : "Add an adaptation, mitigation or cross-cutting project to the portfolio."
+        }
+        actions={
+          editingProject ? (
+            <CommandButton variant="outline" onClick={onCancel}>
+              Cancel Editing
+            </CommandButton>
+          ) : null
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Project Title
+            </label>
+            <input
+              value={form.title}
+              onChange={(event) => updateForm("title", event.target.value)}
+              className={inputClass}
+              placeholder="Example: Kaduna Urban Flood Drainage Upgrade"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Project Code
+            </label>
+            <input
+              value={form.project_code}
+              onChange={(event) =>
+                updateForm("project_code", event.target.value)
+              }
+              className={inputClass}
+              placeholder="KCCC-PRJ-001"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Project Type
+            </label>
+            <select
+              value={form.project_type}
+              onChange={(event) =>
+                updateForm("project_type", event.target.value)
+              }
+              className={inputClass}
+            >
+              {projectTypeOptions.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Sector
+            </label>
+            <select
+              value={form.sector}
+              onChange={(event) => updateForm("sector", event.target.value)}
+              className={inputClass}
+            >
+              {sectorOptions.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              LGA
+            </label>
+            <select
+              value={form.lga}
+              onChange={(event) => updateForm("lga", event.target.value)}
+              className={inputClass}
+            >
+              <option value="">Statewide / Not specified</option>
+              {lgaOptions.map((item) => (
+                <option key={item.lga_id} value={item.lga_id}>
+                  {item.lga_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Status
+            </label>
+            <select
+              value={form.status}
+              onChange={(event) => updateForm("status", event.target.value)}
+              className={inputClass}
+            >
+              {statusOptions.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Priority
+            </label>
+            <select
+              value={form.priority}
+              onChange={(event) => updateForm("priority", event.target.value)}
+              className={inputClass}
+            >
+              {priorityOptions.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Estimated Budget ₦
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={form.estimated_budget_naira}
+              onChange={(event) =>
+                updateForm("estimated_budget_naira", event.target.value)
+              }
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Expected GHG Reduction tCO₂e
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.001"
+              value={form.expected_ghg_reduction_tco2e}
+              onChange={(event) =>
+                updateForm("expected_ghg_reduction_tco2e", event.target.value)
+              }
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Expected Beneficiaries
+            </label>
+            <input
+              type="number"
+              min="0"
+              value={form.expected_beneficiaries}
+              onChange={(event) =>
+                updateForm("expected_beneficiaries", event.target.value)
+              }
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={form.start_date}
+              onChange={(event) => updateForm("start_date", event.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              End Date
+            </label>
+            <input
+              type="date"
+              value={form.end_date}
+              onChange={(event) => updateForm("end_date", event.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Implementing Agency
+            </label>
+            <input
+              value={form.implementing_agency}
+              onChange={(event) =>
+                updateForm("implementing_agency", event.target.value)
+              }
+              className={inputClass}
+              placeholder="Ministry, agency, NGO, donor..."
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Funding Source
+            </label>
+            <input
+              value={form.funding_source}
+              onChange={(event) =>
+                updateForm("funding_source", event.target.value)
+              }
+              className={inputClass}
+              placeholder="State budget, donor, private sector..."
+            />
+          </div>
+
+          <div className="md:col-span-3">
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Description
+            </label>
+            <textarea
+              rows="3"
+              value={form.description}
+              onChange={(event) => updateForm("description", event.target.value)}
+              className={inputClass}
+              placeholder="Describe the project..."
+            />
+          </div>
+
+          <div className="md:col-span-3">
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Climate Risk Relevance
+            </label>
+            <textarea
+              rows="3"
+              value={form.climate_risk_relevance}
+              onChange={(event) =>
+                updateForm("climate_risk_relevance", event.target.value)
+              }
+              className={inputClass}
+              placeholder="Explain how this project responds to flood, drought, heat, erosion, vulnerability, exposure or adaptive capacity issues..."
+            />
+          </div>
+
+          <div className="md:col-span-3">
+            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+              Location Notes
+            </label>
+            <textarea
+              rows="2"
+              value={form.location_notes}
+              onChange={(event) =>
+                updateForm("location_notes", event.target.value)
+              }
+              className={inputClass}
+              placeholder="Describe site, wards, communities, coordinates or implementation area..."
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <CommandButton type="submit" disabled={isSaving}>
+            {isSaving
+              ? "Saving..."
+              : editingProject
+                ? "Update Project"
+                : "Save Project"}
+          </CommandButton>
+
+          <CommandButton variant="outline" onClick={onCancel}>
+            Cancel
+          </CommandButton>
+        </div>
+      </CommandSection>
+    </form>
+  );
+}
+
+function ProjectRegisterSection({
+  filters,
+  updateFilter,
+  lgaOptions,
+  filteredProjects,
+  selectedProject,
+  isLoading,
+  canManage,
+  onViewProject,
+  onEditProject,
+}) {
+  return (
+    <CommandSection
+      eyebrow="Project records"
+      title="Project Register"
+      description="Filter and review climate projects across LGAs, sectors, agencies, and funding sources."
+      actions={
+        <div className="grid w-full gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <select
+            value={filters.project_type}
+            onChange={(event) =>
+              updateFilter("project_type", event.target.value)
+            }
+            className={inputClass}
+          >
+            <option value="all">All project types</option>
+            {projectTypeOptions.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.sector}
+            onChange={(event) => updateFilter("sector", event.target.value)}
+            className={inputClass}
+          >
+            <option value="all">All sectors</option>
+            {sectorOptions.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.status}
+            onChange={(event) => updateFilter("status", event.target.value)}
+            className={inputClass}
+          >
+            <option value="all">All statuses</option>
+            {statusOptions.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.priority}
+            onChange={(event) => updateFilter("priority", event.target.value)}
+            className={inputClass}
+          >
+            <option value="all">All priorities</option>
+            {priorityOptions.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.lga}
+            onChange={(event) => updateFilter("lga", event.target.value)}
+            className={inputClass}
+          >
+            <option value="">All LGAs</option>
+            {lgaOptions.map((item) => (
+              <option key={item.lga_id} value={item.lga_id}>
+                {item.lga_name}
+              </option>
+            ))}
+          </select>
+
+          <input
+            value={filters.implementing_agency}
+            onChange={(event) =>
+              updateFilter("implementing_agency", event.target.value)
+            }
+            placeholder="Filter by agency..."
+            className={inputClass}
+          />
+
+          <input
+            value={filters.funding_source}
+            onChange={(event) =>
+              updateFilter("funding_source", event.target.value)
+            }
+            placeholder="Filter by funding source..."
+            className={inputClass}
+          />
+
+          <input
+            value={filters.search}
+            onChange={(event) => updateFilter("search", event.target.value)}
+            placeholder="Search projects..."
+            className={inputClass}
+          />
+        </div>
+      }
+    >
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Loading projects...</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1550px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#CAD2D7] text-slate-500">
+                <th className="px-3 py-3 font-bold">Project</th>
+                <th className="px-3 py-3 font-bold">Type</th>
+                <th className="px-3 py-3 font-bold">Sector</th>
+                <th className="px-3 py-3 font-bold">LGA</th>
+                <th className="px-3 py-3 font-bold">Agency</th>
+                <th className="px-3 py-3 font-bold">Funding Source</th>
+                <th className="px-3 py-3 font-bold">Status</th>
+                <th className="px-3 py-3 font-bold">Priority</th>
+                <th className="px-3 py-3 font-bold">Budget</th>
+                <th className="px-3 py-3 font-bold">GHG Reduction</th>
+                <th className="px-3 py-3 font-bold">Beneficiaries</th>
+                <th className="px-3 py-3 font-bold">Actions</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {filteredProjects.map((project) => (
+                <tr
+                  key={project.id}
+                  className={`border-b border-[#E6EAEC] last:border-0 hover:bg-[#DFE3E4]/35 ${
+                    selectedProject?.id === project.id
+                      ? "bg-[#2292A4]/10"
+                      : ""
+                  }`}
+                >
+                  <td className="px-3 py-4">
+                    <p className="font-black text-[#0B1726]">
+                      {project.title}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      {project.project_code || "No code"}
+                    </p>
+                  </td>
+
+                  <td className="px-3 py-4">
+                    {project.project_type_display ||
+                      getOptionLabel(projectTypeOptions, project.project_type)}
+                  </td>
+
+                  <td className="px-3 py-4">
+                    {project.sector_display ||
+                      getOptionLabel(sectorOptions, project.sector)}
+                  </td>
+
+                  <td className="px-3 py-4">
+                    {project.lga_name || "Statewide / Not specified"}
+                  </td>
+
+                  <td className="px-3 py-4">
+                    {project.implementing_agency || "Not specified"}
+                  </td>
+
+                  <td className="px-3 py-4">
+                    {project.funding_source || "Not specified"}
+                  </td>
+
+                  <td className="px-3 py-4">
+                    <span
+                      className={`rounded-md px-3 py-1 text-xs font-bold ${getStatusClass(
+                        project.status
+                      )}`}
+                    >
+                      {project.status_display ||
+                        getOptionLabel(statusOptions, project.status)}
+                    </span>
+                  </td>
+
+                  <td className="px-3 py-4">
+                    <span
+                      className={`rounded-md px-3 py-1 text-xs font-bold ${getPriorityClass(
+                        project.priority
+                      )}`}
+                    >
+                      {project.priority_display ||
+                        getOptionLabel(priorityOptions, project.priority)}
+                    </span>
+                  </td>
+
+                  <td className="px-3 py-4">
+                    {formatMoney(project.estimated_budget_naira, 0)}
+                  </td>
+
+                  <td className="px-3 py-4">
+                    {formatNumber(project.expected_ghg_reduction_tco2e, 3)}{" "}
+                    tCO₂e
+                  </td>
+
+                  <td className="px-3 py-4">
+                    {formatNumber(project.expected_beneficiaries, 0)}
+                  </td>
+
+                  <td className="px-3 py-4">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => onViewProject(project)}
+                        className="rounded-md border border-[#CAD2D7] px-3 py-1 text-xs font-bold text-[#214560] hover:border-[#2292A4] hover:text-[#2292A4]"
+                      >
+                        View
+                      </button>
+
+                      {canManage && (
+                        <button
+                          type="button"
+                          onClick={() => onEditProject(project)}
+                          className="rounded-md bg-[#2292A4] px-3 py-1 text-xs font-bold text-white hover:bg-[#1d7f90]"
+                        >
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+
+              {filteredProjects.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={12}
+                    className="px-3 py-8 text-center text-slate-500"
+                  >
+                    No climate projects found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </CommandSection>
+  );
+}
+
 export default function ProjectPortfolioPage({ currentUser }) {
   const [projectsData, setProjectsData] = useState(null);
   const [lgaOptions, setLgaOptions] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [editingProject, setEditingProject] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
 
   const [filters, setFilters] = useState({
     project_type: "all",
@@ -140,16 +973,21 @@ export default function ProjectPortfolioPage({ currentUser }) {
     status: "all",
     priority: "all",
     lga: "",
+    implementing_agency: "",
+    funding_source: "",
     search: "",
   });
 
-  const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const canManage = canManageProjectPortfolio(currentUser);
+
+  const tabs = useMemo(() => {
+    return canManage ? [...baseTabs, formTab] : baseTabs;
+  }, [canManage]);
 
   async function loadProjects() {
     setIsLoading(true);
@@ -158,8 +996,16 @@ export default function ProjectPortfolioPage({ currentUser }) {
     try {
       const params = {};
 
+      const serverFilterKeys = [
+        "project_type",
+        "sector",
+        "status",
+        "priority",
+        "lga",
+      ];
+
       Object.entries(filters).forEach(([key, value]) => {
-        if (value && value !== "all") {
+        if (serverFilterKeys.includes(key) && value && value !== "all") {
           params[key] = value;
         }
       });
@@ -222,20 +1068,41 @@ export default function ProjectPortfolioPage({ currentUser }) {
 
   const filteredProjects = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
-
-    if (!search) return projects;
+    const implementingAgency = filters.implementing_agency.trim().toLowerCase();
+    const fundingSource = filters.funding_source.trim().toLowerCase();
 
     return projects.filter((project) => {
-      return (
+      const matchesSearch =
+        !search ||
         String(project.title || "").toLowerCase().includes(search) ||
         String(project.project_code || "").toLowerCase().includes(search) ||
         String(project.implementing_agency || "")
           .toLowerCase()
           .includes(search) ||
-        String(project.lga_name || "").toLowerCase().includes(search)
-      );
+        String(project.funding_source || "").toLowerCase().includes(search) ||
+        String(project.lga_name || "").toLowerCase().includes(search) ||
+        String(project.sector_display || "").toLowerCase().includes(search);
+
+      const matchesImplementingAgency =
+        !implementingAgency ||
+        String(project.implementing_agency || "")
+          .toLowerCase()
+          .includes(implementingAgency);
+
+      const matchesFundingSource =
+        !fundingSource ||
+        String(project.funding_source || "")
+          .toLowerCase()
+          .includes(fundingSource);
+
+      return matchesSearch && matchesImplementingAgency && matchesFundingSource;
     });
-  }, [projects, filters.search]);
+  }, [
+    projects,
+    filters.search,
+    filters.implementing_agency,
+    filters.funding_source,
+  ]);
 
   function updateFilter(field, value) {
     setFilters((current) => ({
@@ -254,16 +1121,23 @@ export default function ProjectPortfolioPage({ currentUser }) {
   function resetForm() {
     setForm(initialForm);
     setEditingProject(null);
-    setShowForm(false);
+  }
+
+  function startCreateProject() {
+    setEditingProject(null);
+    setForm(initialForm);
+    setMessage("");
+    setError("");
+    setActiveTab("form");
   }
 
   function handleEditProject(project) {
     setEditingProject(project);
     setSelectedProject(project);
     setForm(buildFormFromProject(project));
-    setShowForm(true);
     setMessage("");
     setError("");
+    setActiveTab("form");
 
     window.scrollTo({
       top: 0,
@@ -273,6 +1147,7 @@ export default function ProjectPortfolioPage({ currentUser }) {
 
   function handleViewProject(project) {
     setSelectedProject(project);
+    setActiveTab("overview");
   }
 
   async function handleSubmit(event) {
@@ -312,8 +1187,8 @@ export default function ProjectPortfolioPage({ currentUser }) {
 
       setForm(initialForm);
       setEditingProject(null);
-      setShowForm(false);
       await loadProjects();
+      setActiveTab("register");
     } catch (err) {
       console.error(err);
       setError(
@@ -330,699 +1205,127 @@ export default function ProjectPortfolioPage({ currentUser }) {
 
   return (
     <div className="space-y-6">
-      <section className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
-        <div>
-          <p className="text-sm font-medium text-emerald-700">
-            Project Portfolio
-          </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">
-            Climate Project Portfolio
-          </h1>
-          <p className="mt-2 max-w-3xl text-slate-600">
-            Register, track and summarize climate projects across LGAs, sectors,
-            mitigation outcomes, adaptation relevance, budgets and
-            beneficiaries.
-          </p>
-        </div>
+      <CommandPageHeader
+        eyebrow="Project portfolio"
+        title="Climate Project Portfolio"
+        description="Register, track and summarize climate projects across LGAs, sectors, mitigation outcomes, adaptation relevance, budgets and beneficiaries."
+        actions={
+          <div className="flex flex-wrap gap-3">
+            <CommandButton variant="outline" onClick={loadProjects}>
+              Refresh Projects
+            </CommandButton>
 
-        <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={loadProjects}
-            className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
-          >
-            Refresh projects
-          </button>
-
-          {canManage && (
-            <button
-              type="button"
-              onClick={() => {
-                if (showForm && !editingProject) {
-                  setShowForm(false);
-                  return;
-                }
-
-                setEditingProject(null);
-                setForm(initialForm);
-                setShowForm(true);
-              }}
-              className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
-            >
-              {showForm && !editingProject ? "Hide Form" : "Add Project"}
-            </button>
-          )}
-        </div>
-      </section>
+            {canManage && (
+              <CommandButton onClick={startCreateProject}>
+                Add Project
+              </CommandButton>
+            )}
+          </div>
+        }
+      />
 
       {error && (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <CommandNotice title="Project portfolio error" tone="red">
           {error}
-        </div>
+        </CommandNotice>
       )}
 
       {message && (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+        <CommandNotice title="Project portfolio update" tone="blue">
           {message}
-        </div>
+        </CommandNotice>
       )}
 
-      <section className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">Total Projects</p>
-          <h2 className="mt-3 text-3xl font-bold">
-            {summary.total_projects || 0}
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Active projects in current view.
-          </p>
-        </div>
+      <ProjectSummaryCards summary={summary} />
 
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-          <p className="text-sm text-blue-700">Total Budget</p>
-          <h2 className="mt-3 text-3xl font-bold text-blue-700">
-            {formatMoney(summary.total_budget_naira)}
-          </h2>
-          <p className="mt-2 text-sm text-blue-700">
-            Estimated portfolio value.
-          </p>
-        </div>
+      <div className="sticky top-24 z-10">
+        <CommandTabs
+          tabs={tabs}
+          activeTab={activeTab}
+          onChange={setActiveTab}
+        />
+      </div>
 
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
-          <p className="text-sm text-emerald-700">Expected GHG Reduction</p>
-          <h2 className="mt-3 text-3xl font-bold text-emerald-700">
-            {formatNumber(summary.total_expected_ghg_reduction_tco2e, 3)}
-          </h2>
-          <p className="mt-2 text-sm text-emerald-700">tCO₂e expected.</p>
-        </div>
+      {activeTab === "overview" && (
+        <PortfolioOverview
+          projects={filteredProjects}
+          selectedProject={selectedProject}
+          canManage={canManage}
+          onEditProject={handleEditProject}
+          onClearSelectedProject={() => setSelectedProject(null)}
+          setActiveTab={setActiveTab}
+        />
+      )}
 
-        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-6 shadow-sm">
-          <p className="text-sm text-orange-700">Expected Beneficiaries</p>
-          <h2 className="mt-3 text-3xl font-bold text-orange-700">
-            {formatNumber(summary.total_expected_beneficiaries, 0)}
-          </h2>
-          <p className="mt-2 text-sm text-orange-700">
-            People expected to benefit.
-          </p>
-        </div>
-      </section>
-      
-      <ProjectPortfolioImportPanel
-        canManage={canManage}
-        onImported={loadProjects}
-      />
-
-      <ProjectPortfolioExportPanel
-        projects={projects}
-        filteredProjects={filteredProjects}
-        summary={summary}
-      />
-
-      <ProjectPortfolioMapView projects={projects} />
-
-      <ProjectPortfolioStatusBoard
-        projects={filteredProjects}
-        canManage={canManage}
-        onViewProject={handleViewProject}
-        onEditProject={handleEditProject}
-      />
-
-      {canManage && showForm && (
-        <form
-          onSubmit={handleSubmit}
-          className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+      {activeTab === "map" && (
+        <CommandSection
+          eyebrow="Portfolio map view"
+          title="Climate projects by LGA"
+          description="Spatial view of project concentration across Kaduna LGAs."
         >
-          <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-start">
-            <div>
-              <h2 className="text-lg font-bold">
-                {editingProject ? "Edit Climate Project" : "Create Climate Project"}
-              </h2>
-              <p className="text-sm text-slate-500">
-                {editingProject
-                  ? "Update project status, priority, budget, outcomes and implementation details."
-                  : "Add an adaptation, mitigation or cross-cutting project to the portfolio."}
-              </p>
-            </div>
-
-            {editingProject && (
-              <button
-                type="button"
-                onClick={resetForm}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Cancel Editing
-              </button>
-            )}
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Project Title
-              </label>
-              <input
-                value={form.title}
-                onChange={(event) => updateForm("title", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                placeholder="Example: Kaduna Urban Flood Drainage Upgrade"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Project Code
-              </label>
-              <input
-                value={form.project_code}
-                onChange={(event) =>
-                  updateForm("project_code", event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                placeholder="KCCC-PRJ-001"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Project Type
-              </label>
-              <select
-                value={form.project_type}
-                onChange={(event) =>
-                  updateForm("project_type", event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              >
-                {projectTypeOptions.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Sector
-              </label>
-              <select
-                value={form.sector}
-                onChange={(event) => updateForm("sector", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              >
-                {sectorOptions.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                LGA
-              </label>
-              <select
-                value={form.lga}
-                onChange={(event) => updateForm("lga", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              >
-                <option value="">Statewide / Not specified</option>
-                {lgaOptions.map((item) => (
-                  <option key={item.lga_id} value={item.lga_id}>
-                    {item.lga_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Status
-              </label>
-              <select
-                value={form.status}
-                onChange={(event) => updateForm("status", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              >
-                {statusOptions.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Priority
-              </label>
-              <select
-                value={form.priority}
-                onChange={(event) => updateForm("priority", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              >
-                {priorityOptions.map((item) => (
-                  <option key={item.value} value={item.value}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Estimated Budget ₦
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={form.estimated_budget_naira}
-                onChange={(event) =>
-                  updateForm("estimated_budget_naira", event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Expected GHG Reduction tCO₂e
-              </label>
-              <input
-                type="number"
-                min="0"
-                step="0.001"
-                value={form.expected_ghg_reduction_tco2e}
-                onChange={(event) =>
-                  updateForm(
-                    "expected_ghg_reduction_tco2e",
-                    event.target.value
-                  )
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Expected Beneficiaries
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={form.expected_beneficiaries}
-                onChange={(event) =>
-                  updateForm("expected_beneficiaries", event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Start Date
-              </label>
-              <input
-                type="date"
-                value={form.start_date}
-                onChange={(event) =>
-                  updateForm("start_date", event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                End Date
-              </label>
-              <input
-                type="date"
-                value={form.end_date}
-                onChange={(event) => updateForm("end_date", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Implementing Agency
-              </label>
-              <input
-                value={form.implementing_agency}
-                onChange={(event) =>
-                  updateForm("implementing_agency", event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                placeholder="Ministry, agency, NGO, donor..."
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Funding Source
-              </label>
-              <input
-                value={form.funding_source}
-                onChange={(event) =>
-                  updateForm("funding_source", event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                placeholder="State budget, donor, private sector..."
-              />
-            </div>
-
-            <div className="md:col-span-3">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Description
-              </label>
-              <textarea
-                rows="3"
-                value={form.description}
-                onChange={(event) =>
-                  updateForm("description", event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                placeholder="Describe the project..."
-              />
-            </div>
-
-            <div className="md:col-span-3">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Climate Risk Relevance
-              </label>
-              <textarea
-                rows="3"
-                value={form.climate_risk_relevance}
-                onChange={(event) =>
-                  updateForm("climate_risk_relevance", event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                placeholder="Explain how this project responds to flood, drought, heat, erosion, vulnerability, exposure or adaptive capacity issues..."
-              />
-            </div>
-
-            <div className="md:col-span-3">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
-                Location Notes
-              </label>
-              <textarea
-                rows="2"
-                value={form.location_notes}
-                onChange={(event) =>
-                  updateForm("location_notes", event.target.value)
-                }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                placeholder="Describe site, wards, communities, coordinates or implementation area..."
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSaving}
-            className="mt-5 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-          >
-            {isSaving
-              ? "Saving..."
-              : editingProject
-                ? "Update Project"
-                : "Save Project"}
-          </button>
-        </form>
+          <ProjectPortfolioMapView projects={projects} />
+        </CommandSection>
       )}
 
-      {selectedProject && (
-        <section className="rounded-2xl border border-blue-200 bg-blue-50 p-6 text-blue-900 shadow-sm">
-          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-            <div>
-              <p className="text-sm font-medium">Selected Project Detail</p>
-              <h2 className="mt-1 text-2xl font-bold">
-                {selectedProject.title}
-              </h2>
-              <p className="mt-2 text-sm">
-                {selectedProject.description || "No description provided."}
-              </p>
-            </div>
-
-            {canManage && (
-              <button
-                type="button"
-                onClick={() => handleEditProject(selectedProject)}
-                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-              >
-                Edit Selected Project
-              </button>
-            )}
-          </div>
-
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            <div className="rounded-xl bg-white p-4">
-              <p className="text-xs text-blue-700">Status</p>
-              <p className="mt-1 font-bold">
-                {selectedProject.status_display ||
-                  getOptionLabel(statusOptions, selectedProject.status)}
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-white p-4">
-              <p className="text-xs text-blue-700">Priority</p>
-              <p className="mt-1 font-bold">
-                {selectedProject.priority_display ||
-                  getOptionLabel(priorityOptions, selectedProject.priority)}
-              </p>
-            </div>
-
-            <div className="rounded-xl bg-white p-4">
-              <p className="text-xs text-blue-700">LGA</p>
-              <p className="mt-1 font-bold">
-                {selectedProject.lga_name || "Statewide / Not specified"}
-              </p>
-            </div>
-          </div>
-
-          {selectedProject.climate_risk_relevance && (
-            <div className="mt-4 rounded-xl bg-white p-4 text-sm">
-              <p className="font-semibold">Climate Risk Relevance</p>
-              <p className="mt-1">{selectedProject.climate_risk_relevance}</p>
-            </div>
-          )}
-        </section>
+      {activeTab === "board" && (
+        <CommandSection
+          eyebrow="Implementation board"
+          title="Portfolio Implementation Board"
+          description="View projects by implementation status and track movement from proposed concepts to completed climate action."
+        >
+          <ProjectPortfolioStatusBoard
+            projects={filteredProjects}
+            canManage={canManage}
+            onViewProject={handleViewProject}
+            onEditProject={handleEditProject}
+          />
+        </CommandSection>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
-          <div>
-            <h2 className="text-lg font-bold">Project Register</h2>
-            <p className="text-sm text-slate-500">
-              Filter and review climate projects across LGAs and sectors. Click
-              View for details or Edit to update a project.
-            </p>
-          </div>
+      {activeTab === "import_export" && (
+        <div className="space-y-6">
+          <ProjectPortfolioImportPanel
+            canManage={canManage}
+            onImported={loadProjects}
+          />
 
-          <div className="flex flex-wrap gap-3">
-            <select
-              value={filters.project_type}
-              onChange={(event) =>
-                updateFilter("project_type", event.target.value)
-              }
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="all">All project types</option>
-              {projectTypeOptions.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={filters.sector}
-              onChange={(event) => updateFilter("sector", event.target.value)}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="all">All sectors</option>
-              {sectorOptions.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={filters.status}
-              onChange={(event) => updateFilter("status", event.target.value)}
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-            >
-              <option value="all">All statuses</option>
-              {statusOptions.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-
-            <select
-                value={filters.priority}
-                onChange={(event) => updateFilter("priority", event.target.value)}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                >
-                <option value="all">All priorities</option>
-                {priorityOptions.map((item) => (
-                    <option key={item.value} value={item.value}>
-                    {item.label}
-                    </option>
-                ))}
-            </select>
-
-            <select
-                value={filters.lga}
-                onChange={(event) => updateFilter("lga", event.target.value)}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                >
-                <option value="">All LGAs</option>
-                {lgaOptions.map((item) => (
-                    <option key={item.lga_id} value={item.lga_id}>
-                    {item.lga_name}
-                    </option>
-                ))}
-            </select>
-
-            <input
-              value={filters.search}
-              onChange={(event) => updateFilter("search", event.target.value)}
-              placeholder="Search projects..."
-              className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-            />
-          </div>
+          <ProjectPortfolioExportPanel
+            projects={projects}
+            filteredProjects={filteredProjects}
+            summary={summary}
+          />
         </div>
+      )}
 
-        {isLoading ? (
-          <p className="text-sm text-slate-500">Loading projects...</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1250px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
-                  <th className="px-3 py-3 font-medium">Project</th>
-                  <th className="px-3 py-3 font-medium">Type</th>
-                  <th className="px-3 py-3 font-medium">Sector</th>
-                  <th className="px-3 py-3 font-medium">LGA</th>
-                  <th className="px-3 py-3 font-medium">Status</th>
-                  <th className="px-3 py-3 font-medium">Priority</th>
-                  <th className="px-3 py-3 font-medium">Budget</th>
-                  <th className="px-3 py-3 font-medium">GHG Reduction</th>
-                  <th className="px-3 py-3 font-medium">Beneficiaries</th>
-                  <th className="px-3 py-3 font-medium">Actions</th>
-                </tr>
-              </thead>
+      {activeTab === "register" && (
+        <ProjectRegisterSection
+          filters={filters}
+          updateFilter={updateFilter}
+          lgaOptions={lgaOptions}
+          filteredProjects={filteredProjects}
+          selectedProject={selectedProject}
+          isLoading={isLoading}
+          canManage={canManage}
+          onViewProject={handleViewProject}
+          onEditProject={handleEditProject}
+        />
+      )}
 
-              <tbody>
-                {filteredProjects.map((project) => (
-                  <tr
-                    key={project.id}
-                    className={`border-b border-slate-100 last:border-0 ${
-                      selectedProject?.id === project.id ? "bg-blue-50" : ""
-                    }`}
-                  >
-                    <td className="px-3 py-4">
-                      <p className="font-semibold">{project.title}</p>
-                      <p className="text-xs text-slate-400">
-                        {project.project_code || "No code"}
-                      </p>
-                    </td>
-
-                    <td className="px-3 py-4">
-                      {project.project_type_display ||
-                        getOptionLabel(projectTypeOptions, project.project_type)}
-                    </td>
-
-                    <td className="px-3 py-4">
-                      {project.sector_display ||
-                        getOptionLabel(sectorOptions, project.sector)}
-                    </td>
-
-                    <td className="px-3 py-4">
-                      {project.lga_name || "Statewide / Not specified"}
-                    </td>
-
-                    <td className="px-3 py-4">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
-                          project.status
-                        )}`}
-                      >
-                        {project.status_display ||
-                          getOptionLabel(statusOptions, project.status)}
-                      </span>
-                    </td>
-
-                    <td className="px-3 py-4">
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-semibold ${getPriorityClass(
-                          project.priority
-                        )}`}
-                      >
-                        {project.priority_display ||
-                          getOptionLabel(priorityOptions, project.priority)}
-                      </span>
-                    </td>
-
-                    <td className="px-3 py-4">
-                      {formatMoney(project.estimated_budget_naira)}
-                    </td>
-
-                    <td className="px-3 py-4">
-                      {formatNumber(project.expected_ghg_reduction_tco2e, 3)}{" "}
-                      tCO₂e
-                    </td>
-
-                    <td className="px-3 py-4">
-                      {formatNumber(project.expected_beneficiaries, 0)}
-                    </td>
-
-                    <td className="px-3 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleViewProject(project)}
-                          className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                        >
-                          View
-                        </button>
-
-                        {canManage && (
-                          <button
-                            type="button"
-                            onClick={() => handleEditProject(project)}
-                            className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700"
-                          >
-                            Edit
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-
-                {filteredProjects.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan="10"
-                      className="px-3 py-8 text-center text-slate-500"
-                    >
-                      No climate projects found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      {activeTab === "form" && (
+        <ProjectFormSection
+          form={form}
+          updateForm={updateForm}
+          editingProject={editingProject}
+          isSaving={isSaving}
+          canManage={canManage}
+          lgaOptions={lgaOptions}
+          onSubmit={handleSubmit}
+          onCancel={() => {
+            resetForm();
+            setActiveTab("overview");
+          }}
+        />
+      )}
     </div>
   );
 }
