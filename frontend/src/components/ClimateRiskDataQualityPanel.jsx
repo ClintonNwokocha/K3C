@@ -41,21 +41,21 @@ function getQualityStatus(percentage) {
   if (percentage >= 100) {
     return {
       label: "Complete",
-      className: "bg-emerald-50 text-emerald-700",
+      className: "bg-[#009B35]/10 text-[#009B35]",
     };
   }
 
   if (percentage >= 70) {
     return {
       label: "Mostly Complete",
-      className: "bg-blue-50 text-blue-700",
+      className: "bg-[#030454]/10 text-[#030454]",
     };
   }
 
   if (percentage >= 40) {
     return {
       label: "Partial",
-      className: "bg-amber-50 text-amber-700",
+      className: "bg-[#F3F74B]/45 text-[#030454]",
     };
   }
 
@@ -63,6 +63,13 @@ function getQualityStatus(percentage) {
     label: "Poor",
     className: "bg-red-50 text-red-700",
   };
+}
+
+function getBarColor(percentage) {
+  if (percentage >= 100) return "#009B35";
+  if (percentage >= 70) return "#030454";
+  if (percentage >= 40) return "#F3F74B";
+  return "#B91C1C";
 }
 
 function isDevelopmentData(profile) {
@@ -76,6 +83,31 @@ function isDevelopmentData(profile) {
     notes.includes("development") ||
     notes.includes("test") ||
     notes.includes("seed")
+  );
+}
+
+function QualityStatCard({ label, value, helper, tone = "blue" }) {
+  const toneClasses = {
+    blue: "border-[#030454]/15 bg-[#030454]/5",
+    green: "border-[#009B35]/20 bg-[#009B35]/8",
+    yellow: "border-[#F3F74B]/70 bg-[#F3F74B]/25",
+    red: "border-red-200 bg-red-50",
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border p-5 shadow-sm ${
+        toneClasses[tone] || toneClasses.blue
+      }`}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-3xl font-black text-[#030454]">{value}</p>
+
+      {helper && <p className="mt-1 text-sm text-slate-500">{helper}</p>}
+    </div>
   );
 }
 
@@ -116,13 +148,15 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-6">
-        <p className="text-sm font-medium text-emerald-700">
+        <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
           Data Quality Checks
         </p>
-        <h2 className="mt-1 text-2xl font-bold">
+
+        <h2 className="mt-2 text-2xl font-black text-[#030454]">
           Climate Risk Data Completeness
         </h2>
-        <p className="mt-2 max-w-3xl text-sm text-slate-500">
+
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
           This panel checks whether each LGA has the required climate risk
           index fields for flood, drought, heat, erosion, exposure,
           vulnerability and adaptive capacity.
@@ -130,37 +164,40 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
-          <p className="text-sm text-slate-500">Total LGAs Checked</p>
-          <p className="mt-2 text-3xl font-bold">{totalLgas}</p>
-        </div>
+        <QualityStatCard
+          label="Total LGAs Checked"
+          value={totalLgas}
+          helper="Profiles reviewed."
+          tone="blue"
+        />
 
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-          <p className="text-sm text-emerald-700">Complete LGAs</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-700">
-            {completeLgas}
-          </p>
-        </div>
+        <QualityStatCard
+          label="Complete LGAs"
+          value={completeLgas}
+          helper="All score fields available."
+          tone="green"
+        />
 
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-          <p className="text-sm text-amber-700">Incomplete LGAs</p>
-          <p className="mt-2 text-3xl font-bold text-amber-700">
-            {incompleteLgas}
-          </p>
-        </div>
+        <QualityStatCard
+          label="Incomplete LGAs"
+          value={incompleteLgas}
+          helper="Missing one or more score fields."
+          tone="yellow"
+        />
 
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-          <p className="text-sm text-blue-700">Average Completeness</p>
-          <p className="mt-2 text-3xl font-bold text-blue-700">
-            {formatNumber(averageCompleteness, 1)}%
-          </p>
-        </div>
+        <QualityStatCard
+          label="Average Completeness"
+          value={`${formatNumber(averageCompleteness, 1)}%`}
+          helper="Across all LGAs."
+          tone="blue"
+        />
       </div>
 
       {developmentDataCount > 0 && (
-        <div className="mt-5 rounded-2xl border border-orange-200 bg-orange-50 p-5 text-sm text-orange-800">
-          <p className="font-bold">Development/Test Data Notice</p>
-          <p className="mt-2">
+        <div className="mt-5 rounded-r-xl border-l-4 border-orange-400 bg-orange-50 px-5 py-4 text-sm leading-6 text-orange-800">
+          <p className="font-black">Development/Test Data Notice</p>
+
+          <p className="mt-1">
             {developmentDataCount} LGA profile(s) appear to still reference
             development, seed, or test data. These should be replaced with
             validated operational datasets before production reporting.
@@ -168,16 +205,16 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
         </div>
       )}
 
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[900px] text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-slate-500">
-              <th className="px-3 py-3 font-medium">LGA</th>
-              <th className="px-3 py-3 font-medium">Completeness</th>
-              <th className="px-3 py-3 font-medium">Status</th>
-              <th className="px-3 py-3 font-medium">Missing Fields</th>
-              <th className="px-3 py-3 font-medium">Data Source</th>
-              <th className="px-3 py-3 font-medium">Flag</th>
+            <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+              <th className="px-3 py-3 font-bold">LGA</th>
+              <th className="px-3 py-3 font-bold">Completeness</th>
+              <th className="px-3 py-3 font-bold">Status</th>
+              <th className="px-3 py-3 font-bold">Missing Fields</th>
+              <th className="px-3 py-3 font-bold">Data Source</th>
+              <th className="px-3 py-3 font-bold">Flag</th>
             </tr>
           </thead>
 
@@ -185,26 +222,27 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
             {sortedRows.map(({ profile, completeness, status, developmentData }) => (
               <tr
                 key={profile.id}
-                className="border-b border-slate-100 last:border-0"
+                className="border-b border-slate-100 last:border-0 hover:bg-[#009B35]/5"
               >
-                <td className="px-3 py-4 font-semibold">
+                <td className="px-3 py-4 font-black text-[#030454]">
                   {profile.lga_name}
                 </td>
 
                 <td className="px-3 py-4">
                   <div className="flex items-center gap-3">
-                    <span className="w-14 font-semibold">
+                    <span className="w-14 font-black text-[#030454]">
                       {formatNumber(completeness.percentage, 1)}%
                     </span>
 
                     <div className="h-2 w-32 overflow-hidden rounded-full bg-slate-100">
                       <div
-                        className="h-full rounded-full bg-emerald-500"
+                        className="h-full rounded-full"
                         style={{
                           width: `${Math.min(
                             Math.max(completeness.percentage, 0),
                             100
                           )}%`,
+                          backgroundColor: getBarColor(completeness.percentage),
                         }}
                       />
                     </div>
@@ -218,7 +256,7 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
 
                 <td className="px-3 py-4">
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${status.className}`}
+                    className={`rounded-md px-3 py-1 text-xs font-bold ${status.className}`}
                   >
                     {status.label}
                   </span>
@@ -226,13 +264,13 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
 
                 <td className="px-3 py-4">
                   {completeness.missingFields.length === 0 ? (
-                    <span className="text-emerald-700">None</span>
+                    <span className="font-bold text-[#009B35]">None</span>
                   ) : (
                     <div className="flex flex-wrap gap-2">
                       {completeness.missingFields.map((field) => (
                         <span
                           key={field.key}
-                          className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600"
+                          className="rounded-md bg-slate-100 px-2 py-1 text-xs font-bold text-slate-600"
                         >
                           {field.label}
                         </span>
@@ -247,11 +285,11 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
 
                 <td className="px-3 py-4">
                   {developmentData ? (
-                    <span className="rounded-full bg-orange-50 px-3 py-1 text-xs font-semibold text-orange-700">
+                    <span className="rounded-md bg-orange-50 px-3 py-1 text-xs font-bold text-orange-700">
                       Development/Test
                     </span>
                   ) : (
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                    <span className="rounded-md bg-[#009B35]/10 px-3 py-1 text-xs font-bold text-[#009B35]">
                       Normal
                     </span>
                   )}
@@ -273,9 +311,10 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
         </table>
       </div>
 
-      <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
-        <p className="font-bold">How to use this</p>
-        <p className="mt-2">
+      <div className="mt-5 rounded-xl border-l-4 border-[#030454] bg-[#030454]/5 px-5 py-4 text-sm leading-6 text-[#030454]">
+        <p className="font-black">How to use this</p>
+
+        <p className="mt-1">
           LGAs with missing fields should be prioritized for data upload,
           parameter record completion, and scoring recalculation. This panel
           does not judge whether a value is scientifically correct; it checks

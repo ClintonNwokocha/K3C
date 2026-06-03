@@ -114,6 +114,30 @@ function getTimestamp() {
   return new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
 }
 
+function ExportMetric({ label, value, helper, tone = "blue" }) {
+  const toneClasses = {
+    blue: "border-[#030454]/15 bg-[#030454]/5",
+    green: "border-[#009B35]/20 bg-[#009B35]/8",
+    yellow: "border-[#F3F74B]/70 bg-[#F3F74B]/25",
+  };
+
+  return (
+    <div
+      className={`rounded-xl border p-4 shadow-sm ${
+        toneClasses[tone] || toneClasses.blue
+      }`}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-black text-[#030454]">{value}</p>
+
+      {helper && <p className="mt-1 text-xs text-slate-500">{helper}</p>}
+    </div>
+  );
+}
+
 export default function ProjectPortfolioExportPanel({
   projects = [],
   filteredProjects = [],
@@ -140,19 +164,26 @@ export default function ProjectPortfolioExportPanel({
     );
   }
 
+  const filteredBudget = filteredProjects.reduce(
+    (sum, project) => sum + Number(project.estimated_budget_naira || 0),
+    0
+  );
+
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
-          <p className="text-sm font-medium text-emerald-700">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
             Export Readiness
           </p>
-          <h2 className="mt-1 text-lg font-bold">
+
+          <h2 className="mt-2 text-2xl font-black text-[#030454]">
             Project Portfolio CSV Exports
           </h2>
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Export filtered projects, all loaded projects, or a summary table
-            for reporting, Excel analysis, and briefing preparation.
+            for reporting, Excel analysis and briefing preparation.
           </p>
         </div>
 
@@ -160,15 +191,15 @@ export default function ProjectPortfolioExportPanel({
           <button
             type="button"
             onClick={exportFilteredProjects}
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="rounded-md bg-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
           >
-            Export Filtered Projects
+            Export Filtered
           </button>
 
           <button
             type="button"
             onClick={exportAllLoadedProjects}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-slate-200 bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
           >
             Export All Loaded
           </button>
@@ -176,38 +207,34 @@ export default function ProjectPortfolioExportPanel({
           <button
             type="button"
             onClick={exportSummary}
-            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+            className="rounded-md bg-[#030454] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#02033d]"
           >
             Export Summary
           </button>
         </div>
       </div>
 
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl bg-slate-50 p-4">
-          <p className="text-sm text-slate-500">Filtered Projects</p>
-          <p className="mt-2 text-2xl font-bold">{filteredProjects.length}</p>
-        </div>
+      <div className="mt-6 grid gap-4 md:grid-cols-3">
+        <ExportMetric
+          label="Filtered Projects"
+          value={filteredProjects.length}
+          helper="Records matching current filters."
+          tone="green"
+        />
 
-        <div className="rounded-2xl bg-slate-50 p-4">
-          <p className="text-sm text-slate-500">All Loaded Projects</p>
-          <p className="mt-2 text-2xl font-bold">{projects.length}</p>
-        </div>
+        <ExportMetric
+          label="All Loaded Projects"
+          value={projects.length}
+          helper="Records loaded from the API."
+          tone="blue"
+        />
 
-        <div className="rounded-2xl bg-slate-50 p-4">
-          <p className="text-sm text-slate-500">Filtered Budget Preview</p>
-          <p className="mt-2 text-2xl font-bold">
-            ₦
-            {formatNumber(
-              filteredProjects.reduce(
-                (sum, project) =>
-                  sum + Number(project.estimated_budget_naira || 0),
-                0
-              ),
-              2
-            )}
-          </p>
-        </div>
+        <ExportMetric
+          label="Filtered Budget Preview"
+          value={`₦${formatNumber(filteredBudget, 2)}`}
+          helper="Budget total for filtered records."
+          tone="yellow"
+        />
       </div>
     </section>
   );

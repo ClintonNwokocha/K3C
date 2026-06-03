@@ -45,16 +45,16 @@ function badgeClass(value, reverse = false) {
   const number = Number(value || 0);
 
   if (reverse) {
-    if (number >= 70) return "bg-emerald-50 text-emerald-700";
-    if (number >= 55) return "bg-lime-50 text-lime-700";
-    if (number >= 40) return "bg-amber-50 text-amber-700";
+    if (number >= 70) return "bg-[#009B35]/10 text-[#009B35]";
+    if (number >= 55) return "bg-[#030454]/10 text-[#030454]";
+    if (number >= 40) return "bg-[#F3F74B]/45 text-[#030454]";
     return "bg-red-50 text-red-700";
   }
 
   if (number >= 75) return "bg-red-50 text-red-700";
   if (number >= 60) return "bg-orange-50 text-orange-700";
-  if (number >= 40) return "bg-amber-50 text-amber-700";
-  return "bg-emerald-50 text-emerald-700";
+  if (number >= 40) return "bg-[#F3F74B]/45 text-[#030454]";
+  return "bg-[#009B35]/10 text-[#009B35]";
 }
 
 function escapeHtml(value) {
@@ -124,14 +124,18 @@ function getRecommendedActions(profile) {
 
 function ScoreCard({ label, value, reverse = false }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
-      <p className="text-xs font-medium text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-bold">
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-black text-[#030454]">
         {formatNumber(value, 2)}
         <span className="text-sm font-semibold text-slate-400"> / 100</span>
       </p>
+
       <span
-        className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${badgeClass(
+        className={`mt-2 inline-flex rounded-md px-3 py-1 text-xs font-bold ${badgeClass(
           value,
           reverse
         )}`}
@@ -196,12 +200,13 @@ function buildPrintHtml(profile, records, groupedRecords, recommendations) {
         <style>
           body {
             font-family: Arial, sans-serif;
-            color: #0f172a;
+            color: #030454;
             padding: 32px;
             line-height: 1.5;
           }
           h1, h2, h3 {
             margin-bottom: 8px;
+            color: #030454;
           }
           .muted {
             color: #64748b;
@@ -370,8 +375,11 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
   if (!selectedProfile) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold">LGA Risk Evidence Brief</h2>
-        <p className="mt-2 text-sm text-slate-500">
+        <h2 className="text-xl font-black text-[#030454]">
+          LGA Risk Evidence Brief
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500">
           Select an LGA to generate its climate risk evidence brief.
         </p>
       </section>
@@ -382,13 +390,15 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
-          <p className="text-sm font-medium text-emerald-700">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
             LGA Risk Evidence Brief
           </p>
-          <h2 className="mt-1 text-2xl font-bold">
+
+          <h2 className="mt-2 text-2xl font-black text-[#030454]">
             {selectedProfile.lga_name} Climate Risk Brief
           </h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-500">
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             A one-page evidence view combining risk indexes, raw parameter
             evidence, interpretation and recommended actions for the selected
             LGA.
@@ -399,7 +409,7 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
           <button
             type="button"
             onClick={loadRecords}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-slate-200 bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
           >
             Refresh Evidence
           </button>
@@ -414,7 +424,7 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
                 recommendations
               )
             }
-            className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+            className="rounded-md bg-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
           >
             Print Brief
           </button>
@@ -422,7 +432,7 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
       </div>
 
       {error && (
-        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mb-5 rounded-r-xl border-l-4 border-red-400 bg-red-50 px-5 py-4 text-sm leading-6 text-red-700">
           {error}
         </div>
       )}
@@ -432,21 +442,33 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
           label="Overall Climate Risk Index"
           value={selectedProfile.overall_risk_score}
         />
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium text-slate-500">Risk Class</p>
-          <p className="mt-2 text-2xl font-bold">
-            {selectedProfile.risk_level_display || titleCase(selectedProfile.risk_level)}
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+            Risk Class
+          </p>
+          <p className="mt-2 text-2xl font-black text-[#030454]">
+            {selectedProfile.risk_level_display ||
+              titleCase(selectedProfile.risk_level)}
           </p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium text-slate-500">Dominant Hazard</p>
-          <p className="mt-2 text-2xl font-bold">
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+            Dominant Hazard
+          </p>
+          <p className="mt-2 text-2xl font-black text-[#030454]">
             {titleCase(selectedProfile.dominant_hazard || "Not set")}
           </p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs font-medium text-slate-500">Profile Year</p>
-          <p className="mt-2 text-2xl font-bold">{selectedProfile.year}</p>
+
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+            Profile Year
+          </p>
+          <p className="mt-2 text-2xl font-black text-[#030454]">
+            {selectedProfile.year}
+          </p>
         </div>
       </div>
 
@@ -464,8 +486,9 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
         />
       </div>
 
-      <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
-        <h3 className="font-bold">Recommended Actions</h3>
+      <div className="mt-6 rounded-xl border-l-4 border-[#F3F74B] bg-[#F3F74B]/25 px-5 py-4 text-sm leading-6 text-[#030454]">
+        <h3 className="font-black">Recommended Actions</h3>
+
         <ul className="mt-3 list-disc space-y-2 pl-5">
           {recommendations.map((action) => (
             <li key={action}>{action}</li>
@@ -476,8 +499,11 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
       <div className="mt-6">
         <div className="mb-4 flex items-center justify-between gap-4">
           <div>
-            <h3 className="text-lg font-bold">Parameter Evidence</h3>
-            <p className="text-sm text-slate-500">
+            <h3 className="text-xl font-black text-[#030454]">
+              Parameter Evidence
+            </h3>
+
+            <p className="mt-1 text-sm leading-6 text-slate-500">
               Raw values are measured/processed evidence. Normalized scores are
               the 0–100 values used by the scoring engine.
             </p>
@@ -497,9 +523,9 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
             {Object.entries(groupedRecords).map(([category, categoryRecords]) => (
               <div
                 key={category}
-                className="rounded-2xl border border-slate-200 bg-white p-5"
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
               >
-                <h4 className="font-bold">
+                <h4 className="font-black text-[#030454]">
                   {categoryLabels[category] || titleCase(category)}
                 </h4>
 
@@ -507,12 +533,12 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
                   <table className="w-full min-w-[900px] text-left text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 text-slate-500">
-                        <th className="px-3 py-3 font-medium">Parameter</th>
-                        <th className="px-3 py-3 font-medium">Raw Value</th>
-                        <th className="px-3 py-3 font-medium">Unit</th>
-                        <th className="px-3 py-3 font-medium">Score /100</th>
-                        <th className="px-3 py-3 font-medium">Source</th>
-                        <th className="px-3 py-3 font-medium">Notes</th>
+                        <th className="px-3 py-3 font-bold">Parameter</th>
+                        <th className="px-3 py-3 font-bold">Raw Value</th>
+                        <th className="px-3 py-3 font-bold">Unit</th>
+                        <th className="px-3 py-3 font-bold">Score /100</th>
+                        <th className="px-3 py-3 font-bold">Source</th>
+                        <th className="px-3 py-3 font-bold">Notes</th>
                       </tr>
                     </thead>
 
@@ -520,22 +546,25 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
                       {categoryRecords.map((record) => (
                         <tr
                           key={record.id}
-                          className="border-b border-slate-100 last:border-0"
+                          className="border-b border-slate-100 last:border-0 hover:bg-[#009B35]/5"
                         >
                           <td className="px-3 py-4">
-                            <p className="font-semibold">
+                            <p className="font-black text-[#030454]">
                               {record.parameter_label}
                             </p>
                             <p className="text-xs text-slate-400">
                               {record.parameter_key}
                             </p>
                           </td>
+
                           <td className="px-3 py-4">
                             {formatNumber(record.raw_value, 4)}
                           </td>
+
                           <td className="px-3 py-4">
                             {record.unit || "—"}
                           </td>
+
                           <td className="px-3 py-4">
                             {record.normalized_score === null ||
                             record.normalized_score === undefined
@@ -545,9 +574,11 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
                                   2
                                 )} / 100`}
                           </td>
+
                           <td className="px-3 py-4 text-xs text-slate-500">
                             {record.data_source || "—"}
                           </td>
+
                           <td className="px-3 py-4 text-xs text-slate-500">
                             {record.notes || "—"}
                           </td>

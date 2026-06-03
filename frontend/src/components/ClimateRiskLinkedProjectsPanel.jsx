@@ -58,6 +58,9 @@ const initialForm = {
   location_notes: "",
 };
 
+const inputClass =
+  "w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10";
+
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, {
     maximumFractionDigits,
@@ -69,9 +72,9 @@ function formatMoney(value) {
 }
 
 function getStatusClass(status) {
-  if (status === "completed") return "bg-emerald-50 text-emerald-700";
-  if (status === "ongoing") return "bg-blue-50 text-blue-700";
-  if (status === "planned") return "bg-indigo-50 text-indigo-700";
+  if (status === "completed") return "bg-[#009B35]/10 text-[#009B35]";
+  if (status === "ongoing") return "bg-[#030454]/10 text-[#030454]";
+  if (status === "planned") return "bg-[#F3F74B]/45 text-[#030454]";
   if (status === "proposed") return "bg-slate-100 text-slate-700";
   if (status === "suspended") return "bg-amber-50 text-amber-700";
   return "bg-red-50 text-red-700";
@@ -80,15 +83,15 @@ function getStatusClass(status) {
 function getPriorityClass(priority) {
   if (priority === "very_high") return "bg-red-50 text-red-700";
   if (priority === "high") return "bg-orange-50 text-orange-700";
-  if (priority === "medium") return "bg-amber-50 text-amber-700";
-  return "bg-emerald-50 text-emerald-700";
+  if (priority === "medium") return "bg-[#F3F74B]/45 text-[#030454]";
+  return "bg-[#009B35]/10 text-[#009B35]";
 }
 
 function getRiskClass(level) {
   if (level === "very_high") return "bg-red-50 text-red-700";
   if (level === "high") return "bg-orange-50 text-orange-700";
-  if (level === "moderate") return "bg-amber-50 text-amber-700";
-  return "bg-emerald-50 text-emerald-700";
+  if (level === "moderate") return "bg-[#F3F74B]/45 text-[#030454]";
+  return "bg-[#009B35]/10 text-[#009B35]";
 }
 
 function getOptionLabel(options, value) {
@@ -129,6 +132,49 @@ function getDefaultRiskRelevance(profile) {
     : "climate risk and resilience needs";
 
   return `This project responds to ${riskText} in ${profile.lga_name}.`;
+}
+
+function SummaryCard({ label, value, helper, tone = "blue" }) {
+  const toneClasses = {
+    blue: "border-[#030454]/15 bg-[#030454]/5",
+    green: "border-[#009B35]/20 bg-[#009B35]/8",
+    yellow: "border-[#F3F74B]/70 bg-[#F3F74B]/25",
+    orange: "border-orange-200 bg-orange-50",
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border p-5 shadow-sm ${
+        toneClasses[tone] || toneClasses.blue
+      }`}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-3xl font-black text-[#030454]">{value}</p>
+
+      {helper && <p className="mt-1 text-sm text-slate-500">{helper}</p>}
+    </div>
+  );
+}
+
+function Notice({ type = "success", children }) {
+  const classes = {
+    success: "border-[#009B35] bg-[#009B35]/8 text-[#030454]",
+    error: "border-red-400 bg-red-50 text-red-700",
+    yellow: "border-[#F3F74B] bg-[#F3F74B]/25 text-[#030454]",
+  };
+
+  return (
+    <div
+      className={`rounded-r-xl border-l-4 px-5 py-4 text-sm leading-6 ${
+        classes[type] || classes.success
+      }`}
+    >
+      {children}
+    </div>
+  );
 }
 
 export default function ClimateRiskLinkedProjectsPanel({
@@ -269,8 +315,11 @@ export default function ClimateRiskLinkedProjectsPanel({
   if (!selectedProfile) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold">Linked Climate Projects</h2>
-        <p className="mt-2 text-sm text-slate-500">
+        <h2 className="text-xl font-black text-[#030454]">
+          Linked Climate Projects
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500">
           Select an LGA to view climate projects linked to its risk profile.
         </p>
       </section>
@@ -281,13 +330,15 @@ export default function ClimateRiskLinkedProjectsPanel({
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
-          <p className="text-sm font-medium text-emerald-700">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
             Linked Climate Projects
           </p>
-          <h2 className="mt-1 text-2xl font-bold">
+
+          <h2 className="mt-2 text-2xl font-black text-[#030454]">
             Projects Responding to {selectedProfile.lga_name} Risk
           </h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-500">
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             View and register climate projects linked to this LGA’s risk
             profile. This connects climate risk analysis to adaptation and
             mitigation action planning.
@@ -298,7 +349,7 @@ export default function ClimateRiskLinkedProjectsPanel({
           <button
             type="button"
             onClick={loadProjects}
-            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+            className="rounded-md border border-slate-200 bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
           >
             Refresh Projects
           </button>
@@ -307,7 +358,7 @@ export default function ClimateRiskLinkedProjectsPanel({
             <button
               type="button"
               onClick={() => setShowForm((current) => !current)}
-              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
+              className="rounded-md bg-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
             >
               {showForm ? "Hide Form" : "Add Linked Project"}
             </button>
@@ -318,27 +369,30 @@ export default function ClimateRiskLinkedProjectsPanel({
       <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 p-5">
         <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
           <div>
-            <p className="text-sm text-slate-500">Selected LGA Risk Context</p>
-            <h3 className="mt-1 text-xl font-bold">
+            <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+              Selected LGA Risk Context
+            </p>
+
+            <h3 className="mt-2 text-xl font-black text-[#030454]">
               {selectedProfile.lga_name}
             </h3>
           </div>
 
           <div className="flex flex-wrap gap-2">
             <span
-              className={`rounded-full px-3 py-1 text-xs font-semibold ${getRiskClass(
+              className={`rounded-md px-3 py-1 text-xs font-bold ${getRiskClass(
                 selectedProfile.risk_level
               )}`}
             >
               {selectedProfile.risk_level_display}
             </span>
 
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+            <span className="rounded-md bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
               Overall: {formatNumber(selectedProfile.overall_risk_score, 2)} /
               100
             </span>
 
-            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
+            <span className="rounded-md bg-[#030454]/10 px-3 py-1 text-xs font-bold text-[#030454]">
               Adaptive Capacity:{" "}
               {formatNumber(selectedProfile.adaptive_capacity_score, 2)} / 100
             </span>
@@ -346,45 +400,39 @@ export default function ClimateRiskLinkedProjectsPanel({
         </div>
       </div>
 
-      {error && (
-        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {message && (
-        <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-          {message}
-        </div>
-      )}
+      <div className="mb-5 space-y-4">
+        {error && <Notice type="error">{error}</Notice>}
+        {message && <Notice type="success">{message}</Notice>}
+      </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Linked Projects</p>
-          <p className="mt-2 text-3xl font-bold">{summary.totalProjects}</p>
-        </div>
+        <SummaryCard
+          label="Linked Projects"
+          value={summary.totalProjects}
+          helper="Projects connected to this LGA."
+          tone="blue"
+        />
 
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-          <p className="text-sm text-blue-700">Linked Budget</p>
-          <p className="mt-2 text-3xl font-bold text-blue-700">
-            {formatMoney(summary.totalBudget)}
-          </p>
-        </div>
+        <SummaryCard
+          label="Linked Budget"
+          value={formatMoney(summary.totalBudget)}
+          helper="Total estimated value."
+          tone="green"
+        />
 
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-          <p className="text-sm text-emerald-700">Expected GHG Reduction</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-700">
-            {formatNumber(summary.totalGhgReduction, 3)}
-          </p>
-          <p className="mt-1 text-sm text-emerald-700">tCO₂e</p>
-        </div>
+        <SummaryCard
+          label="Expected GHG Reduction"
+          value={formatNumber(summary.totalGhgReduction, 3)}
+          helper="tCO₂e expected."
+          tone="yellow"
+        />
 
-        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5">
-          <p className="text-sm text-orange-700">Expected Beneficiaries</p>
-          <p className="mt-2 text-3xl font-bold text-orange-700">
-            {formatNumber(summary.totalBeneficiaries, 0)}
-          </p>
-        </div>
+        <SummaryCard
+          label="Expected Beneficiaries"
+          value={formatNumber(summary.totalBeneficiaries, 0)}
+          helper="People expected to benefit."
+          tone="orange"
+        />
       </div>
 
       {canManage && showForm && (
@@ -393,50 +441,56 @@ export default function ClimateRiskLinkedProjectsPanel({
           className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-5"
         >
           <div className="mb-4">
-            <h3 className="font-bold">Create Project for {selectedProfile.lga_name}</h3>
-            <p className="text-sm text-slate-500">
+            <h3 className="text-xl font-black text-[#030454]">
+              Create Project for {selectedProfile.lga_name}
+            </h3>
+
+            <p className="mt-1 text-sm leading-6 text-slate-600">
               This project will be automatically linked to the selected LGA.
             </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Project Title
               </label>
+
               <input
                 value={form.title}
                 onChange={(event) => updateForm("title", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder={`Example: ${selectedProfile.lga_name} Flood Resilience Project`}
                 required
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Project Code
               </label>
+
               <input
                 value={form.project_code}
                 onChange={(event) =>
                   updateForm("project_code", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder="KCCC-PRJ-001"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Project Type
               </label>
+
               <select
                 value={form.project_type}
                 onChange={(event) =>
                   updateForm("project_type", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               >
                 {projectTypeOptions.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -447,13 +501,14 @@ export default function ClimateRiskLinkedProjectsPanel({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Sector
               </label>
+
               <select
                 value={form.sector}
                 onChange={(event) => updateForm("sector", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               >
                 {sectorOptions.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -464,13 +519,14 @@ export default function ClimateRiskLinkedProjectsPanel({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Status
               </label>
+
               <select
                 value={form.status}
                 onChange={(event) => updateForm("status", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               >
                 {statusOptions.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -481,13 +537,14 @@ export default function ClimateRiskLinkedProjectsPanel({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Priority
               </label>
+
               <select
                 value={form.priority}
                 onChange={(event) => updateForm("priority", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               >
                 {priorityOptions.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -498,9 +555,10 @@ export default function ClimateRiskLinkedProjectsPanel({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Estimated Budget ₦
               </label>
+
               <input
                 type="number"
                 min="0"
@@ -509,14 +567,15 @@ export default function ClimateRiskLinkedProjectsPanel({
                 onChange={(event) =>
                   updateForm("estimated_budget_naira", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Expected GHG Reduction tCO₂e
               </label>
+
               <input
                 type="number"
                 min="0"
@@ -528,14 +587,15 @@ export default function ClimateRiskLinkedProjectsPanel({
                     event.target.value
                   )
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Expected Beneficiaries
               </label>
+
               <input
                 type="number"
                 min="0"
@@ -543,35 +603,67 @@ export default function ClimateRiskLinkedProjectsPanel({
                 onChange={(event) =>
                   updateForm("expected_beneficiaries", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
+                Implementing Agency
+              </label>
+
+              <input
+                value={form.implementing_agency}
+                onChange={(event) =>
+                  updateForm("implementing_agency", event.target.value)
+                }
+                className={inputClass}
+                placeholder="Ministry, agency, NGO, donor..."
+              />
+            </div>
+
+            <div>
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
+                Funding Source
+              </label>
+
+              <input
+                value={form.funding_source}
+                onChange={(event) =>
+                  updateForm("funding_source", event.target.value)
+                }
+                className={inputClass}
+                placeholder="State budget, donor, private sector..."
               />
             </div>
 
             <div className="md:col-span-3">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Climate Risk Relevance
               </label>
+
               <textarea
                 rows="3"
                 value={form.climate_risk_relevance}
                 onChange={(event) =>
                   updateForm("climate_risk_relevance", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               />
             </div>
 
             <div className="md:col-span-3">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Project Description
               </label>
+
               <textarea
                 rows="3"
                 value={form.description}
                 onChange={(event) =>
                   updateForm("description", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder="Describe project scope, outputs and expected resilience/mitigation benefit..."
               />
             </div>
@@ -580,7 +672,7 @@ export default function ClimateRiskLinkedProjectsPanel({
           <button
             type="submit"
             disabled={isSaving}
-            className="mt-5 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="mt-5 rounded-md bg-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e] disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             {isSaving ? "Saving..." : "Save Linked Project"}
           </button>
@@ -590,9 +682,10 @@ export default function ClimateRiskLinkedProjectsPanel({
       {isLoading ? (
         <p className="text-sm text-slate-500">Loading linked projects...</p>
       ) : projects.length === 0 ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-          <p className="font-bold">No linked projects yet</p>
-          <p className="mt-2">
+        <div className="rounded-xl border-l-4 border-[#F3F74B] bg-[#F3F74B]/25 px-5 py-4 text-sm leading-6 text-[#030454]">
+          <p className="font-black">No linked projects yet</p>
+
+          <p className="mt-1">
             This LGA has no climate project linked to it. If the LGA has high
             or very high risk, this may indicate an adaptation planning gap.
           </p>
@@ -602,11 +695,14 @@ export default function ClimateRiskLinkedProjectsPanel({
           {projects.map((project) => (
             <div
               key={project.id}
-              className="rounded-2xl border border-slate-200 bg-white p-5"
+              className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#009B35]/60 hover:bg-[#009B35]/5"
             >
               <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
                 <div>
-                  <h3 className="text-lg font-bold">{project.title}</h3>
+                  <h3 className="text-lg font-black text-[#030454]">
+                    {project.title}
+                  </h3>
+
                   <p className="mt-1 text-xs text-slate-400">
                     {project.project_code || "No project code"} •{" "}
                     {project.sector_display ||
@@ -615,7 +711,7 @@ export default function ClimateRiskLinkedProjectsPanel({
 
                   <div className="mt-3 flex flex-wrap gap-2">
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
+                      className={`rounded-md px-3 py-1 text-xs font-bold ${getStatusClass(
                         project.status
                       )}`}
                     >
@@ -624,7 +720,7 @@ export default function ClimateRiskLinkedProjectsPanel({
                     </span>
 
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getPriorityClass(
+                      className={`rounded-md px-3 py-1 text-xs font-bold ${getPriorityClass(
                         project.priority
                       )}`}
                     >
@@ -632,7 +728,7 @@ export default function ClimateRiskLinkedProjectsPanel({
                         getOptionLabel(priorityOptions, project.priority)}
                     </span>
 
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
+                    <span className="rounded-md bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
                       {project.project_type_display ||
                         getOptionLabel(
                           projectTypeOptions,
@@ -643,24 +739,24 @@ export default function ClimateRiskLinkedProjectsPanel({
                 </div>
 
                 <div className="grid gap-3 text-sm md:grid-cols-3 lg:min-w-[420px]">
-                  <div className="rounded-xl bg-slate-50 p-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <p className="text-xs text-slate-500">Budget</p>
-                    <p className="mt-1 font-bold">
+                    <p className="mt-1 font-black text-[#030454]">
                       {formatMoney(project.estimated_budget_naira)}
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-slate-50 p-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <p className="text-xs text-slate-500">GHG Reduction</p>
-                    <p className="mt-1 font-bold">
+                    <p className="mt-1 font-black text-[#030454]">
                       {formatNumber(project.expected_ghg_reduction_tco2e, 3)}{" "}
                       tCO₂e
                     </p>
                   </div>
 
-                  <div className="rounded-xl bg-slate-50 p-3">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
                     <p className="text-xs text-slate-500">Beneficiaries</p>
-                    <p className="mt-1 font-bold">
+                    <p className="mt-1 font-black text-[#030454]">
                       {formatNumber(project.expected_beneficiaries, 0)}
                     </p>
                   </div>
@@ -668,14 +764,14 @@ export default function ClimateRiskLinkedProjectsPanel({
               </div>
 
               {project.climate_risk_relevance && (
-                <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-                  <p className="font-semibold">Climate Risk Relevance</p>
+                <div className="mt-4 rounded-xl border-l-4 border-[#030454] bg-[#030454]/5 px-5 py-4 text-sm leading-6 text-[#030454]">
+                  <p className="font-black">Climate Risk Relevance</p>
                   <p className="mt-1">{project.climate_risk_relevance}</p>
                 </div>
               )}
 
               {project.description && (
-                <p className="mt-4 text-sm text-slate-600">
+                <p className="mt-4 text-sm leading-6 text-slate-600">
                   {project.description}
                 </p>
               )}

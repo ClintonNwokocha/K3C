@@ -10,6 +10,7 @@ const categoryOptions = [
   { value: "drought", label: "Drought" },
   { value: "heat", label: "Heat" },
   { value: "erosion", label: "Erosion" },
+  { value: "exposure", label: "Exposure" },
   { value: "vulnerability", label: "Vulnerability" },
   { value: "adaptive_capacity", label: "Adaptive Capacity" },
 ];
@@ -34,6 +35,12 @@ const suggestedParameters = {
     ["slope_index", "Slope index", "index"],
     ["soil_erodibility", "Soil erodibility", "index"],
     ["rainfall_erosivity", "Rainfall erosivity", "index"],
+  ],
+  exposure: [
+    ["population_exposed", "Population exposed", "persons"],
+    ["schools_exposed", "Schools exposed", "count"],
+    ["hospitals_exposed", "Hospitals exposed", "count"],
+    ["roads_exposed_km", "Roads exposed", "km"],
   ],
   vulnerability: [
     ["population_density", "Population density", "persons/km²"],
@@ -60,6 +67,45 @@ const initialForm = {
   notes: "",
   is_active: true,
 };
+
+const inputClass =
+  "w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10";
+
+function formatNumber(value, maximumFractionDigits = 4) {
+  if (value === null || value === undefined || value === "") return "—";
+
+  return Number(value || 0).toLocaleString(undefined, {
+    maximumFractionDigits,
+  });
+}
+
+function getCategoryBadgeClass(category) {
+  if (category === "flood") return "bg-[#030454]/10 text-[#030454]";
+  if (category === "drought") return "bg-[#F3F74B]/45 text-[#030454]";
+  if (category === "heat") return "bg-orange-50 text-orange-700";
+  if (category === "erosion") return "bg-red-50 text-red-700";
+  if (category === "exposure") return "bg-blue-50 text-blue-700";
+  if (category === "vulnerability") return "bg-purple-50 text-purple-700";
+  return "bg-[#009B35]/10 text-[#009B35]";
+}
+
+function Notice({ type = "success", children }) {
+  const classes = {
+    success: "border-[#009B35] bg-[#009B35]/8 text-[#030454]",
+    error: "border-red-400 bg-red-50 text-red-700",
+    yellow: "border-[#F3F74B] bg-[#F3F74B]/25 text-[#030454]",
+  };
+
+  return (
+    <div
+      className={`rounded-r-xl border-l-4 px-5 py-4 text-sm leading-6 ${
+        classes[type] || classes.success
+      }`}
+    >
+      {children}
+    </div>
+  );
+}
 
 export default function ClimateRiskParameterPanel({
   lgas = [],
@@ -234,22 +280,24 @@ export default function ClimateRiskParameterPanel({
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <p className="text-sm font-medium text-emerald-700">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
             Climate Risk Parameters
           </p>
-          <h2 className="mt-1 text-lg font-bold">
+
+          <h2 className="mt-2 text-2xl font-black text-[#030454]">
             Raw Parameter Data for {selectedProfile?.lga_name || "Selected LGA"}
           </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            Store the raw climate, exposure, vulnerability and adaptive-capacity
-            evidence behind each final risk score.
+
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
+            Store the raw climate, exposure, vulnerability and
+            adaptive-capacity evidence behind each final risk score.
           </p>
         </div>
 
         <select
           value={categoryFilter}
           onChange={(event) => setCategoryFilter(event.target.value)}
-          className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
         >
           <option value="all">All categories</option>
           {categoryOptions.map((item) => (
@@ -260,17 +308,10 @@ export default function ClimateRiskParameterPanel({
         </select>
       </div>
 
-      {(message || error) && (
-        <div
-          className={`mb-5 rounded-xl border p-3 text-sm ${
-            error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-700"
-          }`}
-        >
-          {error || message}
-        </div>
-      )}
+      <div className="mb-5 space-y-4">
+        {message && <Notice type="success">{message}</Notice>}
+        {error && <Notice type="error">{error}</Notice>}
+      </div>
 
       {canManage && selectedProfile && (
         <form
@@ -279,12 +320,13 @@ export default function ClimateRiskParameterPanel({
         >
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h3 className="font-bold">
+              <h3 className="text-xl font-black text-[#030454]">
                 {editingRecordId ? "Edit Parameter Record" : "Add Parameter Record"}
               </h3>
-              <p className="text-sm text-slate-500">
-                Normalized score is optional for now. The scoring engine will
-                automate it later.
+
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Raw value is the measured evidence. Normalized score is the
+                0–100 index used by the current scoring engine.
               </p>
             </div>
 
@@ -292,22 +334,23 @@ export default function ClimateRiskParameterPanel({
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium text-slate-600 hover:bg-white"
+                className="rounded-md border border-slate-200 bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
               >
-                Cancel edit
+                Cancel Edit
               </button>
             )}
           </div>
 
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 LGA
               </label>
+
               <select
                 value={form.lga}
                 onChange={(event) => updateForm("lga", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 required
               >
                 <option value="">Select LGA</option>
@@ -320,26 +363,28 @@ export default function ClimateRiskParameterPanel({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Year
               </label>
+
               <input
                 type="number"
                 value={form.year}
                 onChange={(event) => updateForm("year", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 required
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Category
               </label>
+
               <select
                 value={form.category}
                 onChange={(event) => updateForm("category", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               >
                 {categoryOptions.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -350,15 +395,16 @@ export default function ClimateRiskParameterPanel({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Suggested Parameter
               </label>
+
               <select
                 value={form.parameter_key}
                 onChange={(event) =>
                   updateForm("parameter_key", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               >
                 {currentSuggestions.map(([key, label]) => (
                   <option key={key} value={key}>
@@ -369,49 +415,53 @@ export default function ClimateRiskParameterPanel({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Parameter Label
               </label>
+
               <input
                 value={form.parameter_label}
                 onChange={(event) =>
                   updateForm("parameter_label", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 required
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Raw Value
               </label>
+
               <input
                 type="number"
                 step="0.0001"
                 value={form.raw_value}
                 onChange={(event) => updateForm("raw_value", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 required
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Unit
               </label>
+
               <input
                 value={form.unit}
                 onChange={(event) => updateForm("unit", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder="count, %, °C, km², index..."
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Normalized Score
               </label>
+
               <input
                 type="number"
                 min="0"
@@ -421,35 +471,37 @@ export default function ClimateRiskParameterPanel({
                 onChange={(event) =>
                   updateForm("normalized_score", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder="Optional 0–100"
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Data Source
               </label>
+
               <input
                 value={form.data_source}
                 onChange={(event) =>
                   updateForm("data_source", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder="NiMet, KADGIS, NEMA..."
               />
             </div>
           </div>
 
           <div className="mt-4">
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Notes
             </label>
+
             <textarea
               rows="2"
               value={form.notes}
               onChange={(event) => updateForm("notes", event.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className={inputClass}
               placeholder="Explain evidence, assumptions, method, source year..."
             />
           </div>
@@ -457,13 +509,13 @@ export default function ClimateRiskParameterPanel({
           <button
             type="submit"
             disabled={isSaving}
-            className="mt-4 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="mt-4 rounded-md bg-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e] disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             {isSaving
               ? "Saving..."
               : editingRecordId
-              ? "Update Parameter"
-              : "Save Parameter"}
+                ? "Update Parameter"
+                : "Save Parameter"}
           </button>
         </form>
       )}
@@ -471,16 +523,16 @@ export default function ClimateRiskParameterPanel({
       {isLoading ? (
         <p className="text-sm text-slate-500">Loading parameter records...</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
-                <th className="px-3 py-3 font-medium">Category</th>
-                <th className="px-3 py-3 font-medium">Parameter</th>
-                <th className="px-3 py-3 font-medium">Raw Value</th>
-                <th className="px-3 py-3 font-medium">Normalized</th>
-                <th className="px-3 py-3 font-medium">Source</th>
-                <th className="px-3 py-3 font-medium">Action</th>
+              <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                <th className="px-3 py-3 font-bold">Category</th>
+                <th className="px-3 py-3 font-bold">Parameter</th>
+                <th className="px-3 py-3 font-bold">Raw Value</th>
+                <th className="px-3 py-3 font-bold">Normalized</th>
+                <th className="px-3 py-3 font-bold">Source</th>
+                <th className="px-3 py-3 font-bold">Action</th>
               </tr>
             </thead>
 
@@ -488,29 +540,48 @@ export default function ClimateRiskParameterPanel({
               {records.map((record) => (
                 <tr
                   key={record.id}
-                  className="border-b border-slate-100 last:border-0"
+                  className="border-b border-slate-100 last:border-0 hover:bg-[#009B35]/5"
                 >
-                  <td className="px-3 py-4">{record.category_display}</td>
                   <td className="px-3 py-4">
-                    <p className="font-semibold">{record.parameter_label}</p>
+                    <span
+                      className={`rounded-md px-3 py-1 text-xs font-bold ${getCategoryBadgeClass(
+                        record.category
+                      )}`}
+                    >
+                      {record.category_display}
+                    </span>
+                  </td>
+
+                  <td className="px-3 py-4">
+                    <p className="font-black text-[#030454]">
+                      {record.parameter_label}
+                    </p>
                     <p className="text-xs text-slate-400">
                       {record.parameter_key}
                     </p>
                   </td>
+
                   <td className="px-3 py-4">
-                    {Number(record.raw_value).toLocaleString()} {record.unit}
+                    {formatNumber(record.raw_value, 4)} {record.unit}
                   </td>
+
                   <td className="px-3 py-4">
-                    {record.normalized_score ?? "—"}
+                    {record.normalized_score === null ||
+                    record.normalized_score === undefined
+                      ? "—"
+                      : `${formatNumber(record.normalized_score, 2)} / 100`}
                   </td>
+
                   <td className="px-3 py-4 text-xs text-slate-500">
                     {record.data_source || "—"}
                   </td>
+
                   <td className="px-3 py-4">
                     {canManage ? (
                       <button
+                        type="button"
                         onClick={() => startEdit(record)}
-                        className="rounded-full border border-blue-200 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-50"
+                        className="rounded-md border border-slate-200 px-3 py-1 text-xs font-bold text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
                       >
                         Edit
                       </button>

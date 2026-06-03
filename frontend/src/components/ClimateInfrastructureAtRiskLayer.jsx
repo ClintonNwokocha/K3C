@@ -46,6 +46,9 @@ const initialForm = {
   notes: "",
 };
 
+const inputClass =
+  "w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10";
+
 function formatNumber(value, maximumFractionDigits = 2) {
   if (value === null || value === undefined || value === "") return "—";
 
@@ -57,15 +60,56 @@ function formatNumber(value, maximumFractionDigits = 2) {
 function getRiskClass(status) {
   if (status === "very_high") return "bg-red-50 text-red-700";
   if (status === "high") return "bg-orange-50 text-orange-700";
-  if (status === "moderate") return "bg-amber-50 text-amber-700";
-  return "bg-emerald-50 text-emerald-700";
+  if (status === "moderate") return "bg-[#F3F74B]/45 text-[#030454]";
+  return "bg-[#009B35]/10 text-[#009B35]";
 }
 
 function getCircleColor(status) {
-  if (status === "very_high") return "#dc2626";
-  if (status === "high") return "#f97316";
-  if (status === "moderate") return "#f59e0b";
-  return "#16a34a";
+  if (status === "very_high") return "#B91C1C";
+  if (status === "high") return "#EA580C";
+  if (status === "moderate") return "#F3F74B";
+  return "#009B35";
+}
+
+function StatCard({ label, value, tone = "blue" }) {
+  const toneClasses = {
+    blue: "border-[#030454]/15 bg-[#030454]/5",
+    green: "border-[#009B35]/20 bg-[#009B35]/8",
+    yellow: "border-[#F3F74B]/70 bg-[#F3F74B]/25",
+    red: "border-red-200 bg-red-50",
+    orange: "border-orange-200 bg-orange-50",
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border p-4 shadow-sm ${
+        toneClasses[tone] || toneClasses.blue
+      }`}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-2xl font-black text-[#030454]">{value}</p>
+    </div>
+  );
+}
+
+function Notice({ type = "success", children }) {
+  const classes = {
+    success: "border-[#009B35] bg-[#009B35]/8 text-[#030454]",
+    error: "border-red-400 bg-red-50 text-red-700",
+  };
+
+  return (
+    <div
+      className={`rounded-r-xl border-l-4 px-5 py-4 text-sm leading-6 ${
+        classes[type] || classes.success
+      }`}
+    >
+      {children}
+    </div>
+  );
 }
 
 function FitAssetBounds({ assets }) {
@@ -76,16 +120,28 @@ function FitAssetBounds({ assets }) {
       .map((asset) => [Number(asset.latitude), Number(asset.longitude)])
       .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng));
 
-    if (!validPoints.length) return;
+    if (!validPoints.length) return undefined;
 
-    const bounds = L.latLngBounds(validPoints);
+    const fit = () => {
+      try {
+        map.invalidateSize();
 
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, {
-        padding: [30, 30],
-        maxZoom: 12,
-      });
-    }
+        const bounds = L.latLngBounds(validPoints);
+
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, {
+            padding: [30, 30],
+            maxZoom: 12,
+          });
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    const timer = window.setTimeout(fit, 150);
+
+    return () => window.clearTimeout(timer);
   }, [assets, map]);
 
   return null;
@@ -218,8 +274,11 @@ export default function ClimateInfrastructureAtRiskLayer({
   if (!selectedProfile) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold">Infrastructure-at-Risk Layer</h2>
-        <p className="mt-2 text-sm text-slate-500">
+        <h2 className="text-xl font-black text-[#030454]">
+          Infrastructure-at-Risk Layer
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500">
           Select an LGA to view exposed infrastructure and critical assets.
         </p>
       </section>
@@ -230,13 +289,15 @@ export default function ClimateInfrastructureAtRiskLayer({
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
-          <p className="text-sm font-medium text-emerald-700">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
             Infrastructure-at-Risk Layer
           </p>
-          <h2 className="mt-1 text-2xl font-bold">
+
+          <h2 className="mt-2 text-2xl font-black text-[#030454]">
             Exposed Assets in {selectedProfile.lga_name}
           </h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-500">
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Map and manage schools, hospitals, markets, roads/bridges, water
             facilities, settlements, and other assets exposed to climate risk.
           </p>
@@ -245,50 +306,22 @@ export default function ClimateInfrastructureAtRiskLayer({
         <button
           type="button"
           onClick={loadAssets}
-          className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="rounded-md border border-slate-200 bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
         >
           Refresh Assets
         </button>
       </div>
 
-      {error && (
-        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      {message && (
-        <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-          {message}
-        </div>
-      )}
+      <div className="mb-5 space-y-4">
+        {error && <Notice type="error">{error}</Notice>}
+        {message && <Notice type="success">{message}</Notice>}
+      </div>
 
       <div className="mb-5 grid gap-4 md:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs text-slate-500">Total Assets</p>
-          <p className="mt-2 text-2xl font-bold">{summary.total}</p>
-        </div>
-
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
-          <p className="text-xs text-red-700">Very High Risk</p>
-          <p className="mt-2 text-2xl font-bold text-red-700">
-            {summary.very_high}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4">
-          <p className="text-xs text-orange-700">High Risk</p>
-          <p className="mt-2 text-2xl font-bold text-orange-700">
-            {summary.high}
-          </p>
-        </div>
-
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-xs text-amber-700">Moderate Risk</p>
-          <p className="mt-2 text-2xl font-bold text-amber-700">
-            {summary.moderate}
-          </p>
-        </div>
+        <StatCard label="Total Assets" value={summary.total} tone="blue" />
+        <StatCard label="Very High Risk" value={summary.very_high} tone="red" />
+        <StatCard label="High Risk" value={summary.high} tone="orange" />
+        <StatCard label="Moderate Risk" value={summary.moderate} tone="yellow" />
       </div>
 
       {canManage && (
@@ -297,8 +330,11 @@ export default function ClimateInfrastructureAtRiskLayer({
           className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-5"
         >
           <div className="mb-4">
-            <h3 className="font-bold">Add Infrastructure Asset</h3>
-            <p className="text-sm text-slate-500">
+            <h3 className="text-xl font-black text-[#030454]">
+              Add Infrastructure Asset
+            </h3>
+
+            <p className="mt-1 text-sm leading-6 text-slate-600">
               Use latitude and longitude from QGIS, GPS, OSM, KADGIS, or field
               survey data.
             </p>
@@ -306,15 +342,16 @@ export default function ClimateInfrastructureAtRiskLayer({
 
           <div className="grid gap-4 md:grid-cols-3">
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Asset Type
               </label>
+
               <select
                 value={form.asset_type}
                 onChange={(event) =>
                   updateForm("asset_type", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               >
                 {assetTypeOptions.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -325,30 +362,32 @@ export default function ClimateInfrastructureAtRiskLayer({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Asset Name
               </label>
+
               <input
                 value={form.asset_name}
                 onChange={(event) =>
                   updateForm("asset_name", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder="Example: General Hospital Kafanchan"
                 required
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Risk Status
               </label>
+
               <select
                 value={form.risk_status}
                 onChange={(event) =>
                   updateForm("risk_status", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
               >
                 {riskStatusOptions.map((item) => (
                   <option key={item.value} value={item.value}>
@@ -359,24 +398,26 @@ export default function ClimateInfrastructureAtRiskLayer({
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Latitude
               </label>
+
               <input
                 type="number"
                 step="0.0000001"
                 value={form.latitude}
                 onChange={(event) => updateForm("latitude", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder="10.5222"
                 required
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Longitude
               </label>
+
               <input
                 type="number"
                 step="0.0000001"
@@ -384,16 +425,17 @@ export default function ClimateInfrastructureAtRiskLayer({
                 onChange={(event) =>
                   updateForm("longitude", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder="7.4383"
                 required
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Exposure Score /100
               </label>
+
               <input
                 type="number"
                 min="0"
@@ -403,33 +445,35 @@ export default function ClimateInfrastructureAtRiskLayer({
                 onChange={(event) =>
                   updateForm("exposure_score", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 required
               />
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Data Source
               </label>
+
               <input
                 value={form.data_source}
                 onChange={(event) =>
                   updateForm("data_source", event.target.value)
                 }
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder="OSM, KADGIS, Field Survey..."
               />
             </div>
 
             <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-slate-700">
+              <label className="mb-2 block text-sm font-bold text-[#030454]">
                 Notes
               </label>
+
               <input
                 value={form.notes}
                 onChange={(event) => updateForm("notes", event.target.value)}
-                className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                className={inputClass}
                 placeholder="Describe hazard exposure or asset condition..."
               />
             </div>
@@ -438,7 +482,7 @@ export default function ClimateInfrastructureAtRiskLayer({
           <button
             type="submit"
             disabled={isSaving}
-            className="mt-4 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="mt-4 rounded-md bg-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e] disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             {isSaving ? "Saving..." : "Save Asset"}
           </button>
@@ -449,7 +493,7 @@ export default function ClimateInfrastructureAtRiskLayer({
         <select
           value={assetTypeFilter}
           onChange={(event) => setAssetTypeFilter(event.target.value)}
-          className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
         >
           <option value="all">All asset types</option>
           {assetTypeOptions.map((item) => (
@@ -462,7 +506,7 @@ export default function ClimateInfrastructureAtRiskLayer({
         <select
           value={riskStatusFilter}
           onChange={(event) => setRiskStatusFilter(event.target.value)}
-          className="rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+          className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
         >
           <option value="all">All risk levels</option>
           {riskStatusOptions.map((item) => (
@@ -483,7 +527,7 @@ export default function ClimateInfrastructureAtRiskLayer({
             maxBounds={NIGERIA_BOUNDS}
             maxBoundsViscosity={1.0}
             scrollWheelZoom={false}
-            style={{ height: "420px", width: "100%" }}
+            style={{ height: "520px", width: "100%" }}
           >
             <TileLayer
               attribution="&copy; OpenStreetMap contributors"
@@ -537,8 +581,9 @@ export default function ClimateInfrastructureAtRiskLayer({
         </div>
 
         <div className="h-fit self-start rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="font-bold">Asset List</h3>
-          <p className="mt-1 text-sm text-slate-500">
+          <h3 className="text-xl font-black text-[#030454]">Asset List</h3>
+
+          <p className="mt-1 text-sm leading-6 text-slate-500">
             Assets currently recorded for {selectedProfile.lga_name}.
           </p>
 
@@ -549,22 +594,25 @@ export default function ClimateInfrastructureAtRiskLayer({
               No infrastructure assets recorded for this LGA/year yet.
             </p>
           ) : (
-            <div className="mt-4 max-h-[420px] space-y-3 overflow-y-auto pr-1">
+            <div className="mt-4 max-h-[520px] space-y-3 overflow-y-auto pr-1">
               {assets.map((asset) => (
                 <div
                   key={asset.id}
-                  className="rounded-xl border border-slate-200 p-4"
+                  className="rounded-xl border border-slate-200 p-4 transition hover:border-[#009B35]/60 hover:bg-[#009B35]/5"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="font-semibold">{asset.asset_name}</p>
+                      <p className="font-black text-[#030454]">
+                        {asset.asset_name}
+                      </p>
+
                       <p className="text-xs text-slate-500">
                         {asset.asset_type_display}
                       </p>
                     </div>
 
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${getRiskClass(
+                      className={`rounded-md px-3 py-1 text-xs font-bold ${getRiskClass(
                         asset.risk_status
                       )}`}
                     >
@@ -574,7 +622,7 @@ export default function ClimateInfrastructureAtRiskLayer({
 
                   <p className="mt-3 text-sm text-slate-600">
                     Exposure:{" "}
-                    <span className="font-semibold">
+                    <span className="font-black text-[#030454]">
                       {formatNumber(asset.exposure_score, 2)} / 100
                     </span>
                   </p>
@@ -585,7 +633,7 @@ export default function ClimateInfrastructureAtRiskLayer({
                   </p>
 
                   {asset.notes && (
-                    <p className="mt-2 text-xs text-slate-500">
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
                       {asset.notes}
                     </p>
                   )}

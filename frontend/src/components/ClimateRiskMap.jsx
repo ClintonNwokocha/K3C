@@ -10,14 +10,22 @@ const NIGERIA_BOUNDS = [
   [14.5, 15.5],
 ];
 
+const COLORS = {
+  blue: "#030454",
+  green: "#009B35",
+  yellow: "#F3F74B",
+  white: "#FFFFFF",
+  noData: "#CBD5E1",
+  red: "#B91C1C",
+  orange: "#EA580C",
+};
+
 const PLACEHOLDER_LGA_GEOJSON = {
   type: "FeatureCollection",
   features: [
     {
       type: "Feature",
-      properties: {
-        lganame: "Birnin Gwari",
-      },
+      properties: { lganame: "Birnin Gwari" },
       geometry: {
         type: "Polygon",
         coordinates: [
@@ -33,9 +41,7 @@ const PLACEHOLDER_LGA_GEOJSON = {
     },
     {
       type: "Feature",
-      properties: {
-        lganame: "Chikun",
-      },
+      properties: { lganame: "Chikun" },
       geometry: {
         type: "Polygon",
         coordinates: [
@@ -51,9 +57,7 @@ const PLACEHOLDER_LGA_GEOJSON = {
     },
     {
       type: "Feature",
-      properties: {
-        lganame: "Kaduna South",
-      },
+      properties: { lganame: "Kaduna South" },
       geometry: {
         type: "Polygon",
         coordinates: [
@@ -147,44 +151,45 @@ function getScoreClass(value, metric) {
 
 function getMetricColor(value, metric) {
   if (value === null || value === undefined || value === "") {
-    return "#cbd5e1";
+    return COLORS.noData;
   }
 
   const number = Number(value || 0);
 
   if (metric === "adaptive_capacity") {
-    if (number >= 70) return "#22c55e";
-    if (number >= 55) return "#84cc16";
-    if (number >= 40) return "#f59e0b";
-    return "#ef4444";
+    if (number >= 70) return COLORS.green;
+    if (number >= 55) return COLORS.blue;
+    if (number >= 40) return COLORS.yellow;
+    return COLORS.red;
   }
 
-  if (number >= 75) return "#ef4444";
-  if (number >= 60) return "#f97316";
-  if (number >= 40) return "#f59e0b";
-  return "#22c55e";
+  if (number >= 75) return COLORS.red;
+  if (number >= 60) return COLORS.orange;
+  if (number >= 40) return COLORS.yellow;
+  return COLORS.green;
 }
 
 function getLegendItems(metric) {
   if (metric === "adaptive_capacity") {
     return [
-      { label: "Very Weak Capacity", color: "#ef4444", range: "0–39" },
-      { label: "Weak Capacity", color: "#f59e0b", range: "40–54" },
-      { label: "Fair Capacity", color: "#84cc16", range: "55–69" },
-      { label: "Strong Capacity", color: "#22c55e", range: "70–100" },
+      { label: "Very Weak Capacity", color: COLORS.red, range: "0–39" },
+      { label: "Weak Capacity", color: COLORS.yellow, range: "40–54" },
+      { label: "Fair Capacity", color: COLORS.blue, range: "55–69" },
+      { label: "Strong Capacity", color: COLORS.green, range: "70–100" },
     ];
   }
 
   return [
-    { label: "Low", color: "#22c55e", range: "0–39" },
-    { label: "Moderate", color: "#f59e0b", range: "40–59" },
-    { label: "High", color: "#f97316", range: "60–74" },
-    { label: "Very High", color: "#ef4444", range: "75–100" },
+    { label: "Low", color: COLORS.green, range: "0–39" },
+    { label: "Moderate", color: COLORS.yellow, range: "40–59" },
+    { label: "High", color: COLORS.orange, range: "60–74" },
+    { label: "Very High", color: COLORS.red, range: "75–100" },
   ];
 }
 
 function getFeatureDisplayName(feature) {
   const properties = feature?.properties || {};
+
   const preferredKeys = [
     "lganame",
     "lga_name",
@@ -228,8 +233,10 @@ function MapLegend({ metric }) {
   const items = getLegendItems(metric);
 
   return (
-    <div className="absolute bottom-4 left-4 z-[500] w-64 rounded-2xl border border-slate-200 bg-white/95 p-4 text-xs shadow-lg backdrop-blur">
-      <p className="mb-3 font-bold text-slate-800">Map Legend</p>
+    <div className="absolute bottom-4 left-4 z-[650] w-64 rounded-xl border border-slate-200 bg-white/95 p-4 text-xs shadow-lg backdrop-blur">
+      <p className="mb-3 font-black uppercase tracking-[0.1em] text-[#030454]">
+        Map Legend
+      </p>
 
       <div className="space-y-2">
         {items.map((item) => (
@@ -239,18 +246,18 @@ function MapLegend({ metric }) {
           >
             <div className="flex items-center gap-2">
               <span
-                className="h-3 w-3 rounded-full border border-white shadow-sm"
+                className="h-3 w-3 rounded-sm border border-white shadow-sm"
                 style={{ backgroundColor: item.color }}
               />
               <span className="text-slate-600">{item.label}</span>
             </div>
 
-            <span className="font-semibold text-slate-500">{item.range}</span>
+            <span className="font-bold text-slate-500">{item.range}</span>
           </div>
         ))}
       </div>
 
-      <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] text-slate-500">
+      <p className="mt-3 border-t border-slate-100 pt-2 text-[11px] leading-5 text-slate-500">
         Scores are normalized indexes from 0 to 100.
       </p>
     </div>
@@ -262,6 +269,8 @@ function ResetMapButton({ geoJsonData }) {
 
   function handleReset() {
     try {
+      map.invalidateSize();
+
       const bounds = L.geoJSON(geoJsonData).getBounds();
 
       if (bounds.isValid()) {
@@ -282,7 +291,7 @@ function ResetMapButton({ geoJsonData }) {
     <button
       type="button"
       onClick={handleReset}
-      className="absolute right-4 top-4 z-[500] rounded-xl border border-slate-200 bg-white/95 px-4 py-2 text-xs font-semibold text-slate-700 shadow-lg backdrop-blur hover:bg-slate-50"
+      className="absolute right-4 top-4 z-[650] rounded-md border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#030454] shadow-lg backdrop-blur transition hover:border-[#009B35] hover:text-[#009B35]"
     >
       Reset View
     </button>
@@ -293,9 +302,11 @@ function SelectedLgaNotice({ selectedLgaName }) {
   if (!selectedLgaName) return null;
 
   return (
-    <div className="absolute left-20 top-4 z-[650] max-w-xs rounded-2xl border border-emerald-200 bg-emerald-50/95 px-4 py-3 text-xs text-emerald-800 shadow-lg backdrop-blur">
-      <p className="font-bold">Selected LGA</p>
-      <p className="mt-1">{selectedLgaName}</p>
+    <div className="absolute left-20 top-4 z-[650] max-w-xs rounded-xl border border-[#009B35]/30 bg-white/95 px-4 py-3 text-xs text-[#030454] shadow-lg backdrop-blur">
+      <p className="font-black uppercase tracking-[0.08em] text-[#009B35]">
+        Selected LGA
+      </p>
+      <p className="mt-1 font-bold">{selectedLgaName}</p>
     </div>
   );
 }
@@ -304,20 +315,32 @@ function FitGeoJsonBounds({ geoJsonData }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!geoJsonData) return;
+    if (!geoJsonData) return undefined;
 
-    try {
-      const bounds = L.geoJSON(geoJsonData).getBounds();
+    const fit = () => {
+      try {
+        map.invalidateSize();
 
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, {
-          padding: [30, 30],
-          maxZoom: 9,
-        });
+        const bounds = L.geoJSON(geoJsonData).getBounds();
+
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, {
+            padding: [30, 30],
+            maxZoom: 9,
+          });
+        }
+      } catch (error) {
+        console.error(error);
       }
-    } catch (error) {
-      console.error(error);
-    }
+    };
+
+    const firstTimer = window.setTimeout(fit, 150);
+    const secondTimer = window.setTimeout(fit, 600);
+
+    return () => {
+      window.clearTimeout(firstTimer);
+      window.clearTimeout(secondTimer);
+    };
   }, [geoJsonData, map]);
 
   return null;
@@ -390,17 +413,18 @@ export default function ClimateRiskMap({
     const featureName = getFeatureDisplayName(feature);
     const profile = resolveFeatureProfile(feature);
     const value = profile ? profile[metricField] : null;
+
     const isSelected =
       normalizeName(featureName) === normalizeName(selectedLgaName) ||
       normalizeName(profile?.lga_name) === normalizeName(selectedLgaName);
 
     return {
-      color: isSelected ? "#064e3b" : "#ffffff",
+      color: isSelected ? COLORS.blue : COLORS.white,
       weight: isSelected ? 4 : 1.5,
       fillColor: getMetricColor(value, metric),
-      fillOpacity: isSelected ? 0.9 : 0.72,
+      fillOpacity: isSelected ? 0.92 : 0.74,
       opacity: 1,
-      dashArray: isSelected ? "" : "2",
+      dashArray: profile ? "" : "2",
     };
   }
 
@@ -460,8 +484,8 @@ export default function ClimateRiskMap({
       mouseover: (event) => {
         event.target.setStyle({
           weight: 4,
-          color: "#0f172a",
-          fillOpacity: 0.9,
+          color: COLORS.blue,
+          fillOpacity: 0.94,
         });
 
         if (event.target.bringToFront) {
@@ -475,7 +499,7 @@ export default function ClimateRiskMap({
   }
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-slate-200">
+    <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <MapContainer
         center={KADUNA_CENTER}
         zoom={KADUNA_ZOOM}
@@ -484,7 +508,7 @@ export default function ClimateRiskMap({
         maxBounds={NIGERIA_BOUNDS}
         maxBoundsViscosity={1.0}
         scrollWheelZoom={false}
-        style={{ height: "420px", width: "100%" }}
+        style={{ height: "520px", width: "100%" }}
       >
         <TileLayer
           attribution="&copy; OpenStreetMap contributors"
@@ -492,11 +516,12 @@ export default function ClimateRiskMap({
         />
 
         <FitGeoJsonBounds geoJsonData={geoJsonData} />
-
         <ResetMapButton geoJsonData={geoJsonData} />
 
         <GeoJSON
-          key={`${metric}-${selectedLgaName}-${isUsingPlaceholder ? "placeholder" : "official"}`}
+          key={`${metric}-${selectedLgaName}-${
+            isUsingPlaceholder ? "placeholder" : "official"
+          }-${profiles.length}`}
           data={geoJsonData}
           style={getFeatureStyle}
           onEachFeature={onEachFeature}
@@ -504,13 +529,12 @@ export default function ClimateRiskMap({
       </MapContainer>
 
       <SelectedLgaNotice selectedLgaName={selectedLgaName} />
-
       <MapLegend metric={metric} />
 
       {loadError && (
-        <div className="absolute bottom-4 right-4 z-[500] max-w-xs rounded-2xl border border-amber-200 bg-amber-50/95 p-4 text-xs text-amber-800 shadow-lg backdrop-blur">
-          <p className="font-bold">Boundary Notice</p>
-          <p className="mt-1">{loadError}</p>
+        <div className="absolute bottom-4 right-4 z-[650] max-w-xs rounded-xl border border-[#F3F74B] bg-[#F3F74B]/90 p-4 text-xs text-[#030454] shadow-lg backdrop-blur">
+          <p className="font-black">Boundary Notice</p>
+          <p className="mt-1 leading-5">{loadError}</p>
         </div>
       )}
     </div>

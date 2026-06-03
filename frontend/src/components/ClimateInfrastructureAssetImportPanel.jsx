@@ -40,6 +40,9 @@ const templateRows = [
   ],
 ];
 
+const inputClass =
+  "w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10";
+
 function downloadCsvTemplate() {
   const csvContent = templateRows
     .map((row) =>
@@ -71,6 +74,25 @@ function downloadCsvTemplate() {
   document.body.removeChild(link);
 
   URL.revokeObjectURL(url);
+}
+
+function Notice({ type = "success", children }) {
+  const classes = {
+    success: "border-[#009B35] bg-[#009B35]/8 text-[#030454]",
+    error: "border-red-400 bg-red-50 text-red-700",
+    yellow: "border-[#F3F74B] bg-[#F3F74B]/25 text-[#030454]",
+    blue: "border-[#030454] bg-[#030454]/5 text-[#030454]",
+  };
+
+  return (
+    <div
+      className={`rounded-r-xl border-l-4 px-5 py-4 text-sm leading-6 ${
+        classes[type] || classes.blue
+      }`}
+    >
+      {children}
+    </div>
+  );
 }
 
 export default function ClimateInfrastructureAssetImportPanel({
@@ -145,13 +167,15 @@ export default function ClimateInfrastructureAssetImportPanel({
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
-          <p className="text-sm font-medium text-emerald-700">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
             Infrastructure Data Import
           </p>
-          <h2 className="mt-1 text-lg font-bold">
+
+          <h2 className="mt-2 text-2xl font-black text-[#030454]">
             Upload Infrastructure Assets CSV
           </h2>
-          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Upload point-based assets prepared from QGIS, OSM, KADGIS, GPS, or
             field survey data. Each row should include LGA identifier, asset
             type, asset name, latitude and longitude.
@@ -161,23 +185,16 @@ export default function ClimateInfrastructureAssetImportPanel({
         <button
           type="button"
           onClick={downloadCsvTemplate}
-          className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          className="rounded-md bg-[#030454] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#02033d]"
         >
           Download Asset CSV Template
         </button>
       </div>
 
-      {(message || error) && (
-        <div
-          className={`mb-5 rounded-xl border p-4 text-sm ${
-            error
-              ? "border-red-200 bg-red-50 text-red-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-700"
-          }`}
-        >
-          {error || message}
-        </div>
-      )}
+      <div className="mb-5 space-y-4">
+        {message && <Notice type="success">{message}</Notice>}
+        {error && <Notice type="error">{error}</Notice>}
+      </div>
 
       <form
         onSubmit={handleSubmit}
@@ -185,59 +202,69 @@ export default function ClimateInfrastructureAssetImportPanel({
       >
         <div className="grid gap-4 md:grid-cols-3">
           <div>
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Year
             </label>
+
             <input
               type="number"
               value={year}
               onChange={(event) => setYear(event.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className={inputClass}
               required
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-medium text-slate-700">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               CSV File
             </label>
+
             <input
               id="infrastructure-assets-csv"
               type="file"
               accept=".csv,text/csv"
               onChange={(event) => setFile(event.target.files?.[0] || null)}
-              className="w-full rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              className="w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition file:mr-4 file:rounded-md file:border-0 file:bg-[#030454] file:px-4 file:py-2 file:text-xs file:font-bold file:text-white focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
               required
             />
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-          <p className="font-semibold">Required columns</p>
+        <div className="mt-5 rounded-xl border-l-4 border-[#F3F74B] bg-[#F3F74B]/25 px-5 py-4 text-sm leading-6 text-[#030454]">
+          <p className="font-black">CSV structure guide</p>
+
+          <p className="mt-2 font-bold">Required columns</p>
           <p className="mt-1">
             one of lga_id/lga_name/lganame/lga_code/lgacode, asset_type,
             asset_name, latitude, longitude
           </p>
 
-          <p className="mt-3 font-semibold">Optional columns</p>
+          <p className="mt-3 font-bold">Optional columns</p>
           <p className="mt-1">
             year, exposure_score, risk_status, data_source, notes
           </p>
 
-          <p className="mt-3 font-semibold">Accepted asset_type values</p>
-          <p className="mt-1">
-            school, hospital, market, road_bridge, water_facility, settlement,
-            government_facility, other
-          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="rounded-lg bg-white/65 p-3">
+              <p className="font-bold">Accepted asset_type values</p>
+              <p className="mt-1 text-xs">
+                school, hospital, market, road_bridge, water_facility,
+                settlement, government_facility, other
+              </p>
+            </div>
 
-          <p className="mt-3 font-semibold">Accepted risk_status values</p>
-          <p className="mt-1">low, moderate, high, very_high</p>
+            <div className="rounded-lg bg-white/65 p-3">
+              <p className="font-bold">Accepted risk_status values</p>
+              <p className="mt-1 text-xs">low, moderate, high, very_high</p>
+            </div>
+          </div>
         </div>
 
         <button
           type="submit"
           disabled={isUploading}
-          className="mt-5 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+          className="mt-5 rounded-md bg-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e] disabled:cursor-not-allowed disabled:bg-slate-400"
         >
           {isUploading ? "Importing..." : "Import Infrastructure Assets"}
         </button>

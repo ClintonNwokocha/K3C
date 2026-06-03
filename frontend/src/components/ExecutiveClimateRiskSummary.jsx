@@ -13,15 +13,15 @@ function formatNumber(value, maximumFractionDigits = 2) {
 function getRiskClass(level) {
   if (level === "very_high") return "bg-red-50 text-red-700";
   if (level === "high") return "bg-orange-50 text-orange-700";
-  if (level === "moderate") return "bg-amber-50 text-amber-700";
-  return "bg-emerald-50 text-emerald-700";
+  if (level === "moderate") return "bg-[#F3F74B]/45 text-[#030454]";
+  return "bg-[#009B35]/10 text-[#009B35]";
 }
 
-function getRiskBarClass(level) {
-  if (level === "very_high") return "bg-red-500";
-  if (level === "high") return "bg-orange-500";
-  if (level === "moderate") return "bg-amber-500";
-  return "bg-emerald-500";
+function getRiskBarColor(level) {
+  if (level === "very_high") return "#B91C1C";
+  if (level === "high") return "#EA580C";
+  if (level === "moderate") return "#F3F74B";
+  return "#009B35";
 }
 
 function scoreLabel(value) {
@@ -31,6 +31,49 @@ function scoreLabel(value) {
   if (number >= 60) return "High";
   if (number >= 40) return "Moderate";
   return "Low";
+}
+
+function StatCard({ label, value, helper, tone = "blue" }) {
+  const toneClasses = {
+    blue: "border-[#030454]/15 bg-[#030454]/5",
+    green: "border-[#009B35]/20 bg-[#009B35]/8",
+    yellow: "border-[#F3F74B]/70 bg-[#F3F74B]/25",
+    red: "border-red-200 bg-red-50",
+    orange: "border-orange-200 bg-orange-50",
+    white: "border-slate-200 bg-white",
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border p-6 shadow-sm ${
+        toneClasses[tone] || toneClasses.white
+      }`}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+
+      <h3 className="mt-3 text-3xl font-black text-[#030454]">{value}</h3>
+
+      <p className="mt-2 text-sm leading-6 text-slate-500">{helper}</p>
+    </div>
+  );
+}
+
+function DistributionRow({ label, value, color }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center gap-3">
+        <span
+          className="h-3 w-3 rounded-sm"
+          style={{ backgroundColor: color }}
+        />
+        <span className="text-slate-500">{label}</span>
+      </div>
+
+      <span className="font-black text-[#030454]">{value}</span>
+    </div>
+  );
 }
 
 export default function ExecutiveClimateRiskSummary() {
@@ -116,15 +159,17 @@ export default function ExecutiveClimateRiskSummary() {
     <section className="space-y-6">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
-          <p className="text-sm font-medium text-emerald-700">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
             Climate Risk Intelligence
           </p>
-          <h2 className="mt-1 text-2xl font-bold">
+
+          <h2 className="mt-2 text-2xl font-black text-[#030454]">
             Kaduna Climate Risk Executive Summary
           </h2>
-          <p className="mt-2 max-w-3xl text-sm text-slate-500">
+
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Live summary from the Climate Risk module, including LGA risk
-            profiles, high-priority LGAs, weak adaptive capacity and
+            profiles, priority LGAs, weak adaptive capacity and
             infrastructure-at-risk indicators.
           </p>
         </div>
@@ -132,90 +177,74 @@ export default function ExecutiveClimateRiskSummary() {
         <button
           type="button"
           onClick={loadDashboardClimateRisk}
-          className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="rounded-md border border-slate-200 bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
         >
           Refresh Climate Risk
         </button>
       </div>
 
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">LGAs Assessed</p>
-          <h3 className="mt-3 text-3xl font-bold">
-            {summary.total_lgas || 0}
-          </h3>
-          <p className="mt-2 text-sm text-slate-500">
-            Active climate risk profiles.
-          </p>
-        </div>
+        <StatCard
+          label="LGAs Assessed"
+          value={summary.total_lgas || 0}
+          helper="Active climate risk profiles."
+          tone="blue"
+        />
 
-        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-6 shadow-sm">
-          <p className="text-sm text-orange-700">High / Very High LGAs</p>
-          <h3 className="mt-3 text-3xl font-bold text-orange-700">
-            {summary.high_or_very_high_count || 0}
-          </h3>
-          <p className="mt-2 text-sm text-orange-700">
-            Priority LGAs for adaptation planning.
-          </p>
-        </div>
+        <StatCard
+          label="High / Very High LGAs"
+          value={summary.high_or_very_high_count || 0}
+          helper="Priority LGAs for adaptation planning."
+          tone="orange"
+        />
 
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-          <p className="text-sm text-blue-700">Average Risk Index</p>
-          <h3 className="mt-3 text-3xl font-bold text-blue-700">
-            {formatNumber(summary.average_overall_risk, 2)}
-          </h3>
-          <p className="mt-2 text-sm text-blue-700">
-            Statewide average across assessed LGAs.
-          </p>
-        </div>
+        <StatCard
+          label="Average Risk Index"
+          value={formatNumber(summary.average_overall_risk, 2)}
+          helper="Statewide average across assessed LGAs."
+          tone="green"
+        />
 
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
-          <p className="text-sm text-red-700">Highest Risk Index</p>
-          <h3 className="mt-3 text-3xl font-bold text-red-700">
-            {formatNumber(summary.highest_overall_risk, 2)}
-          </h3>
-          <p className="mt-2 text-sm text-red-700">
-            {dashboardStats.highestRiskProfile?.lga_name || "No LGA available"}
-          </p>
-        </div>
+        <StatCard
+          label="Highest Risk Index"
+          value={formatNumber(summary.highest_overall_risk, 2)}
+          helper={
+            dashboardStats.highestRiskProfile?.lga_name || "No LGA available"
+          }
+          tone="red"
+        />
       </div>
 
       <div className="grid gap-5 md:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">Weak Adaptive Capacity LGAs</p>
-          <h3 className="mt-3 text-3xl font-bold">
-            {dashboardStats.weakAdaptiveCapacityCount}
-          </h3>
-          <p className="mt-2 text-sm text-slate-500">
-            LGAs with adaptive capacity below 40 / 100.
-          </p>
-        </div>
+        <StatCard
+          label="Weak Adaptive Capacity LGAs"
+          value={dashboardStats.weakAdaptiveCapacityCount}
+          helper="LGAs with adaptive capacity below 40 / 100."
+          tone="yellow"
+        />
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm text-slate-500">Infrastructure Assets Recorded</p>
-          <h3 className="mt-3 text-3xl font-bold">
-            {dashboardStats.totalAssets}
-          </h3>
-          <p className="mt-2 text-sm text-slate-500">
-            Assets currently stored in the infrastructure-at-risk layer.
-          </p>
-        </div>
+        <StatCard
+          label="Infrastructure Assets Recorded"
+          value={dashboardStats.totalAssets}
+          helper="Assets stored in the infrastructure-at-risk layer."
+          tone="white"
+        />
 
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-6 shadow-sm">
-          <p className="text-sm text-red-700">High-Risk Assets</p>
-          <h3 className="mt-3 text-3xl font-bold text-red-700">
-            {dashboardStats.highOrVeryHighAssets}
-          </h3>
-          <p className="mt-2 text-sm text-red-700">
-            Assets marked High or Very High risk.
-          </p>
-        </div>
+        <StatCard
+          label="High-Risk Assets"
+          value={dashboardStats.highOrVeryHighAssets}
+          helper="Assets marked High or Very High risk."
+          tone="red"
+        />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:col-span-2">
-          <h3 className="text-lg font-bold">Top Priority LGAs</h3>
-          <p className="mt-1 text-sm text-slate-500">
+          <h3 className="text-xl font-black text-[#030454]">
+            Top Priority LGAs
+          </h3>
+
+          <p className="mt-1 text-sm leading-6 text-slate-500">
             Highest LGAs by overall climate risk index.
           </p>
 
@@ -226,15 +255,16 @@ export default function ExecutiveClimateRiskSummary() {
               return (
                 <div
                   key={profile.id}
-                  className="rounded-2xl border border-slate-200 p-4"
+                  className="rounded-2xl border border-slate-200 p-4 transition hover:border-[#009B35]/60 hover:bg-[#009B35]/5"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <p className="font-bold">
+                      <p className="font-black text-[#030454]">
                         {index + 1}. {profile.lga_name}
                       </p>
+
                       <span
-                        className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getRiskClass(
+                        className={`mt-2 inline-flex rounded-md px-3 py-1 text-xs font-bold ${getRiskClass(
                           profile.risk_level
                         )}`}
                       >
@@ -243,7 +273,7 @@ export default function ExecutiveClimateRiskSummary() {
                       </span>
                     </div>
 
-                    <p className="text-2xl font-bold">
+                    <p className="text-2xl font-black text-[#030454]">
                       {formatNumber(profile.overall_risk_score, 2)}
                       <span className="text-sm font-semibold text-slate-400">
                         {" "}
@@ -254,11 +284,10 @@ export default function ExecutiveClimateRiskSummary() {
 
                   <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
                     <div
-                      className={`h-full rounded-full ${getRiskBarClass(
-                        profile.risk_level
-                      )}`}
+                      className="h-full rounded-full"
                       style={{
                         width: `${Math.min(Math.max(score, 0), 100)}%`,
+                        backgroundColor: getRiskBarColor(profile.risk_level),
                       }}
                     />
                   </div>
@@ -275,46 +304,45 @@ export default function ExecutiveClimateRiskSummary() {
         </div>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-bold">Risk Level Distribution</h3>
-          <p className="mt-1 text-sm text-slate-500">
+          <h3 className="text-xl font-black text-[#030454]">
+            Risk Level Distribution
+          </h3>
+
+          <p className="mt-1 text-sm leading-6 text-slate-500">
             Count of LGAs by current risk class.
           </p>
 
-          <div className="mt-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Low</span>
-              <span className="font-bold">
-                {summary.risk_counts?.low || 0}
-              </span>
-            </div>
+          <div className="mt-5 space-y-4 text-sm">
+            <DistributionRow
+              label="Low"
+              value={summary.risk_counts?.low || 0}
+              color="#009B35"
+            />
 
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Moderate</span>
-              <span className="font-bold">
-                {summary.risk_counts?.moderate || 0}
-              </span>
-            </div>
+            <DistributionRow
+              label="Moderate"
+              value={summary.risk_counts?.moderate || 0}
+              color="#F3F74B"
+            />
 
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">High</span>
-              <span className="font-bold">
-                {summary.risk_counts?.high || 0}
-              </span>
-            </div>
+            <DistributionRow
+              label="High"
+              value={summary.risk_counts?.high || 0}
+              color="#EA580C"
+            />
 
-            <div className="flex items-center justify-between">
-              <span className="text-slate-500">Very High</span>
-              <span className="font-bold">
-                {summary.risk_counts?.very_high || 0}
-              </span>
-            </div>
+            <DistributionRow
+              label="Very High"
+              value={summary.risk_counts?.very_high || 0}
+              color="#B91C1C"
+            />
           </div>
 
-          <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-            <p className="font-bold">Decision Note</p>
-            <p className="mt-2">
-              LGAs with high overall risk, weak adaptive capacity, and exposed
-              infrastructure should be prioritized for adaptation investment.
+          <div className="mt-6 rounded-xl border-l-4 border-[#F3F74B] bg-[#F3F74B]/25 px-5 py-4 text-sm leading-6 text-[#030454]">
+            <p className="font-black">Decision Note</p>
+            <p className="mt-1">
+              LGAs with high overall risk, weak adaptive capacity and exposed
+              infrastructure should be prioritised for adaptation investment.
             </p>
           </div>
         </div>

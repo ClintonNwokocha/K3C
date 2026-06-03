@@ -80,9 +80,9 @@ function average(values) {
 }
 
 function getStatusClass(status) {
-  if (status === "aligned") return "bg-emerald-50 text-emerald-700";
+  if (status === "aligned") return "bg-[#009B35]/10 text-[#009B35]";
   if (status === "needs_recalculation") return "bg-orange-50 text-orange-700";
-  if (status === "raw_only") return "bg-blue-50 text-blue-700";
+  if (status === "raw_only") return "bg-[#030454]/10 text-[#030454]";
   return "bg-slate-100 text-slate-600";
 }
 
@@ -93,20 +93,20 @@ function getStatusLabel(status) {
   return "No Evidence";
 }
 
-function getBarClass(value, reverse = false) {
+function getBarColor(value, reverse = false) {
   const number = Number(value || 0);
 
   if (reverse) {
-    if (number >= 70) return "bg-emerald-500";
-    if (number >= 55) return "bg-lime-500";
-    if (number >= 40) return "bg-amber-500";
-    return "bg-red-500";
+    if (number >= 70) return "#009B35";
+    if (number >= 55) return "#030454";
+    if (number >= 40) return "#F3F74B";
+    return "#B91C1C";
   }
 
-  if (number >= 75) return "bg-red-500";
-  if (number >= 60) return "bg-orange-500";
-  if (number >= 40) return "bg-amber-500";
-  return "bg-emerald-500";
+  if (number >= 75) return "#B91C1C";
+  if (number >= 60) return "#EA580C";
+  if (number >= 40) return "#F3F74B";
+  return "#009B35";
 }
 
 function ScoreBar({ value, reverse = false }) {
@@ -115,26 +115,64 @@ function ScoreBar({ value, reverse = false }) {
   return (
     <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100">
       <div
-        className={`h-full rounded-full ${getBarClass(number, reverse)}`}
+        className="h-full rounded-full"
         style={{
           width: `${Math.min(Math.max(number, 0), 100)}%`,
+          backgroundColor: getBarColor(number, reverse),
         }}
       />
     </div>
   );
 }
 
-function ScoreCard({ label, value, helper }) {
+function ScoreCard({ label, value, helper, tone = "blue" }) {
+  const toneClasses = {
+    blue: "border-[#030454]/15 bg-[#030454]/5",
+    green: "border-[#009B35]/20 bg-[#009B35]/8",
+    yellow: "border-[#F3F74B]/70 bg-[#F3F74B]/25",
+    white: "border-slate-200 bg-white",
+  };
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-bold">
+    <div
+      className={`rounded-2xl border p-5 shadow-sm ${
+        toneClasses[tone] || toneClasses.white
+      }`}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-3xl font-black text-[#030454]">
         {formatNumber(value, 2)}
         {hasValue(value) && (
           <span className="text-base font-semibold text-slate-400"> / 100</span>
         )}
       </p>
-      {helper && <p className="mt-2 text-xs text-slate-500">{helper}</p>}
+
+      {helper && <p className="mt-2 text-xs leading-5 text-slate-500">{helper}</p>}
+    </div>
+  );
+}
+
+function CountCard({ label, value, tone = "blue" }) {
+  const toneClasses = {
+    green: "border-[#009B35]/20 bg-[#009B35]/8",
+    orange: "border-orange-200 bg-orange-50",
+    blue: "border-[#030454]/15 bg-[#030454]/5",
+  };
+
+  return (
+    <div
+      className={`rounded-2xl border p-5 shadow-sm ${
+        toneClasses[tone] || toneClasses.blue
+      }`}
+    >
+      <p className="text-xs font-black uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 text-3xl font-black text-[#030454]">{value}</p>
     </div>
   );
 }
@@ -255,8 +293,11 @@ export default function ClimateRiskScoringTransparencyPanel({
   if (!selectedProfile) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-bold">Scoring Transparency</h2>
-        <p className="mt-2 text-sm text-slate-500">
+        <h2 className="text-xl font-black text-[#030454]">
+          Scoring Transparency
+        </h2>
+
+        <p className="mt-2 text-sm leading-6 text-slate-500">
           Select an LGA to inspect how its climate risk scores are supported by
           parameter evidence.
         </p>
@@ -268,13 +309,15 @@ export default function ClimateRiskScoringTransparencyPanel({
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
         <div>
-          <p className="text-sm font-medium text-emerald-700">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
             Scoring Transparency
           </p>
-          <h2 className="mt-1 text-2xl font-bold">
+
+          <h2 className="mt-2 text-2xl font-black text-[#030454]">
             {selectedProfile.lga_name} Score Breakdown
           </h2>
-          <p className="mt-2 max-w-4xl text-sm text-slate-500">
+
+          <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
             This panel compares the final LGA score indexes with the normalized
             parameter evidence behind them. It helps you identify whether
             scores are supported, missing evidence, or need recalculation.
@@ -284,26 +327,27 @@ export default function ClimateRiskScoringTransparencyPanel({
         <button
           type="button"
           onClick={loadRecords}
-          className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          className="rounded-md border border-slate-200 bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
         >
           Refresh Evidence
         </button>
       </div>
 
       {error && (
-        <div className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="mb-5 rounded-r-xl border-l-4 border-red-400 bg-red-50 px-5 py-4 text-sm leading-6 text-red-700">
           {error}
         </div>
       )}
 
-      <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm text-blue-900">
-        <p className="font-bold">How this should be interpreted</p>
+      <div className="mb-6 rounded-xl border-l-4 border-[#030454] bg-[#030454]/5 px-5 py-4 text-sm leading-6 text-[#030454]">
+        <p className="font-black">How this should be interpreted</p>
+
         <p className="mt-2">
           Category indexes are normally produced from parameter records that
-          have normalized scores. For example, flood-related parameter scores
-          are averaged into the Flood Risk Index. Raw values are evidence;
-          normalized scores are the values used for scoring.
+          have normalized scores. Raw values are evidence; normalized scores are
+          the values used for scoring.
         </p>
+
         <p className="mt-2">
           Adaptive capacity is different: a high adaptive capacity score is
           good. For risk interpretation, the capacity gap is calculated as{" "}
@@ -316,58 +360,62 @@ export default function ClimateRiskScoringTransparencyPanel({
           label="Overall Climate Risk Index"
           value={selectedProfile.overall_risk_score}
           helper="Final backend-calculated score."
+          tone="blue"
         />
+
         <ScoreCard
           label="Hazard Average"
           value={hazardAverage}
           helper="Average of flood, drought, heat and erosion indexes."
+          tone="green"
         />
+
         <ScoreCard
           label="Exposure Index"
           value={selectedProfile.exposure_score}
           helper="People/assets exposed to climate hazards."
+          tone="white"
         />
+
         <ScoreCard
           label="Adaptive Capacity Gap"
           value={adaptiveCapacityGap}
           helper="100 minus adaptive capacity score."
+          tone="yellow"
         />
       </div>
 
       <div className="mt-5 grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-          <p className="text-sm text-emerald-700">Aligned Categories</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-700">
-            {alignedCount}
-          </p>
-        </div>
+        <CountCard
+          label="Aligned Categories"
+          value={alignedCount}
+          tone="green"
+        />
 
-        <div className="rounded-2xl border border-orange-200 bg-orange-50 p-5">
-          <p className="text-sm text-orange-700">Need Recalculation</p>
-          <p className="mt-2 text-3xl font-bold text-orange-700">
-            {needsRecalculationCount}
-          </p>
-        </div>
+        <CountCard
+          label="Need Recalculation"
+          value={needsRecalculationCount}
+          tone="orange"
+        />
 
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-          <p className="text-sm text-blue-700">Raw Evidence Only</p>
-          <p className="mt-2 text-3xl font-bold text-blue-700">
-            {rawOnlyCount}
-          </p>
-        </div>
+        <CountCard
+          label="Raw Evidence Only"
+          value={rawOnlyCount}
+          tone="blue"
+        />
       </div>
 
-      <div className="mt-6 overflow-x-auto">
+      <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[1000px] text-left text-sm">
           <thead>
-            <tr className="border-b border-slate-200 text-slate-500">
-              <th className="px-3 py-3 font-medium">Category</th>
-              <th className="px-3 py-3 font-medium">Profile Index</th>
-              <th className="px-3 py-3 font-medium">Evidence Average</th>
-              <th className="px-3 py-3 font-medium">Records</th>
-              <th className="px-3 py-3 font-medium">Normalized Records</th>
-              <th className="px-3 py-3 font-medium">Status</th>
-              <th className="px-3 py-3 font-medium">Meaning</th>
+            <tr className="border-b border-slate-200 bg-slate-50 text-slate-500">
+              <th className="px-3 py-3 font-bold">Category</th>
+              <th className="px-3 py-3 font-bold">Profile Index</th>
+              <th className="px-3 py-3 font-bold">Evidence Average</th>
+              <th className="px-3 py-3 font-bold">Records</th>
+              <th className="px-3 py-3 font-bold">Normalized Records</th>
+              <th className="px-3 py-3 font-bold">Status</th>
+              <th className="px-3 py-3 font-bold">Meaning</th>
             </tr>
           </thead>
 
@@ -375,13 +423,15 @@ export default function ClimateRiskScoringTransparencyPanel({
             {categoryRows.map((row) => (
               <tr
                 key={row.key}
-                className="border-b border-slate-100 last:border-0"
+                className="border-b border-slate-100 last:border-0 hover:bg-[#009B35]/5"
               >
-                <td className="px-3 py-4 font-semibold">{row.label}</td>
+                <td className="px-3 py-4 font-black text-[#030454]">
+                  {row.label}
+                </td>
 
                 <td className="px-3 py-4">
                   <div className="space-y-2">
-                    <p className="font-semibold">
+                    <p className="font-black text-[#030454]">
                       {formatNumber(row.profileScore, 2)} / 100
                     </p>
                     <ScoreBar value={row.profileScore} reverse={row.reverse} />
@@ -393,7 +443,7 @@ export default function ClimateRiskScoringTransparencyPanel({
                     <span className="text-slate-400">—</span>
                   ) : (
                     <div className="space-y-2">
-                      <p className="font-semibold">
+                      <p className="font-black text-[#030454]">
                         {formatNumber(row.evidenceAverage, 2)} / 100
                       </p>
                       <ScoreBar
@@ -410,7 +460,7 @@ export default function ClimateRiskScoringTransparencyPanel({
 
                 <td className="px-3 py-4">
                   <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass(
+                    className={`rounded-md px-3 py-1 text-xs font-bold ${getStatusClass(
                       row.status
                     )}`}
                   >
@@ -438,8 +488,11 @@ export default function ClimateRiskScoringTransparencyPanel({
       ) : (
         <div className="mt-6 space-y-5">
           <div>
-            <h3 className="text-lg font-bold">Underlying Parameter Evidence</h3>
-            <p className="mt-1 text-sm text-slate-500">
+            <h3 className="text-xl font-black text-[#030454]">
+              Underlying Parameter Evidence
+            </h3>
+
+            <p className="mt-1 text-sm leading-6 text-slate-500">
               These are the records used to support the scoring process.
             </p>
           </div>
@@ -450,22 +503,22 @@ export default function ClimateRiskScoringTransparencyPanel({
             return (
               <div
                 key={`records-${row.key}`}
-                className="rounded-2xl border border-slate-200 bg-white p-5"
+                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
               >
-                <h4 className="font-bold">{row.label}</h4>
+                <h4 className="font-black text-[#030454]">{row.label}</h4>
 
                 <div className="mt-4 overflow-x-auto">
                   <table className="w-full min-w-[900px] text-left text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 text-slate-500">
-                        <th className="px-3 py-3 font-medium">Parameter</th>
-                        <th className="px-3 py-3 font-medium">Raw Value</th>
-                        <th className="px-3 py-3 font-medium">Unit</th>
-                        <th className="px-3 py-3 font-medium">
+                        <th className="px-3 py-3 font-bold">Parameter</th>
+                        <th className="px-3 py-3 font-bold">Raw Value</th>
+                        <th className="px-3 py-3 font-bold">Unit</th>
+                        <th className="px-3 py-3 font-bold">
                           Normalized Score
                         </th>
-                        <th className="px-3 py-3 font-medium">Source</th>
-                        <th className="px-3 py-3 font-medium">Notes</th>
+                        <th className="px-3 py-3 font-bold">Source</th>
+                        <th className="px-3 py-3 font-bold">Notes</th>
                       </tr>
                     </thead>
 
@@ -473,10 +526,10 @@ export default function ClimateRiskScoringTransparencyPanel({
                       {row.records.map((record) => (
                         <tr
                           key={record.id}
-                          className="border-b border-slate-100 last:border-0"
+                          className="border-b border-slate-100 last:border-0 hover:bg-[#009B35]/5"
                         >
                           <td className="px-3 py-4">
-                            <p className="font-semibold">
+                            <p className="font-black text-[#030454]">
                               {record.parameter_label}
                             </p>
                             <p className="text-xs text-slate-400">
@@ -519,8 +572,9 @@ export default function ClimateRiskScoringTransparencyPanel({
         </div>
       )}
 
-      <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-        <p className="font-bold">Recommended workflow</p>
+      <div className="mt-6 rounded-xl border-l-4 border-[#F3F74B] bg-[#F3F74B]/25 px-5 py-4 text-sm leading-6 text-[#030454]">
+        <p className="font-black">Recommended workflow</p>
+
         <ol className="mt-2 list-decimal space-y-1 pl-5">
           <li>Upload or add raw parameter records.</li>
           <li>Normalize raw values into scores from 0 to 100.</li>
