@@ -18,14 +18,26 @@ const navItems = [
     name: "Executive Dashboard",
     description: "Command overview",
     icon: Home,
-    allowedRoles: ["admin", "analyst", "sector_focal_point", "reviewer", "viewer"],
+    allowedRoles: [
+      "admin",
+      "analyst",
+      "sector_focal_point",
+      "reviewer",
+      "viewer",
+    ],
   },
   {
     key: "risk",
     name: "Climate Risk Map",
     description: "LGA risk intelligence",
     icon: CloudSun,
-    allowedRoles: ["admin", "analyst", "sector_focal_point", "reviewer", "viewer"],
+    allowedRoles: [
+      "admin",
+      "analyst",
+      "sector_focal_point",
+      "reviewer",
+      "viewer",
+    ],
   },
   {
     key: "ghg",
@@ -39,7 +51,13 @@ const navItems = [
     name: "Project Portfolio",
     description: "Climate action tracking",
     icon: FolderKanban,
-    allowedRoles: ["admin", "analyst", "sector_focal_point", "reviewer", "viewer"],
+    allowedRoles: [
+      "admin",
+      "analyst",
+      "sector_focal_point",
+      "reviewer",
+      "viewer",
+    ],
   },
   {
     key: "reports",
@@ -100,27 +118,27 @@ export default function AppShell({
   const activeNavItem = navItems.find((item) => item.key === activePage);
 
   return (
-    <div className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#0B1726]">
-      <aside className="fixed inset-y-0 left-0 z-30 flex w-80 flex-col bg-[#0B1726] text-white shadow-2xl">
-        <div className="border-b border-white/10 px-6 py-6">
+    <div className="min-h-screen bg-white font-['DM_Sans'] text-[#030454]">
+      <aside className="fixed inset-y-0 left-0 z-30 flex w-80 flex-col bg-[#030454] text-white shadow-2xl">
+        <div className="border-b border-white/15 px-6 py-6">
           <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#2292A4]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#009B35]">
               <ShieldCheck size={24} />
             </div>
 
             <div>
               <h1 className="text-lg font-black tracking-tight">KS-CCC</h1>
-              <p className="text-xs text-white/50">
+              <p className="text-xs text-white/60">
                 Kaduna Climate Command Centre
               </p>
             </div>
           </div>
 
-          <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#C8A84A]">
+          <div className="mt-5 rounded-xl border border-white/15 bg-white/5 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#F3F74B]">
               Internal Command System
             </p>
-            <p className="mt-2 text-sm leading-6 text-white/65">
+            <p className="mt-2 text-sm leading-6 text-white/70">
               Climate risk, GHG inventory, project tracking, reports and audit
               evidence.
             </p>
@@ -139,15 +157,15 @@ export default function AppShell({
                 onClick={() => onPageChange(item.key)}
                 className={`group flex w-full items-start gap-3 rounded-xl px-4 py-3 text-left transition ${
                   isActive
-                    ? "bg-[#214560] text-white ring-1 ring-[#4E7492]"
-                    : "text-white/65 hover:bg-white/8 hover:text-white"
+                    ? "bg-[#F3F74B] text-[#030454] shadow-lg"
+                    : "text-white/70 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <span
                   className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
                     isActive
-                      ? "bg-[#2292A4] text-white"
-                      : "bg-white/5 text-white/50 group-hover:bg-white/10 group-hover:text-white"
+                      ? "bg-[#009B35] text-white"
+                      : "bg-white/5 text-white/55 group-hover:bg-white/10 group-hover:text-white"
                   }`}
                 >
                   <Icon size={18} />
@@ -157,7 +175,7 @@ export default function AppShell({
                   <span className="block text-sm font-bold">{item.name}</span>
                   <span
                     className={`mt-0.5 block text-xs ${
-                      isActive ? "text-white/65" : "text-white/35"
+                      isActive ? "text-[#030454]/70" : "text-white/40"
                     }`}
                   >
                     {item.description}
@@ -168,15 +186,15 @@ export default function AppShell({
           })}
         </nav>
 
-        <div className="border-t border-white/10 p-4">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">
+        <div className="border-t border-white/15 p-4">
+          <div className="rounded-xl border border-white/15 bg-white/5 p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">
               Current Role
             </p>
 
             <p className="mt-1 font-bold text-white">{formatRole(role)}</p>
 
-            <p className="mt-1 text-xs text-white/45">
+            <p className="mt-1 text-xs text-white/50">
               {currentUser?.username || "Signed-in user"}
             </p>
           </div>
@@ -186,7 +204,7 @@ export default function AppShell({
             onClick={() => {
               window.location.href = "/public";
             }}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/70 transition hover:border-[#C8A84A]/60 hover:text-white"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition hover:border-[#F3F74B] hover:text-[#F3F74B]"
           >
             <ExternalLink size={14} />
             Public Portal
@@ -195,30 +213,31 @@ export default function AppShell({
       </aside>
 
       <div className="pl-80">
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-[#CAD2D7] bg-white/95 px-8 backdrop-blur">
+        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-8 backdrop-blur">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#4E7492]">
-              Kaduna State
-            </p>
-
-            <h2 className="mt-1 text-xl font-black text-[#0B1726]">
+            <h2 className="text-xl font-black text-[#030454]">
               {activeNavItem?.name || "Climate Command Centre"}
             </h2>
+
+            <p className="mt-1 text-sm text-slate-500">
+              {activeNavItem?.description ||
+                "Climate intelligence and command workspace"}
+            </p>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden rounded-full border border-[#CAD2D7] bg-[#DFE3E4]/45 px-4 py-2 text-sm font-semibold text-[#214560] md:block">
+            <div className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#030454] shadow-sm md:block">
               Foundation setup active
             </div>
 
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#214560] text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#030454] text-white">
               <Gauge size={19} />
             </div>
 
             <button
               type="button"
               onClick={onLogout}
-              className="flex items-center gap-2 rounded-full border border-[#CAD2D7] bg-white px-4 py-2 text-sm font-semibold text-[#214560] transition hover:border-[#2292A4] hover:text-[#2292A4]"
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
             >
               <LogOut size={16} />
               Logout
@@ -226,7 +245,7 @@ export default function AppShell({
           </div>
         </header>
 
-        <main className="p-8">{children}</main>
+        <main className="bg-white p-8">{children}</main>
       </div>
     </div>
   );

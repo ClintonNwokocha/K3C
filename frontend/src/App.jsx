@@ -154,7 +154,12 @@ function App() {
     }
 
     if (activePage === "ghg") {
-      return <GHGInventoryPage foundation={foundation} currentUser={currentUser} />;
+      return (
+        <GHGInventoryPage
+          foundation={foundation}
+          currentUser={currentUser}
+        />
+      );
     }
 
     if (activePage === "risk") {
@@ -171,7 +176,6 @@ function App() {
 
     const selectedPage = pageDetails[activePage];
 
-
     return (
       <PlaceholderPage
         title={selectedPage.title}
@@ -180,28 +184,35 @@ function App() {
     );
   }
 
-    const isPublicPortalRoute = window.location.pathname === "/public";
-    const isPublicReportsRoute = window.location.pathname === "/public/reports";
+  const isPublicPortalRoute = window.location.pathname === "/public";
+  const isPublicReportsRoute = window.location.pathname === "/public/reports";
 
-    if (isPublicPortalRoute) {
-      return <PublicPortalPage />;
-    }
+  if (isPublicPortalRoute) {
+    return <PublicPortalPage />;
+  }
 
-    if (isPublicReportsRoute) {
-      return <PublicReportsPage />;
-    }
+  if (isPublicReportsRoute) {
+    return <PublicReportsPage />;
+  }
 
-    if (isLoading) {
-      return (
-        <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
-          Loading KS-CCC...
-        </main>
-      );
-    }
+  if (isLoading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#030454] text-white">
+        <div className="rounded-sm border border-white/15 bg-white/5 px-6 py-5 text-center shadow-lg">
+          <p className="font-['Playfair_Display'] text-2xl font-bold">
+            Loading KS-CCC...
+          </p>
+          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-white/55">
+            Climate Command Centre
+          </p>
+        </div>
+      </main>
+    );
+  }
 
-    if (!currentUser) {
-      return <Login onLogin={handleLogin} error={authError} />;
-    }
+  if (!currentUser) {
+    return <Login onLogin={handleLogin} error={authError} />;
+  }
 
   return (
     <AppShell

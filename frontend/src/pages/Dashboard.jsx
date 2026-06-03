@@ -37,10 +37,10 @@ function formatDate() {
 
 function CommandMetric({ label, value, helper, tone = "blue" }) {
   const toneClasses = {
-    navy: "border-[#214560]/25 bg-[#214560]/5",
-    blue: "border-[#4E7492]/25 bg-[#4E7492]/8",
-    teal: "border-[#2292A4]/25 bg-[#2292A4]/8",
-    gold: "border-[#C8A84A]/35 bg-[#C8A84A]/12",
+    blue: "border-[#030454]/15 bg-[#030454]/5",
+    green: "border-[#009B35]/20 bg-[#009B35]/8",
+    yellow: "border-[#F3F74B]/70 bg-[#F3F74B]/18",
+    white: "border-slate-200 bg-white",
   };
 
   return (
@@ -53,7 +53,7 @@ function CommandMetric({ label, value, helper, tone = "blue" }) {
         {label}
       </p>
 
-      <p className="mt-3 text-2xl font-black text-[#0B1726]">{value}</p>
+      <p className="mt-3 text-2xl font-black text-[#030454]">{value}</p>
 
       <p className="mt-2 text-sm leading-6 text-slate-600">{helper}</p>
     </div>
@@ -69,17 +69,17 @@ function ModuleCard({
   tone = "blue",
 }) {
   const iconClasses = {
-    navy: "bg-[#214560] text-white",
-    blue: "bg-[#4E7492] text-white",
-    teal: "bg-[#2292A4] text-white",
-    gold: "bg-[#C8A84A] text-[#0B1726]",
+    blue: "bg-[#030454] text-white",
+    green: "bg-[#009B35] text-white",
+    yellow: "bg-[#F3F74B] text-[#030454]",
+    white: "bg-white text-[#030454] border border-slate-200",
   };
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group rounded-xl border border-[#CAD2D7] bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#4E7492]/60 hover:shadow-md"
+      className="group rounded-xl border border-slate-200 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#009B35]/60 hover:shadow-md"
     >
       <div className="flex items-start justify-between gap-4">
         <div
@@ -92,29 +92,25 @@ function ModuleCard({
 
         <ArrowRight
           size={18}
-          className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#2292A4]"
+          className="text-slate-300 transition group-hover:translate-x-1 group-hover:text-[#009B35]"
         />
       </div>
 
-      <h3 className="mt-5 text-base font-black text-[#0B1726]">{title}</h3>
+      <h3 className="mt-5 text-base font-black text-[#030454]">{title}</h3>
 
       <p className="mt-2 text-sm leading-6 text-slate-600">{description}</p>
 
-      <p className="mt-4 text-xs font-black uppercase tracking-[0.1em] text-[#2292A4]">
+      <p className="mt-4 text-xs font-black uppercase tracking-[0.1em] text-[#009B35]">
         {actionLabel}
       </p>
     </button>
   );
 }
 
-function SectionHeader({ eyebrow, title, description }) {
+function SectionHeader({ title, description }) {
   return (
     <div className="mb-5">
-      <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#2292A4]">
-        {eyebrow}
-      </p>
-
-      <h2 className="mt-2 text-2xl font-black tracking-tight text-[#0B1726]">
+      <h2 className="text-2xl font-black tracking-tight text-[#030454]">
         {title}
       </h2>
 
@@ -129,14 +125,14 @@ function SectionHeader({ eyebrow, title, description }) {
 
 function FocusItem({ icon: Icon, title, description, tone = "blue" }) {
   const iconClasses = {
-    navy: "bg-[#214560]/10 text-[#214560]",
-    blue: "bg-[#4E7492]/10 text-[#4E7492]",
-    teal: "bg-[#2292A4]/10 text-[#2292A4]",
-    gold: "bg-[#C8A84A]/20 text-[#0B1726]",
+    blue: "bg-[#030454]/10 text-[#030454]",
+    green: "bg-[#009B35]/10 text-[#009B35]",
+    yellow: "bg-[#F3F74B]/35 text-[#030454]",
+    white: "bg-white text-[#030454] border border-slate-200",
   };
 
   return (
-    <div className="rounded-xl border border-[#CAD2D7] bg-white p-5">
+    <div className="rounded-xl border border-slate-200 bg-white p-5">
       <div className="flex gap-4">
         <div
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${
@@ -147,7 +143,7 @@ function FocusItem({ icon: Icon, title, description, tone = "blue" }) {
         </div>
 
         <div>
-          <p className="font-black text-[#0B1726]">{title}</p>
+          <p className="font-black text-[#030454]">{title}</p>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             {description}
           </p>
@@ -168,20 +164,20 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
 
   return (
     <div className="space-y-8">
-      <section className="rounded-2xl border border-[#CAD2D7] bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr] xl:items-center">
           <div>
             <div className="flex flex-wrap gap-3">
-              <span className="rounded-md bg-[#214560] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-white">
+              <span className="rounded-md bg-[#030454] px-4 py-2 text-xs font-black uppercase tracking-[0.12em] text-white">
                 Executive Command View
               </span>
 
-              <span className="rounded-md border border-[#CAD2D7] bg-[#DFE3E4]/45 px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[#214560]">
+              <span className="rounded-md border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] text-[#030454]">
                 {formatDate()}
               </span>
             </div>
 
-            <h1 className="mt-5 text-3xl font-black tracking-tight text-[#0B1726] sm:text-4xl">
+            <h1 className="mt-5 text-3xl font-black tracking-tight text-[#030454] sm:text-4xl">
               Kaduna Climate Command Centre
             </h1>
 
@@ -192,12 +188,12 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
             </p>
           </div>
 
-          <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/45 p-5">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
               Signed in as
             </p>
 
-            <p className="mt-2 text-xl font-black text-[#0B1726]">
+            <p className="mt-2 text-xl font-black text-[#030454]">
               {formatRole(role)}
             </p>
 
@@ -211,7 +207,7 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
                 onClick={() => {
                   window.location.href = "/public";
                 }}
-                className="rounded-md border border-[#214560] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#214560] transition hover:bg-[#214560] hover:text-white"
+                className="rounded-md border border-[#030454] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:bg-[#030454] hover:text-white"
               >
                 Public Portal
               </button>
@@ -219,7 +215,7 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
               <button
                 type="button"
                 onClick={() => navigateTo("reports")}
-                className="rounded-md bg-[#2292A4] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#1d7f90]"
+                className="rounded-md bg-[#009B35] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
               >
                 Reports Centre
               </button>
@@ -233,7 +229,7 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
           label="Climate Intelligence"
           value="Risk"
           helper="LGA risk scores, maps, parameters and scoring evidence."
-          tone="teal"
+          tone="green"
         />
 
         <CommandMetric
@@ -247,20 +243,19 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
           label="Climate Action"
           value="Projects"
           helper="Adaptation, mitigation and cross-cutting project tracking."
-          tone="gold"
+          tone="yellow"
         />
 
         <CommandMetric
           label="Accountability"
           value="Reports"
           helper="Official reports, public documents and audit-ready records."
-          tone="navy"
+          tone="white"
         />
       </section>
 
-      <section className="rounded-2xl border border-[#CAD2D7] bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <SectionHeader
-          eyebrow="Command modules"
           title="Move quickly into the active work areas"
           description="Use these module cards to move from overview to operational work."
         />
@@ -271,7 +266,7 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
             title="Climate Risk"
             description="Review LGA climate risk scores, maps, raw parameter records and scoring outputs."
             actionLabel="Open risk module"
-            tone="teal"
+            tone="green"
             onClick={() => navigateTo("risk")}
           />
 
@@ -289,7 +284,7 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
             title="Project Portfolio"
             description="Track climate projects, budgets, beneficiaries, GHG reduction and status."
             actionLabel="Open projects"
-            tone="gold"
+            tone="yellow"
             onClick={() => navigateTo("projects")}
           />
 
@@ -298,16 +293,15 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
             title="Reports Centre"
             description="Store, review, publish and export climate reports and public-facing documents."
             actionLabel="Open reports"
-            tone="navy"
+            tone="blue"
             onClick={() => navigateTo("reports")}
           />
         </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-2xl border border-[#CAD2D7] bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <SectionHeader
-            eyebrow="Operational focus"
             title="What leadership should answer quickly"
             description="A command dashboard should immediately connect risk, action, evidence and accountability."
           />
@@ -317,14 +311,14 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
               icon={Globe2}
               title="Where are the highest climate risks?"
               description="Use LGA risk maps and scores to identify priority locations and risk drivers."
-              tone="teal"
+              tone="green"
             />
 
             <FocusItem
               icon={Activity}
               title="What actions are responding to those risks?"
               description="Track climate projects by LGA, sector, budget, beneficiaries and mitigation outcome."
-              tone="gold"
+              tone="yellow"
             />
 
             <FocusItem
@@ -336,48 +330,47 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#CAD2D7] bg-white p-6 shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <SectionHeader
-            eyebrow="Readiness board"
             title="Current platform readiness"
             description="Use this section as a quick internal reminder of what needs attention before deployment."
           />
 
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex items-center gap-3">
-                <ShieldCheck size={20} className="text-[#214560]" />
-                <p className="font-black text-[#0B1726]">Permissions</p>
+                <ShieldCheck size={20} className="text-[#030454]" />
+                <p className="font-black text-[#030454]">Permissions</p>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Role-based access has been centralized across modules.
               </p>
             </div>
 
-            <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex items-center gap-3">
-                <BarChart3 size={20} className="text-[#2292A4]" />
-                <p className="font-black text-[#0B1726]">Validation</p>
+                <BarChart3 size={20} className="text-[#009B35]" />
+                <p className="font-black text-[#030454]">Validation</p>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Forms, uploads and data limits are being tightened.
               </p>
             </div>
 
-            <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex items-center gap-3">
-                <FileText size={20} className="text-[#4E7492]" />
-                <p className="font-black text-[#0B1726]">Reports</p>
+                <FileText size={20} className="text-[#030454]" />
+                <p className="font-black text-[#030454]">Reports</p>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Public reports and internal documents are separated.
               </p>
             </div>
 
-            <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-5">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
               <div className="flex items-center gap-3">
-                <CloudSun size={20} className="text-[#C8A84A]" />
-                <p className="font-black text-[#0B1726]">Public Portal</p>
+                <CloudSun size={20} className="text-[#009B35]" />
+                <p className="font-black text-[#030454]">Public Portal</p>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Public-facing climate risk and action summaries are available.
@@ -387,9 +380,8 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-[#CAD2D7] bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <SectionHeader
-          eyebrow="Climate risk intelligence"
           title="Executive climate risk summary"
           description="Leadership-level view of LGA climate risk scores, highest-risk LGAs and adaptation signals."
         />
@@ -397,9 +389,8 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
         <ExecutiveClimateRiskSummary />
       </section>
 
-      <section className="rounded-2xl border border-[#CAD2D7] bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <SectionHeader
-          eyebrow="Project portfolio intelligence"
           title="Climate action and investment summary"
           description="Track project counts, budgets, expected beneficiaries, mitigation outcomes and implementation gaps."
         />
@@ -407,9 +398,8 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
         <ExecutiveProjectPortfolioSummary />
       </section>
 
-      <section className="rounded-2xl border border-[#CAD2D7] bg-white p-6 shadow-sm">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <SectionHeader
-          eyebrow="Reports intelligence"
           title="Reports centre executive summary"
           description="Review publication status, report queue and recent documents from the Reports Centre."
         />

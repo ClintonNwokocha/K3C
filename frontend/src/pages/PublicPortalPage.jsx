@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  PublicDataNotice,
   PublicEmptyState,
   PublicPortalFooter,
   PublicPortalHeader,
@@ -9,34 +8,34 @@ import {
 import PublicClimateRiskMapPreview from "../components/PublicClimateRiskMapPreview";
 import { getPublicPortalSummary } from "../services/api";
 
+const COLORS = {
+  green: "#009B35",
+  blue: "#030454",
+  yellow: "#F3F74B",
+  white: "#FFFFFF",
+};
+
 const partnerLogos = [
   {
     name: "MacArthur Foundation",
     shortName: "MacArthur",
-    src: "/logos/MacArth_primary_logo_stacked.jpg",
+    src: "/logos/MacArth.png",
   },
   {
     name: "Kaduna State Government",
     shortName: "KDSG",
-    src: "/logos/KadState.jpeg",
+    src: "/logos/KCCC.png",
   },
   {
     name: "Centre for Policy Research & Development Solutions",
     shortName: "CPRDS",
-    src: "/logos/CPRDS.jpeg",
+    src: "/logos/CPRDS.png",
   },
 ];
 
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, {
     maximumFractionDigits,
-  });
-}
-
-function formatRiskScore(value) {
-  return Number(value || 0).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
   });
 }
 
@@ -68,15 +67,8 @@ function formatCompactNumber(value) {
   return formatNumber(number, 0);
 }
 
-function getRiskBadgeClass(level) {
-  if (level === "very_high") return "bg-red-50 text-red-700";
-  if (level === "high") return "bg-orange-50 text-orange-700";
-  if (level === "moderate") return "bg-[#C8A84A]/15 text-[#0B1726]";
-  return "bg-[#4E7492]/10 text-[#214560]";
-}
-
 function getStatusClass(status) {
-  if (status === "completed") return "bg-emerald-50 text-emerald-700";
+  if (status === "completed") return "bg-[#009B35]/10 text-[#009B35]";
   if (status === "ongoing") return "bg-blue-50 text-blue-700";
   if (status === "planned") return "bg-sky-50 text-sky-700";
   if (status === "suspended") return "bg-amber-50 text-amber-700";
@@ -87,11 +79,25 @@ function getStatusClass(status) {
 function getPriorityClass(priority) {
   if (priority === "very_high") return "bg-red-50 text-red-700";
   if (priority === "high") return "bg-orange-50 text-orange-700";
-  if (priority === "medium") return "bg-[#C8A84A]/15 text-[#0B1726]";
-  return "bg-[#4E7492]/10 text-[#214560]";
+  if (priority === "medium") return "bg-[#F3F74B]/40 text-[#030454]";
+  return "bg-[#009B35]/10 text-[#009B35]";
 }
 
-function HighestRiskLgaList({ climateRisk }) {
+function getRiskBarColor(level) {
+  if (level === "very_high") return "bg-red-700";
+  if (level === "high") return "bg-orange-500";
+  if (level === "moderate") return "bg-[#F3F74B]";
+  return "bg-[#009B35]";
+}
+
+function getRiskDotColor(level) {
+  if (level === "very_high") return "bg-red-700";
+  if (level === "high") return "bg-orange-500";
+  if (level === "moderate") return "bg-[#F3F74B]";
+  return "bg-[#009B35]";
+}
+
+function TopRiskVisualPanel({ climateRisk }) {
   const topLgas = climateRisk.top_lgas || [];
 
   if (topLgas.length === 0) {
@@ -104,56 +110,70 @@ function HighestRiskLgaList({ climateRisk }) {
   }
 
   return (
-    <div className="rounded-sm border border-[#CAD2D7] bg-white shadow-sm">
-      <div className="border-b border-[#E6EAEC] px-5 py-4">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-400">
-          Highest-risk LGAs · {climateRisk.latest_year || "Latest"}
+    <aside className="rounded-sm border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-5">
+        <h3 className="font-['Playfair_Display'] text-2xl font-bold text-[#030454]">
+          Highest-risk LGAs
+        </h3>
+
+        <p className="mt-2 text-xs leading-5 text-slate-500">
+          Visual ranking of LGAs with the highest climate risk classification.
         </p>
       </div>
 
-      <div className="divide-y divide-[#E6EAEC]">
-        {topLgas.map((profile, index) => (
-          <div
-            key={profile.id || `${profile.lga_name}-${index}`}
-            className="grid grid-cols-[52px_minmax(0,1fr)_100px] items-center gap-4 px-5 py-5"
-          >
-            <p className="font-['Playfair_Display'] text-3xl font-bold leading-none text-[#CAD2D7] tabular-nums">
-              {String(index + 1).padStart(2, "0")}
-            </p>
+      <div className="space-y-4">
+        {topLgas.map((profile, index) => {
+          const score = Number(profile.overall_risk_score || 0);
+          const safeWidth = Math.min(Math.max(score, 8), 100);
 
-            <div className="min-w-0">
-              <p className="truncate text-base font-black text-[#0B1726]">
-                {profile.lga_name}
-              </p>
+          return (
+            <div
+              key={profile.id || `${profile.lga_name}-${index}`}
+              className="rounded-sm border border-slate-200 bg-white p-4"
+            >
+              <div className="mb-3 flex items-center gap-3">
+                <span className="w-8 shrink-0 text-right font-['Playfair_Display'] text-2xl font-bold leading-none text-slate-300 tabular-nums">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
 
-              <p className="mt-1 text-xs text-slate-400">
-                Risk profile {profile.year}
-              </p>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-black text-[#030454]">
+                    {profile.lga_name}
+                  </p>
+
+                  <div className="mt-1 flex items-center gap-2">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${getRiskDotColor(
+                        profile.risk_level
+                      )}`}
+                    />
+
+                    <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
+                      {profile.risk_level_display || "Risk"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className={`h-full rounded-full ${getRiskBarColor(
+                    profile.risk_level
+                  )}`}
+                  style={{ width: `${safeWidth}%` }}
+                />
+              </div>
             </div>
-
-            <div className="text-right">
-              <p className="font-mono text-xl font-black leading-none text-[#0B1726] tabular-nums">
-                {formatRiskScore(profile.overall_risk_score)}
-              </p>
-
-              <span
-                className={`mt-3 inline-flex min-w-[58px] justify-center rounded-sm px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${getRiskBadgeClass(
-                  profile.risk_level
-                )}`}
-              >
-                {profile.risk_level_display}
-              </span>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
-    </div>
+    </aside>
   );
 }
 
 function ProjectCard({ project }) {
   return (
-    <article className="rounded-sm border border-[#CAD2D7] bg-white p-5 shadow-sm transition hover:border-[#4E7492]/70 hover:shadow-md">
+    <article className="rounded-sm border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#009B35]/60 hover:shadow-md">
       <div className="mb-4 flex flex-wrap gap-2">
         <span
           className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${getPriorityClass(
@@ -172,7 +192,7 @@ function ProjectCard({ project }) {
         </span>
       </div>
 
-      <h3 className="text-base font-black leading-snug text-[#0B1726]">
+      <h3 className="text-base font-black leading-snug text-[#030454]">
         {project.title}
       </h3>
 
@@ -185,7 +205,7 @@ function ProjectCard({ project }) {
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
             Sector
           </p>
-          <p className="mt-1 text-sm font-bold text-[#0B1726]">
+          <p className="mt-1 text-sm font-bold text-[#030454]">
             {project.sector_display || project.sector || "Not specified"}
           </p>
         </div>
@@ -194,7 +214,7 @@ function ProjectCard({ project }) {
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
             Budget
           </p>
-          <p className="mt-1 text-sm font-bold text-[#0B1726]">
+          <p className="mt-1 text-sm font-bold text-[#030454]">
             {formatCompactMoney(project.estimated_budget_naira)}
           </p>
         </div>
@@ -203,7 +223,7 @@ function ProjectCard({ project }) {
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
             GHG reduction
           </p>
-          <p className="mt-1 text-sm font-bold text-[#0B1726]">
+          <p className="mt-1 text-sm font-bold text-[#030454]">
             {formatNumber(project.expected_ghg_reduction_tco2e, 0)} tCO₂e
           </p>
         </div>
@@ -212,23 +232,23 @@ function ProjectCard({ project }) {
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
             Beneficiaries
           </p>
-          <p className="mt-1 text-sm font-bold text-[#0B1726]">
+          <p className="mt-1 text-sm font-bold text-[#030454]">
             {formatCompactNumber(project.expected_beneficiaries)}
           </p>
         </div>
 
         {(project.implementing_agency || project.funding_source) && (
-          <div className="col-span-2 border-t border-[#E6EAEC] pt-4">
+          <div className="col-span-2 border-t border-slate-200 pt-4">
             {project.implementing_agency && (
               <p className="text-xs leading-5 text-slate-500">
-                <span className="font-bold text-[#0B1726]">Agency:</span>{" "}
+                <span className="font-bold text-[#030454]">Agency:</span>{" "}
                 {project.implementing_agency}
               </p>
             )}
 
             {project.funding_source && (
               <p className="mt-1 text-xs leading-5 text-slate-500">
-                <span className="font-bold text-[#0B1726]">Funding:</span>{" "}
+                <span className="font-bold text-[#030454]">Funding:</span>{" "}
                 {project.funding_source}
               </p>
             )}
@@ -239,41 +259,12 @@ function ProjectCard({ project }) {
   );
 }
 
-function IndicatorPanel({ items }) {
-  return (
-    <section className="border-y border-[#CAD2D7] bg-white px-4 py-8 sm:px-8 lg:px-10">
-      <div className="mx-auto grid max-w-7xl gap-4 md:grid-cols-4">
-        {items.map((item) => (
-          <div
-            key={item.label}
-            className="rounded-sm border border-[#CAD2D7] bg-[#F7F9FA] p-5"
-          >
-            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
-              {item.label}
-            </p>
-
-            <p className="mt-3 font-['Playfair_Display'] text-4xl font-bold text-[#0B1726]">
-              {item.value}
-            </p>
-
-            {item.helper && (
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                {item.helper}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function PartnerLogoCard({ partner, duplicate = false }) {
   return (
     <article
       aria-hidden={duplicate}
       title={partner.name}
-      className="flex h-[230px] w-[440px] min-w-[440px] items-center justify-center rounded-md border border-[#D8DDE2] bg-white p-10 shadow-[0_14px_35px_rgba(11,23,38,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(11,23,38,0.14)] max-sm:h-[190px] max-sm:w-[320px] max-sm:min-w-[320px] max-sm:p-6"
+      className="flex h-[230px] w-[440px] min-w-[440px] items-center justify-center rounded-md border border-slate-200 bg-white p-10 shadow-[0_14px_35px_rgba(3,4,84,0.10)] transition duration-300 hover:-translate-y-1 hover:border-[#009B35]/60 hover:shadow-[0_20px_45px_rgba(3,4,84,0.14)] max-sm:h-[190px] max-sm:w-[320px] max-sm:min-w-[320px] max-sm:p-6"
     >
       {partner.src ? (
         <img
@@ -297,7 +288,7 @@ function PartnerLogoCard({ partner, duplicate = false }) {
 
       <span
         data-logo-fallback
-        className="hidden text-center text-4xl font-black uppercase tracking-[0.08em] text-[#214560]"
+        className="hidden text-center text-4xl font-black uppercase tracking-[0.08em] text-[#030454]"
       >
         {partner.shortName}
       </span>
@@ -309,7 +300,7 @@ function PartnersSection() {
   const scrollingPartners = [...partnerLogos, ...partnerLogos];
 
   return (
-    <section className="overflow-hidden border-y border-[#D8DDE2] bg-[#F7F9FA] px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
+    <section className="overflow-hidden border-y border-slate-200 bg-white px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
       <style>
         {`
           @keyframes partners-marquee {
@@ -351,11 +342,11 @@ function PartnersSection() {
 
       <div className="mx-auto max-w-7xl">
         <div className="mb-12 text-center">
-          <h2 className="text-3xl font-black uppercase tracking-tight text-[#0B1726] sm:text-4xl">
+          <h2 className="text-3xl font-black uppercase tracking-tight text-[#030454] sm:text-4xl">
             OUR PARTNERS
           </h2>
 
-          <div className="mx-auto mt-5 h-[3px] w-28 bg-[#C8A84A]" />
+          <div className="mx-auto mt-5 h-[3px] w-28 bg-[#009B35]" />
         </div>
 
         <div className="overflow-hidden">
@@ -422,38 +413,15 @@ export default function PublicPortalPage() {
     ];
   }, [climateRisk, projects]);
 
-  const publicIndicators = useMemo(() => {
-    return [
-      {
-        label: "LGAs Assessed",
-        value: climateRisk.total_lgas || 0,
-        helper: "Local government areas with available climate risk summaries.",
-      },
-      {
-        label: "High-Risk LGAs",
-        value: climateRisk.high_or_very_high_lgas || 0,
-        helper: "LGAs currently classified as high or very high risk.",
-      },
-      {
-        label: "Active Projects",
-        value: projects.total_projects || 0,
-        helper: "Climate action projects registered in the public portfolio.",
-      },
-      {
-        label: "Portfolio Budget",
-        value: formatCompactMoney(projects.total_budget_naira),
-        helper: "Estimated value of climate action projects in the portal.",
-      },
-    ];
-  }, [climateRisk, projects]);
-
   return (
-    <main className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#0B1726]">
+    <main className="min-h-screen bg-white font-['DM_Sans'] text-[#030454]">
       <PublicPortalHeader
         activePage="home"
-        tag="Kaduna public climate evidence portal"
         title={<>Climate intelligence for public decision support</>}
-        description="Access public climate risk summaries, priority climate action projects and published evidence documents from the Kaduna State Climate Command Centre."
+        description={[
+          "Provides public-facing access to climate risk summaries, priority climate action projects, published reports and evidence documents.",
+          "Designed to support transparency, coordination and evidence-led decision making across Kaduna State.",
+        ]}
         stats={heroStats}
         showStats
         primaryActionLabel="Explore Risk Landscape"
@@ -470,47 +438,58 @@ export default function PublicPortalPage() {
 
       {isLoading ? (
         <section className="px-4 py-16 sm:px-8 lg:px-10">
-          <div className="mx-auto max-w-7xl rounded-sm border border-[#CAD2D7] bg-white p-8 text-sm text-slate-500 shadow-sm">
+          <div className="mx-auto max-w-7xl rounded-sm border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
             Loading public climate intelligence...
           </div>
         </section>
       ) : (
         <>
-          <IndicatorPanel items={publicIndicators} />
-
           <section
             id="risk-landscape"
             className="bg-white px-4 py-16 sm:px-8 lg:px-10 lg:py-20"
           >
-            <div className="mx-auto max-w-7xl">
+            <style>
+              {`
+                .public-risk-map-expanded,
+                .public-risk-map-expanded > div {
+                  height: 100%;
+                  min-height: 100%;
+                }
+
+                .public-risk-map-expanded .leaflet-container {
+                  height: 100% !important;
+                  min-height: 100% !important;
+                  width: 100% !important;
+                }
+              `}
+            </style>
+
+            <div className="mx-auto max-w-[1540px]">
               <PublicSectionIntro
-                eyebrow="Risk landscape"
                 title="Climate risk comes first"
                 description="A public summary of where climate risk is concentrated across Kaduna State before reviewing projects, investments and reports."
               />
 
-              <div className="mt-10 grid gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-                <div className="rounded-sm border border-[#CAD2D7] bg-white p-4 shadow-sm">
-                  <PublicClimateRiskMapPreview />
+              <div className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,2.7fr)_320px] xl:items-stretch">
+                <div className="rounded-sm border border-slate-200 bg-white p-4 shadow-sm">
+                  <div className="public-risk-map-expanded h-[520px] md:h-[620px] xl:h-[720px]">
+                    <PublicClimateRiskMapPreview />
+                  </div>
                 </div>
 
-                <HighestRiskLgaList climateRisk={climateRisk} />
+                <TopRiskVisualPanel climateRisk={climateRisk} />
               </div>
             </div>
           </section>
 
-          <section className="bg-[#0B1726] px-4 py-12 text-white sm:px-8 lg:px-10">
+          <section className="bg-[#030454] px-4 py-12 text-white sm:px-8 lg:px-10">
             <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_auto] lg:items-center">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#C8A84A]">
-                  Portfolio snapshot
-                </p>
-
-                <h2 className="mt-3 font-['Playfair_Display'] text-4xl font-bold">
+                <h2 className="font-['Playfair_Display'] text-4xl font-bold">
                   Public climate action summary
                 </h2>
 
-                <p className="mt-3 max-w-xl text-sm font-light leading-7 text-white/60">
+                <p className="mt-3 max-w-xl text-sm font-light leading-7 text-white/70">
                   Summary of registered climate projects, estimated budget,
                   expected mitigation outcomes and intended beneficiaries.
                 </p>
@@ -518,30 +497,30 @@ export default function PublicPortalPage() {
 
               <div className="grid gap-8 sm:grid-cols-3">
                 <div>
-                  <p className="font-['Playfair_Display'] text-4xl font-bold text-[#C8A84A]">
+                  <p className="font-['Playfair_Display'] text-4xl font-bold text-[#F3F74B]">
                     {formatCompactMoney(projects.total_budget_naira)}
                   </p>
-                  <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/45">
+                  <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
                     Portfolio Budget
                   </p>
                 </div>
 
                 <div>
-                  <p className="font-['Playfair_Display'] text-4xl font-bold text-[#C8A84A]">
+                  <p className="font-['Playfair_Display'] text-4xl font-bold text-[#F3F74B]">
                     {formatCompactNumber(
                       projects.total_expected_ghg_reduction_tco2e
                     )}
                   </p>
-                  <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/45">
+                  <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
                     tCO₂e Reduction
                   </p>
                 </div>
 
                 <div>
-                  <p className="font-['Playfair_Display'] text-4xl font-bold text-[#C8A84A]">
+                  <p className="font-['Playfair_Display'] text-4xl font-bold text-[#F3F74B]">
                     {formatCompactNumber(projects.total_expected_beneficiaries)}
                   </p>
-                  <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/45">
+                  <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
                     Beneficiaries
                   </p>
                 </div>
@@ -549,10 +528,9 @@ export default function PublicPortalPage() {
             </div>
           </section>
 
-          <section className="px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
+          <section className="bg-white px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
             <div className="mx-auto max-w-7xl">
               <PublicSectionIntro
-                eyebrow="Priority climate projects"
                 title="Where action is happening"
                 description="Selected high-priority projects from the climate action portfolio, displayed for public awareness and reporting."
               />
@@ -574,14 +552,10 @@ export default function PublicPortalPage() {
 
           <PartnersSection />
 
-          <section className="border-y border-[#CAD2D7] bg-white px-4 py-12 sm:px-8 lg:px-10">
+          <section className="border-y border-slate-200 bg-white px-4 py-12 sm:px-8 lg:px-10">
             <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1fr_auto] md:items-center">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#2292A4]">
-                  Published evidence
-                </p>
-
-                <h3 className="mt-3 font-['Playfair_Display'] text-3xl font-bold text-[#0B1726]">
+                <h3 className="font-['Playfair_Display'] text-3xl font-bold text-[#030454]">
                   Access the public reports portal
                 </h3>
 
@@ -597,14 +571,12 @@ export default function PublicPortalPage() {
                 onClick={() => {
                   window.location.href = "/public/reports";
                 }}
-                className="w-fit rounded-sm border-2 border-[#2292A4] px-6 py-3 text-sm font-black uppercase tracking-[0.08em] text-[#2292A4] transition hover:bg-[#2292A4] hover:text-white"
+                className="w-fit rounded-sm border-2 border-[#009B35] px-6 py-3 text-sm font-black uppercase tracking-[0.08em] text-[#009B35] transition hover:bg-[#009B35] hover:text-white"
               >
                 Go to Reports →
               </button>
             </div>
           </section>
-
-          <PublicDataNotice />
         </>
       )}
 

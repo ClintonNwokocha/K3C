@@ -86,7 +86,7 @@ const baseTabs = [
 const formTab = { key: "form", label: "Add / Edit Project" };
 
 const inputClass =
-  "w-full rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10";
+  "w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10";
 
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -99,9 +99,9 @@ function formatMoney(value, maximumFractionDigits = 0) {
 }
 
 function getStatusClass(status) {
-  if (status === "completed") return "bg-emerald-50 text-emerald-700";
+  if (status === "completed") return "bg-[#009B35]/10 text-[#009B35]";
   if (status === "ongoing") return "bg-blue-50 text-blue-700";
-  if (status === "planned") return "bg-indigo-50 text-indigo-700";
+  if (status === "planned") return "bg-[#030454]/10 text-[#030454]";
   if (status === "proposed") return "bg-slate-100 text-slate-700";
   if (status === "suspended") return "bg-amber-50 text-amber-700";
   return "bg-red-50 text-red-700";
@@ -110,8 +110,8 @@ function getStatusClass(status) {
 function getPriorityClass(priority) {
   if (priority === "very_high") return "bg-red-50 text-red-700";
   if (priority === "high") return "bg-orange-50 text-orange-700";
-  if (priority === "medium") return "bg-[#C8A84A]/15 text-[#0B1726]";
-  return "bg-[#4E7492]/10 text-[#214560]";
+  if (priority === "medium") return "bg-[#F3F74B]/45 text-[#030454]";
+  return "bg-[#009B35]/10 text-[#009B35]";
 }
 
 function getOptionLabel(options, value) {
@@ -171,23 +171,39 @@ function ProjectSummaryCards({ summary }) {
         label="Total Budget"
         value={formatMoney(summary.total_budget_naira, 0)}
         helper="Estimated portfolio value."
-        tone="navy"
+        tone="green"
       />
 
       <CommandStatCard
         label="Expected GHG Reduction"
         value={formatNumber(summary.total_expected_ghg_reduction_tco2e, 3)}
         helper="tCO₂e expected."
-        tone="teal"
+        tone="yellow"
       />
 
       <CommandStatCard
         label="Expected Beneficiaries"
         value={formatNumber(summary.total_expected_beneficiaries, 0)}
         helper="People expected to benefit."
-        tone="gold"
+        tone="white"
       />
     </section>
+  );
+}
+
+function InfoTile({ label, value, muted = false }) {
+  return (
+    <div
+      className={`rounded-xl border border-slate-200 p-4 ${
+        muted ? "bg-slate-50" : "bg-white"
+      }`}
+    >
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 font-black text-[#030454]">{value}</p>
+    </div>
   );
 }
 
@@ -200,11 +216,10 @@ function SelectedProjectDetail({
   if (!selectedProject) {
     return (
       <CommandSection
-        eyebrow="Selected project"
         title="No project selected"
         description="Click View on any project card, board item, or register row to inspect its details here."
       >
-        <div className="rounded-xl border border-dashed border-[#CAD2D7] bg-[#DFE3E4]/35 p-5 text-sm text-slate-500">
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
           Project details will appear here after selection.
         </div>
       </CommandSection>
@@ -213,7 +228,6 @@ function SelectedProjectDetail({
 
   return (
     <CommandSection
-      eyebrow="Selected project"
       title={selectedProject.title}
       description={
         selectedProject.description || "No project description provided."
@@ -236,85 +250,62 @@ function SelectedProjectDetail({
       }
     >
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Status
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedProject.status_display ||
-              getOptionLabel(statusOptions, selectedProject.status)}
-          </p>
-        </div>
+        <InfoTile
+          label="Status"
+          value={
+            selectedProject.status_display ||
+            getOptionLabel(statusOptions, selectedProject.status)
+          }
+          muted
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Priority
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedProject.priority_display ||
-              getOptionLabel(priorityOptions, selectedProject.priority)}
-          </p>
-        </div>
+        <InfoTile
+          label="Priority"
+          value={
+            selectedProject.priority_display ||
+            getOptionLabel(priorityOptions, selectedProject.priority)
+          }
+          muted
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            LGA
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedProject.lga_name || "Statewide / Not specified"}
-          </p>
-        </div>
+        <InfoTile
+          label="LGA"
+          value={selectedProject.lga_name || "Statewide / Not specified"}
+          muted
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Implementing Agency
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedProject.implementing_agency || "Not specified"}
-          </p>
-        </div>
+        <InfoTile
+          label="Implementing Agency"
+          value={selectedProject.implementing_agency || "Not specified"}
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Funding Source
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedProject.funding_source || "Not specified"}
-          </p>
-        </div>
+        <InfoTile
+          label="Funding Source"
+          value={selectedProject.funding_source || "Not specified"}
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Budget
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {formatMoney(selectedProject.estimated_budget_naira, 0)}
-          </p>
-        </div>
+        <InfoTile
+          label="Budget"
+          value={formatMoney(selectedProject.estimated_budget_naira, 0)}
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            GHG Reduction
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {formatNumber(selectedProject.expected_ghg_reduction_tco2e, 3)}{" "}
-            tCO₂e
-          </p>
-        </div>
+        <InfoTile
+          label="GHG Reduction"
+          value={`${formatNumber(
+            selectedProject.expected_ghg_reduction_tco2e,
+            3
+          )} tCO₂e`}
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Beneficiaries
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {formatNumber(selectedProject.expected_beneficiaries, 0)}
-          </p>
-        </div>
+        <InfoTile
+          label="Beneficiaries"
+          value={formatNumber(selectedProject.expected_beneficiaries, 0)}
+        />
       </div>
 
       {selectedProject.climate_risk_relevance && (
-        <div className="mt-5 rounded-xl border border-[#CAD2D7] bg-white p-4 text-sm">
-          <p className="font-black text-[#0B1726]">Climate Risk Relevance</p>
+        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <p className="font-black text-[#030454]">Climate Risk Relevance</p>
           <p className="mt-2 leading-6 text-slate-600">
             {selectedProject.climate_risk_relevance}
           </p>
@@ -322,8 +313,8 @@ function SelectedProjectDetail({
       )}
 
       {selectedProject.location_notes && (
-        <div className="mt-5 rounded-xl border border-[#CAD2D7] bg-white p-4 text-sm">
-          <p className="font-black text-[#0B1726]">Location Notes</p>
+        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <p className="font-black text-[#030454]">Location Notes</p>
           <p className="mt-2 leading-6 text-slate-600">
             {selectedProject.location_notes}
           </p>
@@ -346,7 +337,6 @@ function PortfolioOverview({
   return (
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <CommandSection
-        eyebrow="Portfolio status"
         title="Implementation snapshot"
         description="A quick leadership-level view of project movement across implementation states."
       >
@@ -356,12 +346,13 @@ function PortfolioOverview({
               key={item.value}
               type="button"
               onClick={() => setActiveTab("board")}
-              className="rounded-xl border border-[#CAD2D7] bg-white p-4 text-left transition hover:border-[#4E7492]/60 hover:bg-[#DFE3E4]/35"
+              className="rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-[#009B35]/60 hover:bg-[#009B35]/5"
             >
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                 {item.label}
               </p>
-              <p className="mt-2 text-2xl font-black text-[#0B1726]">
+
+              <p className="mt-2 text-2xl font-black text-[#030454]">
                 {statusCounts[item.value] || 0}
               </p>
             </button>
@@ -372,9 +363,11 @@ function PortfolioOverview({
           <CommandButton variant="outline" onClick={() => setActiveTab("map")}>
             Open Map
           </CommandButton>
+
           <CommandButton variant="outline" onClick={() => setActiveTab("board")}>
             Open Board
           </CommandButton>
+
           <CommandButton
             variant="outline"
             onClick={() => setActiveTab("register")}
@@ -406,7 +399,7 @@ function ProjectFormSection({
 }) {
   if (!canManage) {
     return (
-      <CommandNotice title="Access restricted" tone="gold">
+      <CommandNotice title="Access restricted" tone="yellow">
         You do not have permission to create or edit project portfolio records.
       </CommandNotice>
     );
@@ -415,7 +408,6 @@ function ProjectFormSection({
   return (
     <form onSubmit={onSubmit}>
       <CommandSection
-        eyebrow={editingProject ? "Edit project" : "Create project"}
         title={editingProject ? "Edit Climate Project" : "Create Climate Project"}
         description={
           editingProject
@@ -432,7 +424,7 @@ function ProjectFormSection({
       >
         <div className="grid gap-4 md:grid-cols-3">
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Project Title
             </label>
             <input
@@ -445,7 +437,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Project Code
             </label>
             <input
@@ -459,7 +451,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Project Type
             </label>
             <select
@@ -478,7 +470,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Sector
             </label>
             <select
@@ -495,7 +487,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               LGA
             </label>
             <select
@@ -513,7 +505,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Status
             </label>
             <select
@@ -530,7 +522,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Priority
             </label>
             <select
@@ -547,7 +539,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Estimated Budget ₦
             </label>
             <input
@@ -563,7 +555,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Expected GHG Reduction tCO₂e
             </label>
             <input
@@ -579,7 +571,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Expected Beneficiaries
             </label>
             <input
@@ -594,7 +586,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Start Date
             </label>
             <input
@@ -606,7 +598,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               End Date
             </label>
             <input
@@ -618,7 +610,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Implementing Agency
             </label>
             <input
@@ -632,7 +624,7 @@ function ProjectFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Funding Source
             </label>
             <input
@@ -646,7 +638,7 @@ function ProjectFormSection({
           </div>
 
           <div className="md:col-span-3">
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Description
             </label>
             <textarea
@@ -659,7 +651,7 @@ function ProjectFormSection({
           </div>
 
           <div className="md:col-span-3">
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Climate Risk Relevance
             </label>
             <textarea
@@ -674,7 +666,7 @@ function ProjectFormSection({
           </div>
 
           <div className="md:col-span-3">
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Location Notes
             </label>
             <textarea
@@ -720,7 +712,6 @@ function ProjectRegisterSection({
 }) {
   return (
     <CommandSection
-      eyebrow="Project records"
       title="Project Register"
       description="Filter and review climate projects across LGAs, sectors, agencies, and funding sources."
       actions={
@@ -825,7 +816,7 @@ function ProjectRegisterSection({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1550px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[#CAD2D7] text-slate-500">
+              <tr className="border-b border-slate-200 text-slate-500">
                 <th className="px-3 py-3 font-bold">Project</th>
                 <th className="px-3 py-3 font-bold">Type</th>
                 <th className="px-3 py-3 font-bold">Sector</th>
@@ -845,16 +836,14 @@ function ProjectRegisterSection({
               {filteredProjects.map((project) => (
                 <tr
                   key={project.id}
-                  className={`border-b border-[#E6EAEC] last:border-0 hover:bg-[#DFE3E4]/35 ${
+                  className={`border-b border-slate-100 last:border-0 hover:bg-[#009B35]/5 ${
                     selectedProject?.id === project.id
-                      ? "bg-[#2292A4]/10"
+                      ? "bg-[#009B35]/10"
                       : ""
                   }`}
                 >
                   <td className="px-3 py-4">
-                    <p className="font-black text-[#0B1726]">
-                      {project.title}
-                    </p>
+                    <p className="font-black text-[#030454]">{project.title}</p>
                     <p className="text-xs text-slate-400">
                       {project.project_code || "No code"}
                     </p>
@@ -922,7 +911,7 @@ function ProjectRegisterSection({
                       <button
                         type="button"
                         onClick={() => onViewProject(project)}
-                        className="rounded-md border border-[#CAD2D7] px-3 py-1 text-xs font-bold text-[#214560] hover:border-[#2292A4] hover:text-[#2292A4]"
+                        className="rounded-md border border-slate-200 px-3 py-1 text-xs font-bold text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
                       >
                         View
                       </button>
@@ -931,7 +920,7 @@ function ProjectRegisterSection({
                         <button
                           type="button"
                           onClick={() => onEditProject(project)}
-                          className="rounded-md bg-[#2292A4] px-3 py-1 text-xs font-bold text-white hover:bg-[#1d7f90]"
+                          className="rounded-md bg-[#009B35] px-3 py-1 text-xs font-bold text-white transition hover:bg-[#00842e]"
                         >
                           Edit
                         </button>
@@ -1206,7 +1195,6 @@ export default function ProjectPortfolioPage({ currentUser }) {
   return (
     <div className="space-y-6">
       <CommandPageHeader
-        eyebrow="Project portfolio"
         title="Climate Project Portfolio"
         description="Register, track and summarize climate projects across LGAs, sectors, mitigation outcomes, adaptation relevance, budgets and beneficiaries."
         actions={
@@ -1231,7 +1219,7 @@ export default function ProjectPortfolioPage({ currentUser }) {
       )}
 
       {message && (
-        <CommandNotice title="Project portfolio update" tone="blue">
+        <CommandNotice title="Project portfolio update" tone="green">
           {message}
         </CommandNotice>
       )}
@@ -1259,7 +1247,6 @@ export default function ProjectPortfolioPage({ currentUser }) {
 
       {activeTab === "map" && (
         <CommandSection
-          eyebrow="Portfolio map view"
           title="Climate projects by LGA"
           description="Spatial view of project concentration across Kaduna LGAs."
         >
@@ -1269,7 +1256,6 @@ export default function ProjectPortfolioPage({ currentUser }) {
 
       {activeTab === "board" && (
         <CommandSection
-          eyebrow="Implementation board"
           title="Portfolio Implementation Board"
           description="View projects by implementation status and track movement from proposed concepts to completed climate action."
         >

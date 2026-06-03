@@ -10,6 +10,15 @@ const NIGERIA_BOUNDS = [
   [14.5, 15.5],
 ];
 
+const COLORS = {
+  blue: "#030454",
+  green: "#009B35",
+  yellow: "#F3F74B",
+  white: "#FFFFFF",
+  noData: "#E8EDF0",
+  greenLight: "#DDF7E6",
+};
+
 const PLACEHOLDER_LGA_GEOJSON = {
   type: "FeatureCollection",
   features: [
@@ -177,14 +186,14 @@ function formatMeasureValue(value, measure) {
 }
 
 function getChoroplethColor(value, maxValue) {
-  if (!value || value <= 0) return "#DFE3E4";
+  if (!value || value <= 0) return COLORS.noData;
 
   const ratio = maxValue > 0 ? value / maxValue : 0;
 
-  if (ratio >= 0.75) return "#214560";
-  if (ratio >= 0.5) return "#4E7492";
-  if (ratio >= 0.25) return "#2292A4";
-  return "#B9D8DE";
+  if (ratio >= 0.75) return COLORS.blue;
+  if (ratio >= 0.5) return COLORS.green;
+  if (ratio >= 0.25) return COLORS.yellow;
+  return COLORS.greenLight;
 }
 
 function getProjectEntity(project, mode) {
@@ -196,7 +205,9 @@ function getProjectEntity(project, mode) {
 function buildEntityOptions(projects, mode) {
   if (mode === "where") return [];
 
-  return Array.from(new Set(projects.map((project) => getProjectEntity(project, mode))))
+  return Array.from(
+    new Set(projects.map((project) => getProjectEntity(project, mode)))
+  )
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b));
 }
@@ -283,20 +294,32 @@ function FitGeoJsonBounds({ geoJsonData }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!geoJsonData) return;
+    if (!geoJsonData) return undefined;
 
-    try {
-      const bounds = L.geoJSON(geoJsonData).getBounds();
+    const fit = () => {
+      try {
+        map.invalidateSize();
 
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, {
-          padding: [30, 30],
-          maxZoom: 9,
-        });
+        const bounds = L.geoJSON(geoJsonData).getBounds();
+
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, {
+            padding: [30, 30],
+            maxZoom: 9,
+          });
+        }
+      } catch (error) {
+        console.error(error);
       }
-    } catch (error) {
-      console.error(error);
-    }
+    };
+
+    const firstTimer = window.setTimeout(fit, 150);
+    const secondTimer = window.setTimeout(fit, 600);
+
+    return () => {
+      window.clearTimeout(firstTimer);
+      window.clearTimeout(secondTimer);
+    };
   }, [geoJsonData, map]);
 
   return null;
@@ -307,6 +330,8 @@ function ResetMapButton({ geoJsonData }) {
 
   function handleReset() {
     try {
+      map.invalidateSize();
+
       const bounds = L.geoJSON(geoJsonData).getBounds();
 
       if (bounds.isValid()) {
@@ -327,7 +352,7 @@ function ResetMapButton({ geoJsonData }) {
     <button
       type="button"
       onClick={handleReset}
-      className="absolute right-4 top-4 z-[650] rounded-md border border-[#CAD2D7] bg-white/95 px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#214560] shadow-lg backdrop-blur hover:border-[#2292A4] hover:text-[#2292A4]"
+      className="absolute right-4 top-4 z-[650] rounded-md border border-slate-200 bg-white/95 px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#030454] shadow-lg backdrop-blur transition hover:border-[#009B35] hover:text-[#009B35]"
     >
       Reset View
     </button>
@@ -336,29 +361,49 @@ function ResetMapButton({ geoJsonData }) {
 
 function MapLegend({ measure, activeEntity }) {
   return (
-    <div className="absolute bottom-4 left-4 z-[650] w-72 rounded-xl border border-[#CAD2D7] bg-white/95 p-4 text-xs shadow-lg backdrop-blur">
-      <p className="mb-3 font-black text-[#0B1726]">
+    <div className="absolute bottom-4 left-4 z-[650] w-72 rounded-xl border border-slate-200 bg-white/95 p-4 text-xs shadow-lg backdrop-blur">
+      <p className="mb-3 font-black text-[#030454]">
         {getMeasureLabel(measure)} Legend
       </p>
 
       <div className="space-y-2">
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-sm bg-[#DFE3E4]" />
+          <span
+            className="h-3 w-3 rounded-sm"
+            style={{ backgroundColor: COLORS.noData }}
+          />
           <span className="text-slate-600">No linked project</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-sm bg-[#B9D8DE]" />
+          <span
+            className="h-3 w-3 rounded-sm"
+            style={{ backgroundColor: COLORS.greenLight }}
+          />
           <span className="text-slate-600">Lower concentration</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-sm bg-[#2292A4]" />
+          <span
+            className="h-3 w-3 rounded-sm"
+            style={{ backgroundColor: COLORS.yellow }}
+          />
           <span className="text-slate-600">Moderate concentration</span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="h-3 w-3 rounded-sm bg-[#214560]" />
+          <span
+            className="h-3 w-3 rounded-sm"
+            style={{ backgroundColor: COLORS.green }}
+          />
+          <span className="text-slate-600">High concentration</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span
+            className="h-3 w-3 rounded-sm"
+            style={{ backgroundColor: COLORS.blue }}
+          />
           <span className="text-slate-600">Highest concentration</span>
         </div>
       </div>
@@ -384,21 +429,23 @@ function AnalysisModeSelector({ mode, setMode }) {
             onClick={() => setMode(item.key)}
             className={`rounded-xl border p-4 text-left transition ${
               isActive
-                ? "border-[#214560] bg-[#214560] text-white shadow-sm"
-                : "border-[#CAD2D7] bg-white text-[#0B1726] hover:border-[#2292A4]"
+                ? "border-[#030454] bg-[#030454] text-white shadow-sm"
+                : "border-slate-200 bg-white text-[#030454] hover:border-[#009B35]"
             }`}
           >
             <p
               className={`text-xs font-black uppercase tracking-[0.12em] ${
-                isActive ? "text-[#C8A84A]" : "text-[#2292A4]"
+                isActive ? "text-[#F3F74B]" : "text-[#009B35]"
               }`}
             >
               {item.title}
             </p>
+
             <p className="mt-2 font-black">{item.label}</p>
+
             <p
               className={`mt-2 text-xs leading-5 ${
-                isActive ? "text-white/70" : "text-slate-500"
+                isActive ? "text-white/75" : "text-slate-500"
               }`}
             >
               {item.helper}
@@ -422,18 +469,18 @@ function SummaryPanel({
     analysisModes.find((item) => item.key === mode)?.title || "Where";
 
   return (
-    <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-5">
-      <h3 className="font-black text-[#0B1726]">Map Summary</h3>
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
+      <h3 className="font-black text-[#030454]">Map Summary</h3>
 
       <div className="mt-4 space-y-3 text-sm">
         <div className="flex justify-between gap-4">
           <span className="text-slate-500">Projects in view</span>
-          <span className="font-black text-[#0B1726]">{projects.length}</span>
+          <span className="font-black text-[#030454]">{projects.length}</span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span className="text-slate-500">LGAs with projects</span>
-          <span className="font-black text-[#0B1726]">
+          <span className="font-black text-[#030454]">
             {
               Object.values(lgaStats).filter(
                 (stats) =>
@@ -446,21 +493,21 @@ function SummaryPanel({
 
         <div className="flex justify-between gap-4">
           <span className="text-slate-500">Statewide projects</span>
-          <span className="font-black text-[#0B1726]">
+          <span className="font-black text-[#030454]">
             {statewideProjects.length}
           </span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span className="text-slate-500">Analysis</span>
-          <span className="text-right font-black text-[#0B1726]">
+          <span className="text-right font-black text-[#030454]">
             {modeLabel}
           </span>
         </div>
 
         <div className="flex justify-between gap-4">
           <span className="text-slate-500">Measure</span>
-          <span className="text-right font-black text-[#0B1726]">
+          <span className="text-right font-black text-[#030454]">
             {getMeasureLabel(measure)}
           </span>
         </div>
@@ -470,7 +517,7 @@ function SummaryPanel({
             <span className="text-slate-500">Focus</span>
             <span
               title={activeEntity}
-              className="max-w-[170px] truncate text-right font-black text-[#0B1726]"
+              className="max-w-[170px] truncate text-right font-black text-[#030454]"
             >
               {activeEntity}
             </span>
@@ -491,14 +538,18 @@ function RankingPanel({ rankedItems, measure, mode }) {
 
   const description =
     mode === "funders"
-      ? `Ranked by ${getMeasureLabel(measure).toLowerCase()} to show who is investing more.`
+      ? `Ranked by ${getMeasureLabel(
+          measure
+        ).toLowerCase()} to show who is investing more.`
       : mode === "agencies"
-        ? `Ranked by ${getMeasureLabel(measure).toLowerCase()} to show who is implementing more.`
+        ? `Ranked by ${getMeasureLabel(
+            measure
+          ).toLowerCase()} to show who is implementing more.`
         : `Ranked by ${getMeasureLabel(measure).toLowerCase()}.`;
 
   return (
-    <div className="rounded-xl border border-[#CAD2D7] bg-white p-5">
-      <h3 className="font-black text-[#0B1726]">{title}</h3>
+    <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <h3 className="font-black text-[#030454]">{title}</h3>
 
       <p className="mt-1 text-sm leading-6 text-slate-500">{description}</p>
 
@@ -509,13 +560,13 @@ function RankingPanel({ rankedItems, measure, mode }) {
           return (
             <div
               key={stats.label || stats.lgaName}
-              className="rounded-xl border border-[#CAD2D7] p-4"
+              className="rounded-xl border border-slate-200 p-4 transition hover:border-[#009B35]/60"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p
                     title={stats.label || stats.lgaName}
-                    className="truncate font-black text-[#0B1726]"
+                    className="truncate font-black text-[#030454]"
                   >
                     {index + 1}. {stats.label || stats.lgaName}
                   </p>
@@ -525,30 +576,30 @@ function RankingPanel({ rankedItems, measure, mode }) {
                   </p>
                 </div>
 
-                <p className="shrink-0 text-right text-sm font-black text-[#0B1726]">
+                <p className="shrink-0 text-right text-sm font-black text-[#030454]">
                   {formatMeasureValue(value, measure)}
                 </p>
               </div>
 
               {mode !== "where" && (
-                <div className="mt-3 grid gap-2 border-t border-[#E6EAEC] pt-3 text-xs">
+                <div className="mt-3 grid gap-2 border-t border-slate-100 pt-3 text-xs">
                   <div className="flex justify-between gap-3">
                     <span className="text-slate-400">Budget</span>
-                    <span className="font-bold text-[#0B1726]">
+                    <span className="font-bold text-[#030454]">
                       {formatMoney(stats.totalBudget)}
                     </span>
                   </div>
 
                   <div className="flex justify-between gap-3">
                     <span className="text-slate-400">GHG</span>
-                    <span className="font-bold text-[#0B1726]">
+                    <span className="font-bold text-[#030454]">
                       {formatNumber(stats.totalGhgReduction, 3)} tCO₂e
                     </span>
                   </div>
 
                   <div className="flex justify-between gap-3">
                     <span className="text-slate-400">Beneficiaries</span>
-                    <span className="font-bold text-[#0B1726]">
+                    <span className="font-bold text-[#030454]">
                       {formatNumber(stats.totalBeneficiaries, 0)}
                     </span>
                   </div>
@@ -559,7 +610,7 @@ function RankingPanel({ rankedItems, measure, mode }) {
         })}
 
         {rankedItems.length === 0 && (
-          <p className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4 text-sm text-slate-500">
+          <p className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
             No project data available for this view.
           </p>
         )}
@@ -589,7 +640,10 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
     );
   }, [projects, mode, activeEntity]);
 
-  const lgaStats = useMemo(() => buildLgaStats(focusedProjects), [focusedProjects]);
+  const lgaStats = useMemo(
+    () => buildLgaStats(focusedProjects),
+    [focusedProjects]
+  );
 
   const statewideProjects = useMemo(() => {
     return focusedProjects.filter((project) => !project.lga);
@@ -599,7 +653,9 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
     if (mode === "where") {
       return Object.values(lgaStats)
         .filter((stats) => stats.lgaName !== "Statewide / Not specified")
-        .sort((a, b) => getMeasureValue(b, measure) - getMeasureValue(a, measure))
+        .sort(
+          (a, b) => getMeasureValue(b, measure) - getMeasureValue(a, measure)
+        )
         .slice(0, 8);
     }
 
@@ -674,7 +730,7 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
     const value = getMeasureValue(stats, measure);
 
     return {
-      color: "#ffffff",
+      color: COLORS.white,
       weight: 1.5,
       fillColor: getChoroplethColor(value, maxMeasureValue),
       fillOpacity: value > 0 ? 0.82 : 0.45,
@@ -746,7 +802,7 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
       mouseover: (event) => {
         event.target.setStyle({
           weight: 4,
-          color: "#0B1726",
+          color: COLORS.blue,
           fillOpacity: 0.94,
         });
 
@@ -760,16 +816,13 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
     });
   }
 
-  const focusLabel = mode !== "where" && activeEntity !== "all" ? activeEntity : "";
+  const focusLabel =
+    mode !== "where" && activeEntity !== "all" ? activeEntity : "";
 
   return (
     <div>
       <div className="mb-5">
-        <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#2292A4]">
-          Portfolio intelligence map
-        </p>
-
-        <h2 className="mt-2 text-2xl font-black text-[#0B1726]">
+        <h2 className="text-2xl font-black text-[#030454]">
           Climate project investment and implementation view
         </h2>
 
@@ -785,7 +838,7 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
         <select
           value={measure}
           onChange={(event) => setMeasure(event.target.value)}
-          className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10"
+          className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
         >
           {measureOptions.map((item) => (
             <option key={item.value} value={item.value}>
@@ -798,7 +851,7 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
           <select
             value={activeEntity}
             onChange={(event) => setActiveEntity(event.target.value)}
-            className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10"
+            className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
           >
             <option value="all">
               {mode === "funders"
@@ -816,7 +869,7 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
       </div>
 
       <div className="mt-6 grid items-start gap-6 xl:grid-cols-3">
-        <div className="relative h-fit self-start overflow-hidden rounded-xl border border-[#CAD2D7] xl:col-span-2">
+        <div className="relative h-fit self-start overflow-hidden rounded-xl border border-slate-200 xl:col-span-2">
           <MapContainer
             center={KADUNA_CENTER}
             zoom={KADUNA_ZOOM}
@@ -825,7 +878,7 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
             maxBounds={NIGERIA_BOUNDS}
             maxBoundsViscosity={1.0}
             scrollWheelZoom={false}
-            style={{ height: "460px", width: "100%" }}
+            style={{ height: "520px", width: "100%" }}
           >
             <TileLayer
               attribution="&copy; OpenStreetMap contributors"
@@ -865,7 +918,11 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
             activeEntity={focusLabel}
           />
 
-          <RankingPanel rankedItems={rankedItems} measure={measure} mode={mode} />
+          <RankingPanel
+            rankedItems={rankedItems}
+            measure={measure}
+            mode={mode}
+          />
         </div>
       </div>
     </div>

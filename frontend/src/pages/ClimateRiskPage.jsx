@@ -22,6 +22,13 @@ import {
 import { getClimateRiskProfiles } from "../services/api";
 import { canManageClimateRisk } from "../utils/permissions";
 
+const COLORS = {
+  blue: "#030454",
+  green: "#009B35",
+  yellow: "#F3F74B",
+  white: "#FFFFFF",
+};
+
 function normalizeName(value) {
   return String(value || "")
     .trim()
@@ -38,31 +45,31 @@ function formatNumber(value, maximumFractionDigits = 2) {
 function getRiskClass(level) {
   if (level === "very_high") return "bg-red-50 text-red-700";
   if (level === "high") return "bg-orange-50 text-orange-700";
-  if (level === "moderate") return "bg-[#C8A84A]/15 text-[#0B1726]";
-  return "bg-[#4E7492]/10 text-[#214560]";
+  if (level === "moderate") return "bg-[#F3F74B]/45 text-[#030454]";
+  return "bg-[#009B35]/10 text-[#009B35]";
 }
 
 function getRiskBarColor(level) {
   if (level === "very_high") return "#B91C1C";
   if (level === "high") return "#EA580C";
-  if (level === "moderate") return "#C8A84A";
-  return "#4E7492";
+  if (level === "moderate") return COLORS.yellow;
+  return COLORS.green;
 }
 
 function getMetricBarColor(value, reverse = false) {
   const number = Number(value || 0);
 
   if (reverse) {
-    if (number >= 70) return "#4E7492";
-    if (number >= 55) return "#2292A4";
-    if (number >= 40) return "#C8A84A";
+    if (number >= 70) return COLORS.green;
+    if (number >= 55) return "#26B45B";
+    if (number >= 40) return COLORS.yellow;
     return "#B91C1C";
   }
 
   if (number >= 75) return "#B91C1C";
   if (number >= 60) return "#EA580C";
-  if (number >= 40) return "#C8A84A";
-  return "#4E7492";
+  if (number >= 40) return COLORS.yellow;
+  return COLORS.green;
 }
 
 function scoreLabel(value) {
@@ -99,10 +106,10 @@ function IndexExplanationBox() {
       </p>
 
       <div className="mt-4 grid gap-2 text-xs md:grid-cols-4">
-        <div className="rounded-lg bg-[#4E7492]/10 px-3 py-2 font-semibold text-[#214560]">
+        <div className="rounded-lg bg-[#009B35]/10 px-3 py-2 font-semibold text-[#009B35]">
           0–39: Low
         </div>
-        <div className="rounded-lg bg-[#C8A84A]/15 px-3 py-2 font-semibold text-[#0B1726]">
+        <div className="rounded-lg bg-[#F3F74B]/40 px-3 py-2 font-semibold text-[#030454]">
           40–59: Moderate
         </div>
         <div className="rounded-lg bg-orange-50 px-3 py-2 font-semibold text-orange-700">
@@ -128,12 +135,12 @@ function MetricRow({ label, value, reverse = false, helperText = "" }) {
           {helperText && <p className="text-xs text-slate-400">{helperText}</p>}
         </div>
 
-        <span className="font-bold text-[#0B1726]">
+        <span className="font-bold text-[#030454]">
           {formatNumber(number, 2)} / 100
         </span>
       </div>
 
-      <div className="h-2 overflow-hidden rounded-full bg-[#DFE3E4]">
+      <div className="h-2 overflow-hidden rounded-full bg-slate-100">
         <div
           className="h-full rounded-full"
           style={{
@@ -150,7 +157,6 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
   if (!selectedLgaName) {
     return (
       <CommandSection
-        eyebrow="LGA detail"
         title="No LGA selected"
         description="Click any LGA polygon on the map or any row in the table to view its climate risk details."
       >
@@ -161,7 +167,7 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
 
   if (!selectedProfile) {
     return (
-      <CommandNotice title={selectedLgaName} tone="gold">
+      <CommandNotice title={selectedLgaName} tone="yellow">
         This LGA was selected, but no matching climate risk profile was found.
         Check that the GeoJSON LGA name matches the database LGA name.
       </CommandNotice>
@@ -170,7 +176,6 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
 
   return (
     <CommandSection
-      eyebrow="Selected LGA"
       title={selectedProfile.lga_name}
       description={`Risk profile year: ${selectedProfile.year}`}
       actions={
@@ -183,12 +188,12 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
         </span>
       }
     >
-      <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-5">
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
           Overall Climate Risk Index
         </p>
 
-        <p className="mt-3 text-4xl font-black text-[#0B1726]">
+        <p className="mt-3 text-4xl font-black text-[#030454]">
           {formatNumber(selectedProfile.overall_risk_score, 2)}
           <span className="text-lg font-semibold text-slate-400"> / 100</span>
         </p>
@@ -243,8 +248,8 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
         />
       </div>
 
-      <div className="mt-6 rounded-xl border border-[#CAD2D7] p-4 text-sm">
-        <p className="font-black text-[#0B1726]">Notes</p>
+      <div className="mt-6 rounded-xl border border-slate-200 p-4 text-sm">
+        <p className="font-black text-[#030454]">Notes</p>
         <p className="mt-1 text-slate-500">
           {selectedProfile.notes || "No notes provided."}
         </p>
@@ -271,7 +276,7 @@ function SummaryCards({ summary }) {
         label="Average Risk Index"
         value={formatNumber(summary?.average_overall_risk, 2)}
         helper="Weighted average across selected LGAs."
-        tone="teal"
+        tone="green"
       />
 
       <CommandStatCard
@@ -299,7 +304,6 @@ function TopLgasPanel({
 }) {
   return (
     <CommandSection
-      eyebrow="Priority ranking"
       title="Highest-risk LGAs"
       description="Top LGAs by overall climate risk index."
       actions={
@@ -311,32 +315,49 @@ function TopLgasPanel({
       }
     >
       <div className="space-y-3">
-        {topLgas.map((profile, index) => (
-          <button
-            key={profile.id}
-            type="button"
-            onClick={() => setSelectedLgaName(profile.lga_name)}
-            className="w-full rounded-xl border border-[#CAD2D7] bg-white p-4 text-left transition hover:border-[#4E7492]/60 hover:bg-[#DFE3E4]/35"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="font-black text-[#0B1726]">
-                  {index + 1}. {profile.lga_name}
-                </p>
-                <p className="text-xs text-slate-500">
-                  {profile.risk_level_display}
-                </p>
+        {topLgas.map((profile, index) => {
+          const riskWidth = `${Math.min(
+            Math.max(Number(profile.overall_risk_score || 0), 4),
+            100
+          )}%`;
+
+          return (
+            <button
+              key={profile.id}
+              type="button"
+              onClick={() => setSelectedLgaName(profile.lga_name)}
+              className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-[#009B35]/60 hover:bg-[#009B35]/5"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate font-black text-[#030454]">
+                    {index + 1}. {profile.lga_name}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {profile.risk_level_display}
+                  </p>
+                </div>
+
+                <span className="text-lg font-black text-[#030454]">
+                  {formatNumber(profile.overall_risk_score, 2)}
+                </span>
               </div>
 
-              <span className="text-lg font-black text-[#0B1726]">
-                {formatNumber(profile.overall_risk_score, 2)}
-              </span>
-            </div>
-          </button>
-        ))}
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: riskWidth,
+                    backgroundColor: getRiskBarColor(profile.risk_level),
+                  }}
+                />
+              </div>
+            </button>
+          );
+        })}
 
         {topLgas.length === 0 && (
-          <div className="rounded-xl border border-dashed border-[#CAD2D7] bg-[#DFE3E4]/35 p-5 text-sm text-slate-500">
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
             No highest-risk ranking available yet.
           </div>
         )}
@@ -388,14 +409,13 @@ function RiskMapSection({
 }) {
   return (
     <CommandSection
-      eyebrow="Risk map"
       title="LGA risk choropleth map"
       description="Click an LGA polygon to open its full risk detail panel. Use the selector to switch between risk dimensions."
       actions={
         <select
           value={mapMetric}
           onChange={(event) => setMapMetric(event.target.value)}
-          className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10"
+          className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
         >
           <option value="overall">Overall Climate Risk Index</option>
           <option value="flood">Flood Risk Index</option>
@@ -418,7 +438,7 @@ function RiskMapSection({
           />
 
           <div className="mt-4">
-            <CommandNotice title="Boundary source" tone="gold">
+            <CommandNotice title="Boundary source" tone="yellow">
               The map first checks for{" "}
               <code className="rounded bg-white/70 px-1">
                 public/data/kaduna_lgas.geojson
@@ -455,7 +475,6 @@ function ParametersSection({
   return (
     <>
       <CommandSection
-        eyebrow="Data ingestion"
         title="Climate risk dataset upload"
         description="Upload climate risk profile datasets when validated data is available."
       >
@@ -466,7 +485,6 @@ function ParametersSection({
       </CommandSection>
 
       <CommandSection
-        eyebrow="Raw evidence"
         title="Climate risk parameter records"
         description="Store raw hazard, exposure, vulnerability, and adaptive-capacity evidence behind final normalized scores."
       >
@@ -496,7 +514,6 @@ function ScoringSection({
       <IndexExplanationBox />
 
       <CommandSection
-        eyebrow="Scoring engine"
         title="Recalculate risk indexes from parameter records"
         description="Use normalized parameter values to update flood, drought, heat, erosion, exposure, vulnerability and adaptive capacity indexes."
       >
@@ -520,7 +537,6 @@ function InfrastructureSection({
   return (
     <>
       <CommandSection
-        eyebrow="Asset import"
         title="Import exposed infrastructure assets"
         description="Upload schools, hospitals, markets, roads, water facilities and other exposed assets."
       >
@@ -534,7 +550,6 @@ function InfrastructureSection({
       </CommandSection>
 
       <CommandSection
-        eyebrow="Infrastructure-at-risk"
         title="Exposed assets layer"
         description="Map and manage infrastructure assets exposed to climate risk."
       >
@@ -568,7 +583,6 @@ function RiskTableSection({
   return (
     <div className="grid items-start gap-6 xl:grid-cols-3">
       <CommandSection
-        eyebrow="Risk records"
         title="LGA risk table"
         description="Filter and compare climate risk across LGAs. Click a row to update the selected LGA detail panel."
         className="xl:col-span-2"
@@ -577,7 +591,7 @@ function RiskTableSection({
             <select
               value={selectedYear}
               onChange={(event) => setSelectedYear(event.target.value)}
-              className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10"
+              className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
             >
               {(riskData?.available_years || []).map((year) => (
                 <option key={year} value={year}>
@@ -589,7 +603,7 @@ function RiskTableSection({
             <select
               value={riskLevel}
               onChange={(event) => setRiskLevel(event.target.value)}
-              className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10"
+              className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
             >
               <option value="all">All risk levels</option>
               <option value="low">Low</option>
@@ -602,7 +616,7 @@ function RiskTableSection({
               value={searchText}
               onChange={(event) => setSearchText(event.target.value)}
               placeholder="Search LGA..."
-              className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10"
+              className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
             />
           </div>
         }
@@ -615,7 +629,7 @@ function RiskTableSection({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1000px] text-left text-sm">
               <thead>
-                <tr className="border-b border-[#CAD2D7] text-slate-500">
+                <tr className="border-b border-slate-200 text-slate-500">
                   <th className="px-3 py-3 font-bold">LGA</th>
                   <th className="px-3 py-3 font-bold">Overall /100</th>
                   <th className="px-3 py-3 font-bold">Level</th>
@@ -646,21 +660,21 @@ function RiskTableSection({
                     <tr
                       key={profile.id}
                       onClick={() => setSelectedLgaName(profile.lga_name)}
-                      className={`cursor-pointer border-b border-[#E6EAEC] transition last:border-0 hover:bg-[#DFE3E4]/35 ${
-                        isSelected ? "bg-[#2292A4]/10" : ""
+                      className={`cursor-pointer border-b border-slate-100 transition last:border-0 hover:bg-[#009B35]/5 ${
+                        isSelected ? "bg-[#009B35]/10" : ""
                       }`}
                     >
-                      <td className="px-3 py-4 font-bold text-[#0B1726]">
+                      <td className="px-3 py-4 font-bold text-[#030454]">
                         {profile.lga_name}
                       </td>
 
                       <td className="px-3 py-4">
                         <div className="flex items-center gap-3">
-                          <span className="w-12 font-bold text-[#0B1726]">
+                          <span className="w-12 font-bold text-[#030454]">
                             {formatNumber(profile.overall_risk_score, 2)}
                           </span>
 
-                          <div className="h-2 w-24 overflow-hidden rounded-full bg-[#DFE3E4]">
+                          <div className="h-2 w-24 overflow-hidden rounded-full bg-slate-100">
                             <div
                               className="h-full rounded-full"
                               style={{
@@ -733,37 +747,21 @@ function RiskTableSection({
 
         <CommandSection title="Risk level distribution">
           <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Low</span>
-              <span className="font-bold">
-                {summary?.risk_counts?.low || 0}
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-slate-500">Moderate</span>
-              <span className="font-bold">
-                {summary?.risk_counts?.moderate || 0}
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-slate-500">High</span>
-              <span className="font-bold">
-                {summary?.risk_counts?.high || 0}
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-slate-500">Very High</span>
-              <span className="font-bold">
-                {summary?.risk_counts?.very_high || 0}
-              </span>
-            </div>
+            {[
+              ["Low", summary?.risk_counts?.low || 0],
+              ["Moderate", summary?.risk_counts?.moderate || 0],
+              ["High", summary?.risk_counts?.high || 0],
+              ["Very High", summary?.risk_counts?.very_high || 0],
+            ].map(([label, value]) => (
+              <div key={label} className="flex justify-between">
+                <span className="text-slate-500">{label}</span>
+                <span className="font-bold text-[#030454]">{value}</span>
+              </div>
+            ))}
           </div>
         </CommandSection>
 
-        <CommandNotice title="Boundary/data notice" tone="gold">
+        <CommandNotice title="Boundary/data notice" tone="yellow">
           Use official Kaduna LGA boundaries before production. The risk scores
           are still development seed scores and should later be replaced with
           validated hazard, exposure, vulnerability and adaptive-capacity
@@ -865,7 +863,6 @@ export default function ClimateRiskPage({ currentUser }) {
   return (
     <div className="space-y-6">
       <CommandPageHeader
-        eyebrow="Climate risk intelligence"
         title="Kaduna LGA Climate Risk Profiles"
         description="Climate risk workspace for flood, drought, heat, erosion, exposure, vulnerability and adaptive-capacity scoring across Kaduna LGAs."
         actions={
@@ -933,7 +930,6 @@ export default function ClimateRiskPage({ currentUser }) {
 
       {activeTab === "hazards" && (
         <CommandSection
-          eyebrow="Hazard explorer"
           title="Explore climate hazard dimensions"
           description="Review hazard-specific patterns and LGA-level comparisons."
         >
@@ -947,7 +943,6 @@ export default function ClimateRiskPage({ currentUser }) {
 
       {activeTab === "evidence" && (
         <CommandSection
-          eyebrow="Evidence brief"
           title="Selected LGA evidence summary"
           description="Review the evidence narrative behind the selected LGA profile."
         >
@@ -966,7 +961,6 @@ export default function ClimateRiskPage({ currentUser }) {
 
       {activeTab === "quality" && (
         <CommandSection
-          eyebrow="Data quality"
           title="Climate risk data quality review"
           description="Review missing fields, data completeness and scoring readiness."
         >
@@ -976,7 +970,6 @@ export default function ClimateRiskPage({ currentUser }) {
 
       {activeTab === "transparency" && (
         <CommandSection
-          eyebrow="Scoring transparency"
           title="Risk scoring transparency"
           description="Inspect how final climate risk scores are derived."
         >
@@ -988,7 +981,6 @@ export default function ClimateRiskPage({ currentUser }) {
 
       {activeTab === "projects" && (
         <CommandSection
-          eyebrow="Linked projects"
           title="Climate projects linked to selected LGA"
           description="Review action responses connected to the selected climate risk profile."
         >

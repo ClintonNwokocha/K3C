@@ -62,7 +62,7 @@ const baseTabs = [
 const formTab = { key: "form", label: "Add / Edit Report" };
 
 const inputClass =
-  "w-full rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10";
+  "w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10";
 
 function formatNumber(value, maximumFractionDigits = 0) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -75,17 +75,17 @@ function getOptionLabel(options, value) {
 }
 
 function getStatusClass(status) {
-  if (status === "published") return "bg-emerald-50 text-emerald-700";
-  if (status === "approved") return "bg-blue-50 text-blue-700";
-  if (status === "review") return "bg-amber-50 text-amber-700";
+  if (status === "published") return "bg-[#009B35]/10 text-[#009B35]";
+  if (status === "approved") return "bg-[#030454]/10 text-[#030454]";
+  if (status === "review") return "bg-[#F3F74B]/45 text-[#030454]";
   if (status === "archived") return "bg-slate-100 text-slate-600";
   return "bg-slate-50 text-slate-700";
 }
 
 function getTypeClass(type) {
-  if (type === "climate_risk") return "bg-[#2292A4]/10 text-[#214560]";
-  if (type === "ghg_inventory") return "bg-[#4E7492]/10 text-[#214560]";
-  if (type === "project_portfolio") return "bg-[#C8A84A]/15 text-[#0B1726]";
+  if (type === "climate_risk") return "bg-[#009B35]/10 text-[#009B35]";
+  if (type === "ghg_inventory") return "bg-[#030454]/10 text-[#030454]";
+  if (type === "project_portfolio") return "bg-[#F3F74B]/45 text-[#030454]";
   if (type === "ndc_progress") return "bg-orange-50 text-orange-700";
   if (type === "executive_brief") return "bg-indigo-50 text-indigo-700";
   if (type === "data_export") return "bg-cyan-50 text-cyan-700";
@@ -125,21 +125,21 @@ function ReportSummaryCards({ summary }) {
         label="Approved Reports"
         value={summary.approved_reports || 0}
         helper="Reports approved for official use."
-        tone="navy"
+        tone="green"
       />
 
       <CommandStatCard
         label="Published Reports"
         value={summary.published_reports || 0}
         helper="Reports marked as published."
-        tone="teal"
+        tone="yellow"
       />
 
       <CommandStatCard
         label="Public Reports"
         value={summary.public_reports || 0}
         helper="Visible for public-facing use."
-        tone="gold"
+        tone="white"
       />
     </section>
   );
@@ -162,7 +162,6 @@ function StatusBreakdown({ reports, setActiveTab, updateFilter }) {
 
   return (
     <CommandSection
-      eyebrow="Report workflow"
       title="Publication status overview"
       description="Track report records from draft through review, approval, publication and archiving."
     >
@@ -172,19 +171,35 @@ function StatusBreakdown({ reports, setActiveTab, updateFilter }) {
             key={item.value}
             type="button"
             onClick={() => openStatus(item.value)}
-            className="rounded-xl border border-[#CAD2D7] bg-white p-4 text-left transition hover:border-[#4E7492]/60 hover:bg-[#DFE3E4]/35"
+            className="rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-[#009B35]/60 hover:bg-[#009B35]/5"
           >
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
               {item.label}
             </p>
 
-            <p className="mt-2 text-2xl font-black text-[#0B1726]">
+            <p className="mt-2 text-2xl font-black text-[#030454]">
               {statusCounts[item.value] || 0}
             </p>
           </button>
         ))}
       </div>
     </CommandSection>
+  );
+}
+
+function InfoTile({ label, value, muted = false }) {
+  return (
+    <div
+      className={`rounded-xl border border-slate-200 p-4 ${
+        muted ? "bg-slate-50" : "bg-white"
+      }`}
+    >
+      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
+
+      <p className="mt-2 font-black text-[#030454]">{value}</p>
+    </div>
   );
 }
 
@@ -197,11 +212,10 @@ function SelectedReportDetail({
   if (!selectedReport) {
     return (
       <CommandSection
-        eyebrow="Selected report"
         title="No report selected"
         description="Click View on any report in the register to inspect report metadata, file link, publication status and visibility."
       >
-        <div className="rounded-xl border border-dashed border-[#CAD2D7] bg-[#DFE3E4]/35 p-5 text-sm text-slate-500">
+        <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
           Report details will appear here after selection.
         </div>
       </CommandSection>
@@ -210,7 +224,6 @@ function SelectedReportDetail({
 
   return (
     <CommandSection
-      eyebrow="Selected report"
       title={selectedReport.title}
       description={selectedReport.description || "No description provided."}
       actions={
@@ -220,7 +233,7 @@ function SelectedReportDetail({
               href={selectedReport.file_url}
               target="_blank"
               rel="noreferrer"
-              className="rounded-md bg-[#214560] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#19384f]"
+              className="rounded-md bg-[#030454] px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#02033d]"
             >
               Open File
             </a>
@@ -242,66 +255,50 @@ function SelectedReportDetail({
       }
     >
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Type
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedReport.report_type_display ||
-              getOptionLabel(reportTypeOptions, selectedReport.report_type)}
-          </p>
-        </div>
+        <InfoTile
+          label="Type"
+          value={
+            selectedReport.report_type_display ||
+            getOptionLabel(reportTypeOptions, selectedReport.report_type)
+          }
+          muted
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Status
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedReport.status_display ||
-              getOptionLabel(statusOptions, selectedReport.status)}
-          </p>
-        </div>
+        <InfoTile
+          label="Status"
+          value={
+            selectedReport.status_display ||
+            getOptionLabel(statusOptions, selectedReport.status)
+          }
+          muted
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Year
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedReport.reporting_year || "—"}
-          </p>
-        </div>
+        <InfoTile
+          label="Year"
+          value={selectedReport.reporting_year || "—"}
+          muted
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 p-4">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Visibility
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedReport.is_public ? "Public" : "Internal"}
-          </p>
-        </div>
+        <InfoTile
+          label="Visibility"
+          value={selectedReport.is_public ? "Public" : "Internal"}
+          muted
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4 md:col-span-2">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Source Module
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedReport.source_module || "Not specified"}
-          </p>
-        </div>
+        <InfoTile
+          label="Source Module"
+          value={selectedReport.source_module || "Not specified"}
+        />
 
-        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4 md:col-span-2">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-            Generated By
-          </p>
-          <p className="mt-2 font-black text-[#0B1726]">
-            {selectedReport.generated_by_name || "—"}
-          </p>
-        </div>
+        <InfoTile
+          label="Generated By"
+          value={selectedReport.generated_by_name || "—"}
+        />
       </div>
 
       {selectedReport.notes && (
-        <div className="mt-5 rounded-xl border border-[#CAD2D7] bg-white p-4 text-sm">
-          <p className="font-black text-[#0B1726]">Internal Notes</p>
+        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <p className="font-black text-[#030454]">Internal Notes</p>
           <p className="mt-2 leading-6 text-slate-600">
             {selectedReport.notes}
           </p>
@@ -324,7 +321,7 @@ function ReportFormSection({
 }) {
   if (!canManage) {
     return (
-      <CommandNotice title="Access restricted" tone="gold">
+      <CommandNotice title="Access restricted" tone="yellow">
         You do not have permission to create or edit report records.
       </CommandNotice>
     );
@@ -333,7 +330,6 @@ function ReportFormSection({
   return (
     <form onSubmit={onSubmit}>
       <CommandSection
-        eyebrow={editingReport ? "Edit report" : "Create report"}
         title={editingReport ? "Edit Report Document" : "Create Report Document"}
         description={
           editingReport
@@ -348,7 +344,7 @@ function ReportFormSection({
       >
         <div className="grid gap-4 md:grid-cols-3">
           <div className="md:col-span-2">
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Report Title
             </label>
             <input
@@ -361,7 +357,7 @@ function ReportFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Reporting Year
             </label>
             <input
@@ -376,7 +372,7 @@ function ReportFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Report Type
             </label>
             <select
@@ -395,7 +391,7 @@ function ReportFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Status
             </label>
             <select
@@ -412,7 +408,7 @@ function ReportFormSection({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Source Module
             </label>
             <select
@@ -432,7 +428,7 @@ function ReportFormSection({
           </div>
 
           <div className="md:col-span-3">
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Upload File
             </label>
             <input
@@ -447,7 +443,7 @@ function ReportFormSection({
             {selectedFile && (
               <p className="mt-2 text-xs text-slate-500">
                 Selected file:{" "}
-                <span className="font-bold text-[#0B1726]">
+                <span className="font-bold text-[#030454]">
                   {selectedFile.name}
                 </span>
               </p>
@@ -460,7 +456,7 @@ function ReportFormSection({
                   href={editingReport.file_url}
                   target="_blank"
                   rel="noreferrer"
-                  className="font-bold text-[#214560] hover:text-[#2292A4]"
+                  className="font-bold text-[#030454] hover:text-[#009B35]"
                 >
                   Open existing file
                 </a>
@@ -469,7 +465,7 @@ function ReportFormSection({
           </div>
 
           <div className="md:col-span-3">
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Description
             </label>
             <textarea
@@ -484,7 +480,7 @@ function ReportFormSection({
           </div>
 
           <div className="md:col-span-3">
-            <label className="mb-2 block text-sm font-bold text-[#0B1726]">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Notes
             </label>
             <textarea
@@ -497,14 +493,14 @@ function ReportFormSection({
           </div>
 
           <div className="md:col-span-3">
-            <label className="flex items-center gap-3 rounded-xl border border-[#CAD2D7] bg-[#DFE3E4]/35 px-4 py-3 text-sm text-slate-700">
+            <label className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               <input
                 type="checkbox"
                 checked={form.is_public}
                 onChange={(event) =>
                   updateForm("is_public", event.target.checked)
                 }
-                className="h-4 w-4"
+                className="h-4 w-4 accent-[#009B35]"
               />
               Mark as public-facing report
             </label>
@@ -541,7 +537,6 @@ function ReportRegisterSection({
 }) {
   return (
     <CommandSection
-      eyebrow="Report records"
       title="Report Register"
       description="Filter, inspect, edit and open uploaded report documents."
       actions={
@@ -624,7 +619,7 @@ function ReportRegisterSection({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1250px] text-left text-sm">
             <thead>
-              <tr className="border-b border-[#CAD2D7] text-slate-500">
+              <tr className="border-b border-slate-200 text-slate-500">
                 <th className="px-3 py-3 font-bold">Report</th>
                 <th className="px-3 py-3 font-bold">Type</th>
                 <th className="px-3 py-3 font-bold">Status</th>
@@ -641,12 +636,12 @@ function ReportRegisterSection({
               {filteredReports.map((report) => (
                 <tr
                   key={report.id}
-                  className={`border-b border-[#E6EAEC] last:border-0 hover:bg-[#DFE3E4]/35 ${
-                    selectedReport?.id === report.id ? "bg-[#2292A4]/10" : ""
+                  className={`border-b border-slate-100 last:border-0 hover:bg-[#009B35]/5 ${
+                    selectedReport?.id === report.id ? "bg-[#009B35]/10" : ""
                   }`}
                 >
                   <td className="px-3 py-4">
-                    <p className="font-black text-[#0B1726]">{report.title}</p>
+                    <p className="font-black text-[#030454]">{report.title}</p>
                     <p className="mt-1 line-clamp-2 text-xs text-slate-400">
                       {report.description || "No description"}
                     </p>
@@ -684,7 +679,7 @@ function ReportRegisterSection({
 
                   <td className="px-3 py-4">
                     {report.is_public ? (
-                      <span className="rounded-md bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
+                      <span className="rounded-md bg-[#009B35]/10 px-3 py-1 text-xs font-bold text-[#009B35]">
                         Public
                       </span>
                     ) : (
@@ -704,7 +699,7 @@ function ReportRegisterSection({
                         href={report.file_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="font-bold text-[#214560] hover:text-[#2292A4]"
+                        className="font-bold text-[#030454] hover:text-[#009B35]"
                       >
                         Open file
                       </a>
@@ -718,7 +713,7 @@ function ReportRegisterSection({
                       <button
                         type="button"
                         onClick={() => onViewReport(report)}
-                        className="rounded-md border border-[#CAD2D7] px-3 py-1 text-xs font-bold text-[#214560] hover:border-[#2292A4] hover:text-[#2292A4]"
+                        className="rounded-md border border-slate-200 px-3 py-1 text-xs font-bold text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
                       >
                         View
                       </button>
@@ -727,7 +722,7 @@ function ReportRegisterSection({
                         <button
                           type="button"
                           onClick={() => onEditReport(report)}
-                          className="rounded-md bg-[#2292A4] px-3 py-1 text-xs font-bold text-white hover:bg-[#1d7f90]"
+                          className="rounded-md bg-[#009B35] px-3 py-1 text-xs font-bold text-white transition hover:bg-[#00842e]"
                         >
                           Edit
                         </button>
@@ -960,7 +955,6 @@ export default function ReportsCentrePage({ currentUser }) {
   return (
     <div className="space-y-6">
       <CommandPageHeader
-        eyebrow="Reports centre"
         title="Reports Centre"
         description="Store, manage, review and publish climate risk reports, GHG inventory outputs, project portfolio reports, NDC progress reports, executive briefs and exported datasets."
         actions={
@@ -985,7 +979,7 @@ export default function ReportsCentrePage({ currentUser }) {
       )}
 
       {message && (
-        <CommandNotice title="Reports centre update" tone="blue">
+        <CommandNotice title="Reports centre update" tone="green">
           {message}
         </CommandNotice>
       )}
@@ -1015,7 +1009,7 @@ export default function ReportsCentrePage({ currentUser }) {
             onClear={() => setSelectedReport(null)}
           />
 
-          <CommandNotice title="Reports Centre Note" tone="gold">
+          <CommandNotice title="Reports Centre Note" tone="yellow">
             This page stores report files and metadata. Automated PDF generation
             can come later. For now, upload already prepared PDFs, Word files,
             Excel outputs, CSV exports, or briefing documents.

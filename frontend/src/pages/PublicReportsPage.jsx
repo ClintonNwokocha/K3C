@@ -3,6 +3,7 @@ import {
   PublicEmptyState,
   PublicPortalFooter,
   PublicPortalHeader,
+  PublicSectionIntro,
 } from "../components/PublicPortalChrome";
 import { getPublicReportDocuments } from "../services/api";
 
@@ -22,95 +23,131 @@ function formatNumber(value, maximumFractionDigits = 0) {
   });
 }
 
+function getOptionLabel(options, value) {
+  return options.find((item) => item.value === value)?.label || value || "—";
+}
+
+function getReportFileUrl(report) {
+  return (
+    report.file_url ||
+    report.document_url ||
+    report.file ||
+    report.download_url ||
+    ""
+  );
+}
+
+function normalizeReportsPayload(data) {
+  if (Array.isArray(data)) {
+    return {
+      results: data,
+      summary: {},
+    };
+  }
+
+  return {
+    results: data?.results || data?.reports || [],
+    summary: data?.summary || {},
+  };
+}
+
 function getTypeClass(type) {
-  if (type === "climate_risk") return "bg-[#2292A4]/10 text-[#214560]";
-  if (type === "ghg_inventory") return "bg-[#4E7492]/10 text-[#214560]";
-  if (type === "project_portfolio") return "bg-[#C8A84A]/18 text-[#0B1726]";
+  if (type === "climate_risk") return "bg-[#009B35]/10 text-[#009B35]";
+  if (type === "ghg_inventory") return "bg-[#030454]/10 text-[#030454]";
+  if (type === "project_portfolio") return "bg-[#F3F74B]/50 text-[#030454]";
   if (type === "ndc_progress") return "bg-orange-50 text-orange-700";
   if (type === "executive_brief") return "bg-indigo-50 text-indigo-700";
-  if (type === "data_export") return "bg-slate-100 text-slate-700";
-
+  if (type === "data_export") return "bg-cyan-50 text-cyan-700";
   return "bg-slate-100 text-slate-700";
 }
 
-function getYearOptions(reports) {
-  const years = reports
-    .map((report) => report.reporting_year)
-    .filter(Boolean);
-
-  return Array.from(new Set(years)).sort((a, b) => b - a);
-}
-
-function ReportStat({ label, value, tone = "default" }) {
-  const toneClasses = {
-    default: "border-[#CAD2D7] bg-white",
-    blue: "border-[#4E7492]/35 bg-[#4E7492]/8",
-    teal: "border-[#2292A4]/35 bg-[#2292A4]/8",
-    gold: "border-[#C8A84A]/45 bg-[#C8A84A]/12",
-  };
-
+function StatCard({ label, value, helper }) {
   return (
-    <div
-      className={`rounded-lg border p-5 shadow-sm ${
-        toneClasses[tone] || toneClasses.default
-      }`}
-    >
-      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">
+    <div className="rounded-sm border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">
         {label}
       </p>
-      <p className="mt-3 font-['Playfair_Display'] text-4xl font-bold text-[#0B1726]">
-        {formatNumber(value)}
+
+      <p className="mt-3 font-['Playfair_Display'] text-4xl font-bold text-[#030454]">
+        {value}
       </p>
+
+      {helper && <p className="mt-2 text-xs leading-5 text-slate-500">{helper}</p>}
     </div>
   );
 }
 
 function ReportCard({ report }) {
+  const fileUrl = getReportFileUrl(report);
+
   return (
-    <article className="rounded-lg border border-[#CAD2D7] bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:border-[#4E7492]/60 hover:shadow-md">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <article className="flex h-full flex-col rounded-sm border border-slate-200 bg-white p-6 shadow-sm transition hover:border-[#009B35]/60 hover:shadow-md">
+      <div className="mb-4 flex flex-wrap gap-2">
         <span
-          className={`rounded-md px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${getTypeClass(
+          className={`rounded-sm px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${getTypeClass(
             report.report_type
           )}`}
         >
-          {report.report_type_display}
+          {report.report_type_display ||
+            getOptionLabel(reportTypeOptions, report.report_type)}
         </span>
 
-        <span className="rounded-md bg-[#DFE3E4]/70 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-slate-600">
-          {report.reporting_year || "No year"}
-        </span>
+        {report.reporting_year && (
+          <span className="rounded-sm bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-slate-600">
+            {report.reporting_year}
+          </span>
+        )}
       </div>
 
-      <h3 className="mt-5 text-lg font-bold leading-snug text-[#0B1726]">
+      <h3 className="text-xl font-black leading-snug text-[#030454]">
         {report.title}
       </h3>
 
-      <p className="mt-3 line-clamp-4 text-sm font-light leading-6 text-slate-600">
-        {report.description || "No description provided."}
+      <p className="mt-3 line-clamp-3 text-sm leading-7 text-slate-600">
+        {report.description || "No report description has been provided."}
       </p>
 
-      <div className="mt-5 border-t border-[#E6EAEC] pt-4 text-xs text-slate-500">
-        <span className="font-bold uppercase tracking-[0.1em] text-slate-400">
-          Source Module:
-        </span>{" "}
-        {report.source_module || "Not specified"}
+      <div className="mt-6 grid gap-3 border-t border-slate-200 pt-5 text-xs text-slate-500">
+        {report.source_module && (
+          <p>
+            <span className="font-bold text-[#030454]">Source module:</span>{" "}
+            {report.source_module}
+          </p>
+        )}
+
+        {report.generated_by_name && (
+          <p>
+            <span className="font-bold text-[#030454]">Generated by:</span>{" "}
+            {report.generated_by_name}
+          </p>
+        )}
+
+        {report.created_at && (
+          <p>
+            <span className="font-bold text-[#030454]">Uploaded:</span>{" "}
+            {new Date(report.created_at).toLocaleDateString()}
+          </p>
+        )}
       </div>
 
-      <div className="mt-5">
-        {report.file_url ? (
+      <div className="mt-auto pt-6">
+        {fileUrl ? (
           <a
-            href={report.file_url}
+            href={fileUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex rounded-md bg-[#2292A4] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white transition hover:bg-[#1d7f90]"
+            className="inline-flex w-full items-center justify-center rounded-sm bg-[#009B35] px-5 py-3 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
           >
             Open Report
           </a>
         ) : (
-          <span className="inline-flex rounded-md border border-[#CAD2D7] px-5 py-3 text-xs font-bold uppercase tracking-[0.08em] text-slate-400">
-            File Not Attached
-          </span>
+          <button
+            type="button"
+            disabled
+            className="inline-flex w-full cursor-not-allowed items-center justify-center rounded-sm bg-slate-100 px-5 py-3 text-sm font-black uppercase tracking-[0.08em] text-slate-400"
+          >
+            File Unavailable
+          </button>
         )}
       </div>
     </article>
@@ -135,7 +172,7 @@ export default function PublicReportsPage() {
     try {
       const params = {};
 
-      if (filters.report_type !== "all") {
+      if (filters.report_type && filters.report_type !== "all") {
         params.report_type = filters.report_type;
       }
 
@@ -143,12 +180,8 @@ export default function PublicReportsPage() {
         params.reporting_year = filters.reporting_year;
       }
 
-      if (filters.search.trim()) {
-        params.search = filters.search.trim();
-      }
-
       const data = await getPublicReportDocuments(params);
-      setReportsData(data);
+      setReportsData(normalizeReportsPayload(data));
     } catch (err) {
       console.error(err);
       setError("Could not load public reports.");
@@ -164,7 +197,63 @@ export default function PublicReportsPage() {
 
   const reports = reportsData?.results || [];
   const summary = reportsData?.summary || {};
-  const yearOptions = useMemo(() => getYearOptions(reports), [reports]);
+
+  const filteredReports = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+
+    if (!search) return reports;
+
+    return reports.filter((report) => {
+      return (
+        String(report.title || "").toLowerCase().includes(search) ||
+        String(report.description || "").toLowerCase().includes(search) ||
+        String(report.report_type_display || "")
+          .toLowerCase()
+          .includes(search) ||
+        String(report.source_module || "").toLowerCase().includes(search)
+      );
+    });
+  }, [reports, filters.search]);
+
+  const years = useMemo(() => {
+    const yearSet = new Set();
+
+    reports.forEach((report) => {
+      if (report.reporting_year) {
+        yearSet.add(String(report.reporting_year));
+      }
+    });
+
+    return Array.from(yearSet).sort((a, b) => Number(b) - Number(a));
+  }, [reports]);
+
+  const heroStats = useMemo(() => {
+    return [
+      {
+        label: "Public Reports",
+        value: summary.total_reports || reports.length || 0,
+      },
+      {
+        label: "Published Documents",
+        value: summary.published_reports || reports.length || 0,
+      },
+      {
+        label: "Report Types",
+        value:
+          summary.report_type_count ||
+          new Set(reports.map((report) => report.report_type).filter(Boolean))
+            .size ||
+          0,
+      },
+      {
+        label: "Latest Year",
+        value:
+          summary.latest_year ||
+          years[0] ||
+          new Date().getFullYear().toString(),
+      },
+    ];
+  }, [summary, reports, years]);
 
   function updateFilter(field, value) {
     setFilters((current) => ({
@@ -173,98 +262,44 @@ export default function PublicReportsPage() {
     }));
   }
 
-  function handleSearchSubmit(event) {
-    event.preventDefault();
-    loadReports();
-  }
-
   return (
-    <main className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#0B1726]">
+    <main className="min-h-screen bg-white font-['DM_Sans'] text-[#030454]">
       <PublicPortalHeader
         activePage="reports"
         compact
-        tag="Published Climate Evidence"
-        title={
-          <>
-            Public Reports and
-            <br />
-            <span className="text-[#C8A84A]">Evidence Library</span>
-          </>
-        }
-        description="Access published climate reports, executive briefs, GHG inventory outputs, project summaries, NDC progress reports and validated public data exports."
-        primaryActionLabel="Browse Reports"
-        secondaryActionLabel="Public Home"
-        onPrimaryAction={() => {
-          const section = document.getElementById("reports-library");
-          section?.scrollIntoView({ behavior: "smooth" });
-        }}
-        onSecondaryAction={() => {
-          window.location.href = "/public";
-        }}
+        title={<>Public reports and evidence documents</>}
+        description={[
+          "Access approved climate reports, evidence documents, public briefs and validated outputs published through the Kaduna Climate Command Centre.",
+          "Only documents approved for public access are displayed here.",
+        ]}
+        stats={heroStats}
+        showStats
+        showActions={false}
       />
 
-      <section className="mx-auto max-w-7xl space-y-8 px-4 py-10 sm:px-10">
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      {error && (
+        <section className="px-4 py-4 sm:px-8 lg:px-10">
+          <div className="mx-auto max-w-7xl rounded-sm border border-red-200 bg-red-50 p-4 text-sm text-red-700">
             {error}
           </div>
-        )}
-
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <ReportStat
-            label="Published Reports"
-            value={summary.total_public_reports || 0}
-          />
-
-          <ReportStat
-            label="Climate Risk Reports"
-            value={summary.by_type?.climate_risk || 0}
-            tone="teal"
-          />
-
-          <ReportStat
-            label="GHG Inventory Reports"
-            value={summary.by_type?.ghg_inventory || 0}
-            tone="blue"
-          />
-
-          <ReportStat
-            label="Project Portfolio Reports"
-            value={summary.by_type?.project_portfolio || 0}
-            tone="gold"
-          />
         </section>
+      )}
 
-        <section
-          id="reports-library"
-          className="rounded-lg border border-[#CAD2D7] bg-white p-6 shadow-sm"
-        >
-          <div className="mb-6 grid gap-6 lg:grid-cols-[1fr_auto] lg:items-end">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#2292A4]">
-                Published evidence
-              </p>
+      <section className="px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-10 lg:grid-cols-[0.85fr_1.15fr] lg:items-end">
+            <PublicSectionIntro
+              title="Published reports"
+              description="Browse public-facing climate risk reports, greenhouse gas inventory outputs, project portfolio reports, executive briefs and data exports."
+            />
 
-              <h2 className="mt-2 font-['Playfair_Display'] text-4xl font-bold text-[#0B1726]">
-                Reports Library
-              </h2>
-
-              <p className="mt-3 max-w-2xl text-sm font-light leading-7 text-slate-600">
-                Filter published public reports by type, year or keyword.
-                Documents shown here are intended for public access.
-              </p>
-            </div>
-
-            <form
-              onSubmit={handleSearchSubmit}
-              className="grid gap-3 sm:grid-cols-2 lg:flex lg:flex-wrap lg:justify-end"
-            >
+            <div className="grid gap-3 md:grid-cols-3">
               <select
                 value={filters.report_type}
                 onChange={(event) =>
                   updateFilter("report_type", event.target.value)
                 }
-                className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10"
+                className="rounded-sm border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
               >
                 <option value="all">All report types</option>
                 {reportTypeOptions.map((item) => (
@@ -279,10 +314,10 @@ export default function PublicReportsPage() {
                 onChange={(event) =>
                   updateFilter("reporting_year", event.target.value)
                 }
-                className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10"
+                className="rounded-sm border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
               >
                 <option value="">All years</option>
-                {yearOptions.map((year) => (
+                {years.map((year) => (
                   <option key={year} value={year}>
                     {year}
                   </option>
@@ -293,42 +328,77 @@ export default function PublicReportsPage() {
                 value={filters.search}
                 onChange={(event) => updateFilter("search", event.target.value)}
                 placeholder="Search reports..."
-                className="rounded-md border border-[#CAD2D7] bg-white px-4 py-3 text-sm outline-none focus:border-[#2292A4] focus:ring-2 focus:ring-[#2292A4]/10 sm:col-span-2 lg:min-w-[260px]"
+                className="rounded-sm border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
               />
+            </div>
+          </div>
 
-              <button
-                type="submit"
-                className="rounded-md bg-[#C8A84A] px-6 py-3 text-xs font-bold uppercase tracking-[0.08em] text-[#0B1726] transition hover:bg-[#d8b85c]"
-              >
-                Search
-              </button>
-            </form>
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            <StatCard
+              label="Loaded Reports"
+              value={formatNumber(filteredReports.length)}
+              helper="Reports currently matching your filters."
+            />
+
+            <StatCard
+              label="Available Years"
+              value={formatNumber(years.length)}
+              helper="Reporting years represented in the public library."
+            />
+
+            <StatCard
+              label="Document Access"
+              value="Public"
+              helper="Only published and public-facing records are shown."
+            />
           </div>
 
           {isLoading ? (
-            <div className="rounded-lg border border-[#CAD2D7] bg-[#DFE3E4]/45 p-6 text-sm text-slate-500">
+            <div className="mt-10 rounded-sm border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
               Loading public reports...
             </div>
-          ) : reports.length === 0 ? (
-            <PublicEmptyState
-              title="No published public reports yet"
-              message="Reports will appear here after they are marked as Published and Public in the internal Reports Centre."
-            />
           ) : (
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {reports.map((report) => (
-                <ReportCard key={report.id} report={report} />
-              ))}
+            <div className="mt-10">
+              {filteredReports.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                  {filteredReports.map((report) => (
+                    <ReportCard key={report.id || report.title} report={report} />
+                  ))}
+                </div>
+              ) : (
+                <PublicEmptyState
+                  title="No public reports found"
+                  message="No published public reports match the selected filters."
+                />
+              )}
             </div>
           )}
-        </section>
+        </div>
+      </section>
 
-        <section className="border-l-4 border-[#2292A4] bg-white px-5 py-4 text-xs leading-6 text-slate-600">
-          <strong className="text-[#0B1726]">Public reports notice:</strong>{" "}
-          This library contains reports that have been marked as public and
-          published by authorised staff. Draft, internal, archived and non-public
-          reports are not displayed here.
-        </section>
+      <section className="border-y border-slate-200 bg-[#030454] px-4 py-12 text-white sm:px-8 lg:px-10">
+        <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1fr_auto] md:items-center">
+          <div>
+            <h3 className="font-['Playfair_Display'] text-3xl font-bold">
+              Return to climate intelligence portal
+            </h3>
+
+            <p className="mt-3 max-w-2xl text-sm font-light leading-7 text-white/70">
+              Go back to the public portal to view the climate risk map, public
+              project summary and partner information.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = "/public";
+            }}
+            className="w-fit rounded-sm bg-[#009B35] px-6 py-3 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
+          >
+            Back to Public Portal
+          </button>
+        </div>
       </section>
 
       <PublicPortalFooter />

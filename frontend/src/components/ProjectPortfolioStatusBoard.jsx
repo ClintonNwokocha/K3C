@@ -11,7 +11,7 @@ const statusColumns = [
     key: "planned",
     label: "Planned",
     description: "Approved or designed projects awaiting implementation.",
-    tone: "indigo",
+    tone: "yellow",
   },
   {
     key: "ongoing",
@@ -23,7 +23,7 @@ const statusColumns = [
     key: "completed",
     label: "Completed",
     description: "Projects that have been fully implemented.",
-    tone: "emerald",
+    tone: "green",
   },
   {
     key: "suspended",
@@ -57,23 +57,23 @@ function getColumnTone(tone) {
       badge: "bg-slate-100 text-slate-700",
       accent: "bg-slate-400",
     },
-    indigo: {
-      column: "border-indigo-200 bg-indigo-50/60",
-      header: "border-indigo-200 bg-white",
-      badge: "bg-indigo-100 text-indigo-700",
-      accent: "bg-indigo-500",
+    yellow: {
+      column: "border-[#F3F74B]/70 bg-[#F3F74B]/15",
+      header: "border-[#F3F74B]/70 bg-white",
+      badge: "bg-[#F3F74B]/45 text-[#030454]",
+      accent: "bg-[#F3F74B]",
     },
     blue: {
-      column: "border-blue-200 bg-blue-50/60",
-      header: "border-blue-200 bg-white",
-      badge: "bg-blue-100 text-blue-700",
-      accent: "bg-blue-500",
+      column: "border-[#030454]/15 bg-[#030454]/5",
+      header: "border-[#030454]/15 bg-white",
+      badge: "bg-[#030454]/10 text-[#030454]",
+      accent: "bg-[#030454]",
     },
-    emerald: {
-      column: "border-emerald-200 bg-emerald-50/60",
-      header: "border-emerald-200 bg-white",
-      badge: "bg-emerald-100 text-emerald-700",
-      accent: "bg-emerald-500",
+    green: {
+      column: "border-[#009B35]/20 bg-[#009B35]/8",
+      header: "border-[#009B35]/20 bg-white",
+      badge: "bg-[#009B35]/10 text-[#009B35]",
+      accent: "bg-[#009B35]",
     },
     amber: {
       column: "border-amber-200 bg-amber-50/60",
@@ -95,8 +95,8 @@ function getColumnTone(tone) {
 function getPriorityClass(priority) {
   if (priority === "very_high") return "bg-red-50 text-red-700";
   if (priority === "high") return "bg-orange-50 text-orange-700";
-  if (priority === "medium") return "bg-[#C8A84A]/15 text-[#0B1726]";
-  return "bg-[#4E7492]/10 text-[#214560]";
+  if (priority === "medium") return "bg-[#F3F74B]/45 text-[#030454]";
+  return "bg-[#009B35]/10 text-[#009B35]";
 }
 
 function truncateText(value, fallback = "Not specified") {
@@ -113,7 +113,7 @@ function BoardMetaRow({ label, value, strong = false }) {
       <span
         title={displayValue}
         className={`min-w-0 truncate text-right ${
-          strong ? "font-black text-[#0B1726]" : "font-bold text-slate-700"
+          strong ? "font-black text-[#030454]" : "font-bold text-slate-700"
         }`}
       >
         {displayValue}
@@ -124,13 +124,13 @@ function BoardMetaRow({ label, value, strong = false }) {
 
 function ProjectMiniCard({ project, canManage, onViewProject, onEditProject }) {
   return (
-    <article className="overflow-hidden rounded-xl border border-[#CAD2D7] bg-white shadow-sm transition hover:border-[#4E7492]/60 hover:shadow-md">
+    <article className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition hover:border-[#009B35]/60 hover:shadow-md">
       <div className="p-4">
         <div className="mb-3 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <h4
               title={project.title}
-              className="line-clamp-2 text-sm font-black leading-5 text-[#0B1726]"
+              className="line-clamp-2 text-sm font-black leading-5 text-[#030454]"
             >
               {project.title || "Untitled project"}
             </h4>
@@ -152,13 +152,10 @@ function ProjectMiniCard({ project, canManage, onViewProject, onEditProject }) {
           </span>
         </div>
 
-        <div className="rounded-lg border border-[#E6EAEC] bg-[#DFE3E4]/25 p-3">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
           <div className="grid gap-2">
             <BoardMetaRow label="LGA" value={project.lga_name || "Statewide"} />
-            <BoardMetaRow
-              label="Agency"
-              value={project.implementing_agency}
-            />
+            <BoardMetaRow label="Agency" value={project.implementing_agency} />
             <BoardMetaRow label="Funding" value={project.funding_source} />
             <BoardMetaRow
               label="Sector"
@@ -167,7 +164,7 @@ function ProjectMiniCard({ project, canManage, onViewProject, onEditProject }) {
           </div>
         </div>
 
-        <div className="mt-3 grid gap-2 rounded-lg border border-[#E6EAEC] bg-white p-3">
+        <div className="mt-3 grid gap-2 rounded-lg border border-slate-200 bg-white p-3">
           <BoardMetaRow
             label="Budget"
             value={formatMoney(project.estimated_budget_naira)}
@@ -192,7 +189,7 @@ function ProjectMiniCard({ project, canManage, onViewProject, onEditProject }) {
           <button
             type="button"
             onClick={() => onViewProject(project)}
-            className="rounded-md border border-[#CAD2D7] bg-white px-3 py-1.5 text-xs font-bold text-[#214560] transition hover:border-[#2292A4] hover:text-[#2292A4]"
+            className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
           >
             View
           </button>
@@ -201,7 +198,7 @@ function ProjectMiniCard({ project, canManage, onViewProject, onEditProject }) {
             <button
               type="button"
               onClick={() => onEditProject(project)}
-              className="rounded-md bg-[#2292A4] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#1d7f90]"
+              className="rounded-md bg-[#009B35] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#00842e]"
             >
               Edit
             </button>
@@ -267,15 +264,13 @@ export default function ProjectPortfolioStatusBoard({
               key={column.key}
               className={`flex w-[320px] shrink-0 flex-col rounded-2xl border p-3 ${tone.column}`}
             >
-              <div
-                className={`overflow-hidden rounded-xl border ${tone.header}`}
-              >
+              <div className={`overflow-hidden rounded-xl border ${tone.header}`}>
                 <div className={`h-1.5 ${tone.accent}`} />
 
                 <div className="p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="font-black text-[#0B1726]">
+                      <p className="font-black text-[#030454]">
                         {column.label}
                       </p>
                       <p className="mt-2 min-h-[42px] text-xs leading-5 text-slate-500">
@@ -322,7 +317,7 @@ export default function ProjectPortfolioStatusBoard({
                 ))}
 
                 {columnProjects.length === 0 && (
-                  <div className="flex min-h-[140px] items-center justify-center rounded-xl border border-dashed border-[#CAD2D7] bg-white/70 p-4 text-center text-xs text-slate-400">
+                  <div className="flex min-h-[140px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/70 p-4 text-center text-xs text-slate-400">
                     No {column.label.toLowerCase()} projects.
                   </div>
                 )}
