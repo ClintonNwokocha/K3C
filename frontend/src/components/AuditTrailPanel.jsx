@@ -88,7 +88,7 @@ export default function AuditTrailPanel() {
   const [filters, setFilters] = useState({
     search: "",
     action: "",
-    limit: "100",
+    limit: "10",
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -243,6 +243,8 @@ export default function AuditTrailPanel() {
           onChange={(event) => updateFilter("limit", event.target.value)}
           className={inputClass}
         >
+          <option value="5">Latest 5</option>
+          <option value="10">Latest 10</option>
           <option value="50">Latest 50</option>
           <option value="100">Latest 100</option>
           <option value="250">Latest 250</option>

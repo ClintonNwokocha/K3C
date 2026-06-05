@@ -95,10 +95,6 @@ def build_public_project_summary():
 
     total_projects = projects.count()
 
-    total_budget = projects.aggregate(
-        value=Sum("estimated_budget_naira")
-    ).get("value") or Decimal("0.00")
-
     total_ghg_reduction = projects.aggregate(
         value=Sum("expected_ghg_reduction_tco2e")
     ).get("value") or Decimal("0.000")
@@ -121,8 +117,6 @@ def build_public_project_summary():
     for row in projects.values("project_type").annotate(count=Count("id")):
         by_type[row["project_type"]] = row["count"]
 
-    top_projects = []
-
     priority_rank = {
         "very_high": 4,
         "high": 3,
@@ -134,13 +128,13 @@ def build_public_project_summary():
         projects.select_related("lga")[:100],
         key=lambda project: (
             priority_rank.get(project.priority, 0),
-            project.estimated_budget_naira,
+            project.expected_ghg_reduction_tco2e,
         ),
         reverse=True,
     )
 
-    for project in sorted_projects[:5]:
-        top_projects.append({
+    def serialize_public_project(project):
+        return {
             "id": project.id,
             "title": project.title,
             "project_code": project.project_code,
@@ -153,25 +147,27 @@ def build_public_project_summary():
             "priority": project.priority,
             "priority_display": project.get_priority_display(),
             "lga_name": getattr(project.lga, "lga_name", "") if project.lga else "",
-            "estimated_budget_naira": decimal_to_float(
-                project.estimated_budget_naira
-            ),
+            "funding_source": project.funding_source or "Not specified",
             "expected_ghg_reduction_tco2e": decimal_to_float(
                 project.expected_ghg_reduction_tco2e
             ),
             "expected_beneficiaries": project.expected_beneficiaries,
-        })
+        }
+
+    public_projects = [
+        serialize_public_project(project) for project in sorted_projects
+    ]
 
     return {
         "total_projects": total_projects,
-        "total_budget_naira": decimal_to_float(total_budget),
         "total_expected_ghg_reduction_tco2e": decimal_to_float(
             total_ghg_reduction
         ),
         "total_expected_beneficiaries": total_beneficiaries,
         "by_status": by_status,
         "by_type": by_type,
-        "top_projects": top_projects,
+        "top_projects": public_projects[:5],
+        "public_projects": public_projects,
     }
 
 
@@ -357,6 +353,7 @@ def public_climate_projects(request):
     project_type = request.query_params.get("project_type")
     sector = request.query_params.get("sector")
     status_filter = request.query_params.get("status")
+    funding_source = request.query_params.get("funding_source")
     search = request.query_params.get("search")
 
     projects = (
@@ -375,12 +372,11 @@ def public_climate_projects(request):
     if status_filter and status_filter != "all":
         projects = projects.filter(status=status_filter)
 
+    if funding_source and funding_source != "all":
+        projects = projects.filter(funding_source=funding_source)
+
     if search:
         projects = projects.filter(title__icontains=search)
-
-    total_budget = projects.aggregate(
-        value=Sum("estimated_budget_naira")
-    ).get("value") or Decimal("0.00")
 
     total_ghg_reduction = projects.aggregate(
         value=Sum("expected_ghg_reduction_tco2e")
@@ -421,9 +417,7 @@ def public_climate_projects(request):
             "priority_display": project.get_priority_display(),
             "lga": project.lga_id,
             "lga_name": getattr(project.lga, "lga_name", "") if project.lga else "",
-            "estimated_budget_naira": decimal_to_float(
-                project.estimated_budget_naira
-            ),
+            "funding_source": project.funding_source or "Not specified",
             "expected_ghg_reduction_tco2e": decimal_to_float(
                 project.expected_ghg_reduction_tco2e
             ),
@@ -436,7 +430,6 @@ def public_climate_projects(request):
         "message": "Public climate projects loaded.",
         "summary": {
             "total_projects": projects.count(),
-            "total_budget_naira": decimal_to_float(total_budget),
             "total_expected_ghg_reduction_tco2e": decimal_to_float(
                 total_ghg_reduction
             ),

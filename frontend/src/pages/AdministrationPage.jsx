@@ -253,7 +253,7 @@ export default function AdministrationPage({ foundation }) {
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+      <section className="grid gap-6 xl:grid-cols-[220px_1fr]">
         <form onSubmit={handleSubmit}>
           <CommandSection
             title="Create new user"
