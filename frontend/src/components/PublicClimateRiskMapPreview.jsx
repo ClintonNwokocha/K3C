@@ -2,6 +2,7 @@ import L from "leaflet";
 import { useEffect, useMemo, useState } from "react";
 import { GeoJSON, MapContainer, TileLayer, useMap } from "react-leaflet";
 import { getPublicClimateRiskProfiles } from "../services/api";
+import "leaflet/dist/leaflet.css";
 
 const KADUNA_CENTER = [10.45, 7.75];
 const KADUNA_ZOOM = 7;
@@ -11,14 +12,60 @@ const NIGERIA_BOUNDS = [
   [14.5, 15.5],
 ];
 
-const COLORS = {
-  green: "#009B35",
-  blue: "#030454",
-  yellow: "#F3F74B",
-  white: "#FFFFFF",
-  border: "#D8DDE2",
-  muted: "#F5F7F8",
+const RISK_LAYER_CONFIG = {
+  overall: {
+    label: "Overall Risk",
+    field: "overall_risk_score",
+    reverse: false,
+    note: "Higher score means higher overall climate risk.",
+  },
+  flood: {
+    label: "Flood Risk",
+    field: "flood_risk_score",
+    reverse: false,
+    note: "Higher score means higher flood concern.",
+  },
+  drought: {
+    label: "Drought Risk",
+    field: "drought_risk_score",
+    reverse: false,
+    note: "Higher score means higher drought concern.",
+  },
+  heat: {
+    label: "Heat Risk",
+    field: "heat_risk_score",
+    reverse: false,
+    note: "Higher score means higher heat concern.",
+  },
+  erosion: {
+    label: "Erosion Risk",
+    field: "erosion_risk_score",
+    reverse: false,
+    note: "Higher score means higher erosion concern.",
+  },
+  exposure: {
+    label: "Exposure",
+    field: "exposure_score",
+    reverse: false,
+    note: "Higher score means more people, assets or infrastructure are exposed.",
+  },
+  vulnerability: {
+    label: "Vulnerability",
+    field: "vulnerability_score",
+    reverse: false,
+    note: "Higher score means greater vulnerability.",
+  },
+  adaptive_capacity: {
+    label: "Adaptive Capacity",
+    field: "adaptive_capacity_score",
+    reverse: true,
+    note: "Higher score means stronger capacity. Weak capacity is treated as higher concern.",
+  },
 };
+
+function getLayerConfig(activeLayer) {
+  return RISK_LAYER_CONFIG[activeLayer] || RISK_LAYER_CONFIG.overall;
+}
 
 function normalizeName(value) {
   return String(value || "")
@@ -26,10 +73,22 @@ function normalizeName(value) {
     .toLowerCase()
     .replace(/’/g, "'")
     .replace(/`/g, "'")
-    .replace(/ʻ/g, "'")
     .replace(/-/g, " ")
     .replace(/_/g, " ")
     .replace(/\s+/g, " ");
+}
+
+function hasValidScore(value) {
+  if (value === null || value === undefined || value === "") return false;
+  return Number.isFinite(Number(value));
+}
+
+function formatNumber(value) {
+  if (!hasValidScore(value)) return "—";
+
+  return Number(value).toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+  });
 }
 
 function escapeHtml(value) {
@@ -44,11 +103,10 @@ function escapeHtml(value) {
 function getFeatureDisplayName(feature) {
   const properties = feature?.properties || {};
 
-  const preferredKeys = [
+  const keys = [
     "lganame",
     "lga_name",
     "LGA_NAME",
-    "lgaName",
     "LGA",
     "lga",
     "LGANAME",
@@ -57,11 +115,9 @@ function getFeatureDisplayName(feature) {
     "NAME_2",
     "NAME",
     "name",
-    "shapeName",
-    "shape_name",
   ];
 
-  for (const key of preferredKeys) {
+  for (const key of keys) {
     if (properties[key]) {
       return String(properties[key]).trim();
     }
@@ -70,26 +126,40 @@ function getFeatureDisplayName(feature) {
   return String(Object.values(properties)[0] || "Unnamed LGA").trim();
 }
 
-function getRiskColor(value) {
-  const number = Number(value || 0);
+function getLayerColor(value, layerConfig) {
+  if (!hasValidScore(value)) return "#CBD5E1";
 
-  if (number >= 75) return COLORS.blue;
-  if (number >= 60) return "#1E2378";
-  if (number >= 40) return COLORS.yellow;
-  if (number > 0) return COLORS.green;
+  const number = Number(value);
 
-  return "#E6EAEC";
+  if (layerConfig.reverse) {
+    if (number >= 70) return "#009B35";
+    if (number >= 55) return "#030454";
+    if (number >= 40) return "#F3F74B";
+    return "#B91C1C";
+  }
+
+  if (number >= 75) return "#B91C1C";
+  if (number >= 60) return "#EA580C";
+  if (number >= 40) return "#F3F74B";
+  return "#009B35";
 }
 
-function getRiskOpacity(value) {
-  const number = Number(value || 0);
+function getLayerClass(value, layerConfig) {
+  if (!hasValidScore(value)) return "No public data";
 
-  if (number >= 75) return 0.9;
-  if (number >= 60) return 0.78;
-  if (number >= 40) return 0.72;
-  if (number > 0) return 0.72;
+  const number = Number(value);
 
-  return 0.2;
+  if (layerConfig.reverse) {
+    if (number >= 70) return "Strong";
+    if (number >= 55) return "Fair";
+    if (number >= 40) return "Weak";
+    return "Very Weak";
+  }
+
+  if (number >= 75) return "Very High";
+  if (number >= 60) return "High";
+  if (number >= 40) return "Moderate";
+  return "Low";
 }
 
 function buildProfileLookup(profiles) {
@@ -99,37 +169,30 @@ function buildProfileLookup(profiles) {
   }, {});
 }
 
-function MapResizeAndFitHandler({ geoJsonData }) {
+function FitGeoJsonBounds({ geoJsonData }) {
   const map = useMap();
 
   useEffect(() => {
-    if (!geoJsonData?.features?.length) return undefined;
+    if (!geoJsonData) return undefined;
 
-    const runResizeAndFit = () => {
+    const timer = window.setTimeout(() => {
       try {
         map.invalidateSize();
 
-        const layer = L.geoJSON(geoJsonData);
-        const bounds = layer.getBounds();
+        const bounds = L.geoJSON(geoJsonData).getBounds();
 
         if (bounds.isValid()) {
           map.fitBounds(bounds, {
-            padding: [28, 28],
+            padding: [24, 24],
             maxZoom: 9,
           });
         }
       } catch (error) {
         console.error(error);
       }
-    };
+    }, 200);
 
-    const firstTimer = window.setTimeout(runResizeAndFit, 150);
-    const secondTimer = window.setTimeout(runResizeAndFit, 600);
-
-    return () => {
-      window.clearTimeout(firstTimer);
-      window.clearTimeout(secondTimer);
-    };
+    return () => window.clearTimeout(timer);
   }, [geoJsonData, map]);
 
   return null;
@@ -142,16 +205,14 @@ function ResetMapButton({ geoJsonData }) {
     try {
       map.invalidateSize();
 
-      if (geoJsonData?.features?.length) {
-        const bounds = L.geoJSON(geoJsonData).getBounds();
+      const bounds = L.geoJSON(geoJsonData).getBounds();
 
-        if (bounds.isValid()) {
-          map.fitBounds(bounds, {
-            padding: [28, 28],
-            maxZoom: 9,
-          });
-          return;
-        }
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, {
+          padding: [24, 24],
+          maxZoom: 9,
+        });
+        return;
       }
     } catch (error) {
       console.error(error);
@@ -164,35 +225,54 @@ function ResetMapButton({ geoJsonData }) {
     <button
       type="button"
       onClick={handleReset}
-      className="absolute right-4 top-4 z-[650] rounded-sm bg-[#030454] px-4 py-2 text-xs font-bold uppercase tracking-[0.08em] text-white shadow-lg transition hover:bg-[#009B35]"
+      className="absolute right-4 top-4 z-[650] rounded-md bg-[#030454] px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-white shadow-lg transition hover:bg-[#009B35]"
     >
       Reset
     </button>
   );
 }
 
-function MapLegend() {
-  const items = [
-    { label: "Low", color: COLORS.green },
-    { label: "Moderate", color: COLORS.yellow },
-    { label: "High", color: "#1E2378" },
-    { label: "Very High", color: COLORS.blue },
-  ];
+function MapLegend({ layerConfig }) {
+  const items = layerConfig.reverse
+    ? [
+        { label: "Very Weak", color: "#B91C1C", range: "0–39" },
+        { label: "Weak", color: "#F3F74B", range: "40–54" },
+        { label: "Fair", color: "#030454", range: "55–69" },
+        { label: "Strong", color: "#009B35", range: "70–100" },
+      ]
+    : [
+        { label: "Low", color: "#009B35", range: "0–39" },
+        { label: "Moderate", color: "#F3F74B", range: "40–59" },
+        { label: "High", color: "#EA580C", range: "60–74" },
+        { label: "Very High", color: "#B91C1C", range: "75–100" },
+      ];
 
   return (
-    <div className="absolute bottom-4 left-4 z-[650] rounded-sm border border-slate-200 bg-white/95 p-4 text-xs shadow-lg backdrop-blur">
-      <p className="mb-3 font-black uppercase tracking-[0.1em] text-[#030454]">
-        Risk Legend
+    <div className="absolute bottom-4 left-4 z-[650] w-72 rounded-lg border border-slate-200 bg-white/95 p-4 text-xs shadow-lg backdrop-blur">
+      <p className="mb-1 font-black uppercase tracking-[0.1em] text-[#030454]">
+        {layerConfig.label} Legend
+      </p>
+
+      <p className="mb-3 text-[11px] leading-5 text-slate-500">
+        {layerConfig.note}
       </p>
 
       <div className="grid gap-2">
         {items.map((item) => (
-          <div key={item.label} className="flex items-center gap-2">
-            <span
-              className="h-3 w-3 rounded-sm"
-              style={{ backgroundColor: item.color }}
-            />
-            <span className="font-medium text-slate-600">{item.label}</span>
+          <div
+            key={item.label}
+            className="flex items-center justify-between gap-6"
+          >
+            <div className="flex items-center gap-2">
+              <span
+                className="h-3 w-3 rounded-sm border border-white shadow-sm"
+                style={{ backgroundColor: item.color }}
+              />
+
+              <span className="text-slate-600">{item.label}</span>
+            </div>
+
+            <span className="font-bold text-slate-400">{item.range}</span>
           </div>
         ))}
       </div>
@@ -200,92 +280,94 @@ function MapLegend() {
   );
 }
 
-export default function PublicClimateRiskMapPreview() {
-  const [riskData, setRiskData] = useState(null);
+export default function PublicClimateRiskMapPreview({
+  activeLayer = "overall",
+  height = "650px",
+  onProfilesLoaded,
+}) {
+  const [profiles, setProfiles] = useState([]);
   const [geoJsonData, setGeoJsonData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [mapError, setMapError] = useState("");
-  const [dataError, setDataError] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-  async function loadRiskProfiles() {
-    setIsLoading(true);
-    setDataError("");
-
-    try {
-      const data = await getPublicClimateRiskProfiles();
-      setRiskData(data);
-    } catch (error) {
-      console.error(error);
-      setDataError("Could not load public climate risk profiles.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const layerConfig = getLayerConfig(activeLayer);
+  const profileLookup = useMemo(() => buildProfileLookup(profiles), [profiles]);
 
   useEffect(() => {
-    loadRiskProfiles();
-  }, []);
+    let mounted = true;
 
-  useEffect(() => {
-    let isMounted = true;
+    async function loadData() {
+      setIsLoading(true);
+      setErrorMessage("");
 
-    async function loadGeoJson() {
       try {
-        const response = await fetch("/data/kaduna_lgas.geojson", {
-          cache: "no-cache",
-        });
+        const [profileData, geoResponse] = await Promise.all([
+          getPublicClimateRiskProfiles(),
+          fetch("/data/kaduna_lgas.geojson", {
+            cache: "no-cache",
+          }),
+        ]);
 
-        if (!response.ok) {
+        if (!geoResponse.ok) {
           throw new Error("Kaduna LGA boundary file could not be loaded.");
         }
 
-        const data = await response.json();
+        const geoJson = await geoResponse.json();
 
-        if (!data?.features?.length) {
+        if (!geoJson?.features?.length) {
           throw new Error("Kaduna LGA boundary file has no features.");
         }
 
-        if (isMounted) {
-          setGeoJsonData(data);
-          setMapError("");
+        const loadedProfiles = profileData.results || [];
+
+        if (mounted) {
+          setProfiles(loadedProfiles);
+          setGeoJsonData(geoJson);
+
+          if (typeof onProfilesLoaded === "function") {
+            onProfilesLoaded(loadedProfiles);
+          }
         }
       } catch (error) {
         console.error(error);
 
-        if (isMounted) {
-          setGeoJsonData(null);
-          setMapError(
-            "Kaduna LGA boundary file is not available. Add public/data/kaduna_lgas.geojson to show the public map."
+        if (mounted) {
+          setErrorMessage(
+            "Could not load the public climate risk map. Check that frontend/public/data/kaduna_lgas.geojson exists and that public risk profiles are available."
           );
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
         }
       }
     }
 
-    loadGeoJson();
+    loadData();
 
     return () => {
-      isMounted = false;
+      mounted = false;
     };
-  }, []);
-
-  const profiles = riskData?.results || [];
-  const summary = riskData?.summary || {};
-  const profileLookup = useMemo(() => buildProfileLookup(profiles), [profiles]);
+  }, [onProfilesLoaded]);
 
   function resolveProfile(feature) {
     const featureName = getFeatureDisplayName(feature);
     return profileLookup[normalizeName(featureName)] || null;
   }
 
+  function getLayerScore(profile) {
+    return profile?.[layerConfig.field];
+  }
+
   function getFeatureStyle(feature) {
     const profile = resolveProfile(feature);
-    const score = profile?.overall_risk_score || 0;
+    const score = getLayerScore(profile);
 
     return {
-      color: COLORS.white,
-      weight: 1.6,
-      fillColor: getRiskColor(score),
-      fillOpacity: profile ? getRiskOpacity(score) : 0.2,
+      color: "#ffffff",
+      weight: 1.4,
+      fillColor: getLayerColor(score, layerConfig),
+      fillOpacity: profile ? 0.82 : 0.45,
       opacity: 1,
       dashArray: profile ? "" : "2",
     };
@@ -304,11 +386,26 @@ export default function PublicClimateRiskMapPreview() {
       `;
     }
 
+    const selectedScore = getLayerScore(profile);
+
     return `
-      <div style="min-width: 220px;">
+      <div style="min-width: 260px;">
         <strong>${escapeHtml(profile.lga_name)}</strong><br/>
-        <span>Risk Class: ${escapeHtml(profile.risk_level_display)}</span><br/>
-        <span>Year: ${escapeHtml(profile.year || "—")}</span>
+        <span>${escapeHtml(layerConfig.label)}: <strong>${formatNumber(
+          selectedScore
+        )} / 100</strong></span><br/>
+        <span>Class: ${escapeHtml(
+          getLayerClass(selectedScore, layerConfig)
+        )}</span><br/>
+        <hr style="margin: 8px 0;" />
+        <span>Overall Risk: ${formatNumber(profile.overall_risk_score)} / 100</span><br/>
+        <span>Flood: ${formatNumber(profile.flood_risk_score)} / 100</span><br/>
+        <span>Drought: ${formatNumber(profile.drought_risk_score)} / 100</span><br/>
+        <span>Heat: ${formatNumber(profile.heat_risk_score)} / 100</span><br/>
+        <span>Erosion: ${formatNumber(profile.erosion_risk_score)} / 100</span><br/>
+        <span>Exposure: ${formatNumber(profile.exposure_score)} / 100</span><br/>
+        <span>Vulnerability: ${formatNumber(profile.vulnerability_score)} / 100</span><br/>
+        <span>Adaptive Capacity: ${formatNumber(profile.adaptive_capacity_score)} / 100</span>
       </div>
     `;
   }
@@ -327,8 +424,8 @@ export default function PublicClimateRiskMapPreview() {
       mouseover: (event) => {
         event.target.setStyle({
           weight: 4,
-          color: COLORS.blue,
-          fillOpacity: 0.96,
+          color: "#030454",
+          fillOpacity: 0.95,
         });
 
         if (event.target.bringToFront) {
@@ -341,32 +438,27 @@ export default function PublicClimateRiskMapPreview() {
     });
   }
 
-  if (dataError) {
-    return (
-      <div className="flex h-full min-h-[420px] items-center justify-center rounded-sm border border-red-200 bg-red-50 p-5 text-sm text-red-700">
-        {dataError}
-      </div>
-    );
-  }
-
   if (isLoading) {
     return (
-      <div className="flex h-full min-h-[420px] items-center justify-center rounded-sm bg-slate-50 text-sm text-slate-500">
+      <div
+        className="flex items-center justify-center rounded-lg bg-[#DFE3E4] text-sm text-slate-500"
+        style={{ height }}
+      >
         Loading climate risk map...
       </div>
     );
   }
 
-  if (mapError) {
+  if (errorMessage) {
     return (
-      <div className="flex h-full min-h-[420px] items-center justify-center rounded-sm border border-amber-200 bg-amber-50 p-5 text-sm text-amber-800">
-        {mapError}
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-800">
+        {errorMessage}
       </div>
     );
   }
 
   return (
-    <div className="relative h-full min-h-[420px] overflow-hidden rounded-sm border border-slate-200 bg-white">
+    <div className="relative overflow-hidden rounded-lg border border-[#D0D7DB] bg-[#DFE3E4]">
       <MapContainer
         center={KADUNA_CENTER}
         zoom={KADUNA_ZOOM}
@@ -375,31 +467,25 @@ export default function PublicClimateRiskMapPreview() {
         maxBounds={NIGERIA_BOUNDS}
         maxBoundsViscosity={1.0}
         scrollWheelZoom={false}
-        className="h-full min-h-[420px] w-full"
-        style={{ height: "100%", minHeight: "420px", width: "100%" }}
+        style={{ height, width: "100%" }}
       >
         <TileLayer
           attribution="&copy; OpenStreetMap contributors"
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <MapResizeAndFitHandler geoJsonData={geoJsonData} />
-
-        {geoJsonData?.features?.length ? (
-          <GeoJSON
-            key={`${summary.year || "latest"}-${profiles.length}-${
-              geoJsonData.features.length
-            }`}
-            data={geoJsonData}
-            style={getFeatureStyle}
-            onEachFeature={onEachFeature}
-          />
-        ) : null}
-
+        <FitGeoJsonBounds geoJsonData={geoJsonData} />
         <ResetMapButton geoJsonData={geoJsonData} />
+
+        <GeoJSON
+          key={`${activeLayer}-${profiles.length}`}
+          data={geoJsonData}
+          style={getFeatureStyle}
+          onEachFeature={onEachFeature}
+        />
       </MapContainer>
 
-      <MapLegend />
+      <MapLegend layerConfig={layerConfig} />
     </div>
   );
 }

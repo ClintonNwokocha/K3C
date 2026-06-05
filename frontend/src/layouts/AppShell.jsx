@@ -8,8 +8,8 @@ import {
   Leaf,
   LogOut,
   Settings,
-  ShieldCheck,
 } from "lucide-react";
+import OfficialLogo from "../components/OfficialLogo";
 import { canAccessAdministration } from "../utils/permissions";
 
 const navItems = [
@@ -118,29 +118,30 @@ export default function AppShell({
   const activeNavItem = navItems.find((item) => item.key === activePage);
 
   return (
-    <div className="min-h-screen bg-white font-['DM_Sans'] text-[#030454]">
+    <div className="min-h-screen bg-slate-100 font-['DM_Sans'] text-[#030454]">
       <aside className="fixed inset-y-0 left-0 z-30 flex w-80 flex-col bg-[#030454] text-white shadow-2xl">
-        <div className="border-b border-white/15 px-6 py-6">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#009B35]">
-              <ShieldCheck size={24} />
-            </div>
+        <div className="border-b border-white/10 px-5 py-6">
+          <button
+            type="button"
+            onClick={() => onPageChange("dashboard")}
+            className="flex w-full items-center"
+            aria-label="Go to dashboard"
+          >
+            <OfficialLogo
+              variant="light"
+              className="max-w-[245px]"
+              compact
+            />
+          </button>
 
-            <div>
-              <h1 className="text-lg font-black tracking-tight">KS-CCC</h1>
-              <p className="text-xs text-white/60">
-                Kaduna Climate Command Centre
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-xl border border-white/15 bg-white/5 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#F3F74B]">
+          <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F3F74B]">
               Internal Command System
             </p>
-            <p className="mt-2 text-sm leading-6 text-white/70">
-              Climate risk, GHG inventory, project tracking, reports and audit
-              evidence.
+
+            <p className="mt-2 text-sm leading-6 text-white/65">
+              Climate risk, GHG inventory, project tracking, reports and
+              audit-ready evidence.
             </p>
           </div>
         </div>
@@ -157,25 +158,26 @@ export default function AppShell({
                 onClick={() => onPageChange(item.key)}
                 className={`group flex w-full items-start gap-3 rounded-xl px-4 py-3 text-left transition ${
                   isActive
-                    ? "bg-[#F3F74B] text-[#030454] shadow-lg"
-                    : "text-white/70 hover:bg-white/10 hover:text-white"
+                    ? "bg-[#F3F74B] text-[#030454]"
+                    : "text-white/65 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <span
                   className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
                     isActive
                       ? "bg-[#009B35] text-white"
-                      : "bg-white/5 text-white/55 group-hover:bg-white/10 group-hover:text-white"
+                      : "bg-white/5 text-white/50 group-hover:bg-white/10 group-hover:text-white"
                   }`}
                 >
                   <Icon size={18} />
                 </span>
 
                 <span>
-                  <span className="block text-sm font-bold">{item.name}</span>
+                  <span className="block text-sm font-black">{item.name}</span>
+
                   <span
                     className={`mt-0.5 block text-xs ${
-                      isActive ? "text-[#030454]/70" : "text-white/40"
+                      isActive ? "text-[#030454]/65" : "text-white/35"
                     }`}
                   >
                     {item.description}
@@ -186,15 +188,15 @@ export default function AppShell({
           })}
         </nav>
 
-        <div className="border-t border-white/15 p-4">
-          <div className="rounded-xl border border-white/15 bg-white/5 p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">
+        <div className="border-t border-white/10 p-4">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">
               Current Role
             </p>
 
             <p className="mt-1 font-bold text-white">{formatRole(role)}</p>
 
-            <p className="mt-1 text-xs text-white/50">
+            <p className="mt-1 text-xs text-white/45">
               {currentUser?.username || "Signed-in user"}
             </p>
           </div>
@@ -204,7 +206,7 @@ export default function AppShell({
             onClick={() => {
               window.location.href = "/public";
             }}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 px-4 py-3 text-xs font-bold uppercase tracking-[0.08em] text-white/75 transition hover:border-[#F3F74B] hover:text-[#F3F74B]"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-white/70 transition hover:border-[#F3F74B]/70 hover:text-white"
           >
             <ExternalLink size={14} />
             Public Portal
@@ -220,13 +222,12 @@ export default function AppShell({
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              {activeNavItem?.description ||
-                "Climate intelligence and command workspace"}
+              {activeNavItem?.description || "Kaduna climate intelligence"}
             </p>
           </div>
 
           <div className="flex items-center gap-4">
-            <div className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#030454] shadow-sm md:block">
+            <div className="hidden rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#030454] md:block">
               Foundation setup active
             </div>
 
@@ -245,7 +246,7 @@ export default function AppShell({
           </div>
         </header>
 
-        <main className="bg-white p-8">{children}</main>
+        <main className="p-8">{children}</main>
       </div>
     </div>
   );

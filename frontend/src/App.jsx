@@ -6,6 +6,9 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import PublicReportsPage from "./pages/PublicReportsPage";
 import PublicPortalPage from "./pages/PublicPortalPage";
+import PublicClimateRiskPage from "./pages/PublicClimateRiskPage";
+import PublicGHGInventoryPage from "./pages/PublicGHGInventoryPage";
+import PublicProjectsPage from "./pages/PublicProjectsPage";
 import GHGInventoryPage from "./pages/GHGInventoryPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import ClimateRiskPage from "./pages/ClimateRiskPage";
@@ -155,10 +158,7 @@ function App() {
 
     if (activePage === "ghg") {
       return (
-        <GHGInventoryPage
-          foundation={foundation}
-          currentUser={currentUser}
-        />
+        <GHGInventoryPage foundation={foundation} currentUser={currentUser} />
       );
     }
 
@@ -178,34 +178,32 @@ function App() {
 
     return (
       <PlaceholderPage
-        title={selectedPage.title}
-        description={selectedPage.description}
+        title={selectedPage?.title || "Page Not Found"}
+        description={
+          selectedPage?.description || "The selected page could not be found."
+        }
       />
     );
   }
 
-  const isPublicPortalRoute = window.location.pathname === "/public";
-  const isPublicReportsRoute = window.location.pathname === "/public/reports";
+  const publicRoutes = {
+    "/public": <PublicPortalPage />,
+    "/public/climate-risk": <PublicClimateRiskPage />,
+    "/public/ghg-inventory": <PublicGHGInventoryPage />,
+    "/public/projects": <PublicProjectsPage />,
+    "/public/reports": <PublicReportsPage />,
+  };
 
-  if (isPublicPortalRoute) {
-    return <PublicPortalPage />;
-  }
+  const publicPage = publicRoutes[window.location.pathname];
 
-  if (isPublicReportsRoute) {
-    return <PublicReportsPage />;
+  if (publicPage) {
+    return publicPage;
   }
 
   if (isLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#030454] text-white">
-        <div className="rounded-sm border border-white/15 bg-white/5 px-6 py-5 text-center shadow-lg">
-          <p className="font-['Playfair_Display'] text-2xl font-bold">
-            Loading KS-CCC...
-          </p>
-          <p className="mt-2 text-xs uppercase tracking-[0.16em] text-white/55">
-            Climate Command Centre
-          </p>
-        </div>
+      <main className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+        Loading KS-CCC...
       </main>
     );
   }

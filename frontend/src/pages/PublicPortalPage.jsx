@@ -1,19 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  PublicDataNotice,
   PublicEmptyState,
   PublicPortalFooter,
   PublicPortalHeader,
   PublicSectionIntro,
 } from "../components/PublicPortalChrome";
-import PublicClimateRiskMapPreview from "../components/PublicClimateRiskMapPreview";
 import { getPublicPortalSummary } from "../services/api";
-
-const COLORS = {
-  green: "#009B35",
-  blue: "#030454",
-  yellow: "#F3F74B",
-  white: "#FFFFFF",
-};
 
 const partnerLogos = [
   {
@@ -33,24 +26,34 @@ const partnerLogos = [
   },
 ];
 
+const publicNewsItems = [
+  {
+    category: "Implementation",
+    date: "May 2026",
+    title: "Priority climate project tracking begins across selected LGAs",
+    summary:
+      "The portal will support public visibility of climate action projects, expected beneficiaries and implementation progress across Kaduna State.",
+  },
+  {
+    category: "Policy",
+    date: "May 2026",
+    title: "Climate evidence portal supports coordinated decision-making",
+    summary:
+      "The public portal is designed to improve access to approved climate risk summaries, GHG information and published evidence documents.",
+  },
+  {
+    category: "Reporting",
+    date: "May 2026",
+    title: "Public reports centre prepared for approved climate documents",
+    summary:
+      "Validated reports, briefs and evidence documents can be published through the reports portal once approved for public access.",
+  },
+];
+
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, {
     maximumFractionDigits,
   });
-}
-
-function formatCompactMoney(value) {
-  const number = Number(value || 0);
-
-  if (number >= 1_000_000_000) {
-    return `₦${formatNumber(number / 1_000_000_000, 2)}B`;
-  }
-
-  if (number >= 1_000_000) {
-    return `₦${formatNumber(number / 1_000_000, 0)}M`;
-  }
-
-  return `₦${formatNumber(number, 0)}`;
 }
 
 function formatCompactNumber(value) {
@@ -67,194 +70,56 @@ function formatCompactNumber(value) {
   return formatNumber(number, 0);
 }
 
-function getStatusClass(status) {
-  if (status === "completed") return "bg-[#009B35]/10 text-[#009B35]";
-  if (status === "ongoing") return "bg-blue-50 text-blue-700";
-  if (status === "planned") return "bg-sky-50 text-sky-700";
-  if (status === "suspended") return "bg-amber-50 text-amber-700";
-  if (status === "cancelled") return "bg-red-50 text-red-700";
-  return "bg-purple-50 text-purple-700";
-}
-
-function getPriorityClass(priority) {
-  if (priority === "very_high") return "bg-red-50 text-red-700";
-  if (priority === "high") return "bg-orange-50 text-orange-700";
-  if (priority === "medium") return "bg-[#F3F74B]/40 text-[#030454]";
-  return "bg-[#009B35]/10 text-[#009B35]";
-}
-
-function getRiskBarColor(level) {
-  if (level === "very_high") return "bg-red-700";
-  if (level === "high") return "bg-orange-500";
-  if (level === "moderate") return "bg-[#F3F74B]";
-  return "bg-[#009B35]";
-}
-
-function getRiskDotColor(level) {
-  if (level === "very_high") return "bg-red-700";
-  if (level === "high") return "bg-orange-500";
-  if (level === "moderate") return "bg-[#F3F74B]";
-  return "bg-[#009B35]";
-}
-
-function TopRiskVisualPanel({ climateRisk }) {
-  const topLgas = climateRisk.top_lgas || [];
-
-  if (topLgas.length === 0) {
-    return (
-      <PublicEmptyState
-        title="No risk summary available"
-        message="No climate risk summary records are available yet."
-      />
-    );
-  }
+function GatewayCard({ title, description, buttonLabel, href, tone = "blue" }) {
+  const toneClasses = {
+    blue: "border-[#030454]/20 hover:border-[#030454]",
+    green: "border-[#009B35]/25 hover:border-[#009B35]",
+    yellow: "border-[#F3F74B] hover:border-[#030454]",
+  };
 
   return (
-    <aside className="rounded-sm border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-5">
-        <h3 className="font-['Playfair_Display'] text-2xl font-bold text-[#030454]">
-          Highest-risk LGAs
-        </h3>
+    <article
+      className={`rounded-md border bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(3,4,84,0.12)] ${
+        toneClasses[tone] || toneClasses.blue
+      }`}
+    >
+      <h3 className="font-['Playfair_Display'] text-3xl font-bold leading-tight text-[#030454]">
+        {title}
+      </h3>
 
-        <p className="mt-2 text-xs leading-5 text-slate-500">
-          Visual ranking of LGAs with the highest climate risk classification.
-        </p>
-      </div>
+      <p className="mt-4 text-sm leading-7 text-slate-600">{description}</p>
 
-      <div className="space-y-4">
-        {topLgas.map((profile, index) => {
-          const score = Number(profile.overall_risk_score || 0);
-          const safeWidth = Math.min(Math.max(score, 8), 100);
-
-          return (
-            <div
-              key={profile.id || `${profile.lga_name}-${index}`}
-              className="rounded-sm border border-slate-200 bg-white p-4"
-            >
-              <div className="mb-3 flex items-center gap-3">
-                <span className="w-8 shrink-0 text-right font-['Playfair_Display'] text-2xl font-bold leading-none text-slate-300 tabular-nums">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-black text-[#030454]">
-                    {profile.lga_name}
-                  </p>
-
-                  <div className="mt-1 flex items-center gap-2">
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${getRiskDotColor(
-                        profile.risk_level
-                      )}`}
-                    />
-
-                    <span className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
-                      {profile.risk_level_display || "Risk"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={`h-full rounded-full ${getRiskBarColor(
-                    profile.risk_level
-                  )}`}
-                  style={{ width: `${safeWidth}%` }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </aside>
+      <button
+        type="button"
+        onClick={() => {
+          window.location.href = href;
+        }}
+        className="mt-7 rounded-md bg-[#030454] px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:bg-[#009B35]"
+      >
+        {buttonLabel}
+      </button>
+    </article>
   );
 }
 
-function ProjectCard({ project }) {
+function NewsCard({ item }) {
   return (
-    <article className="rounded-sm border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#009B35]/60 hover:shadow-md">
-      <div className="mb-4 flex flex-wrap gap-2">
-        <span
-          className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${getPriorityClass(
-            project.priority
-          )}`}
-        >
-          {project.priority_display || project.priority || "Priority"}
+    <article className="rounded-md border border-[#D8DDE2] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#009B35]/70 hover:shadow-md">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className="rounded-sm bg-[#009B35]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#009B35]">
+          {item.category}
         </span>
 
-        <span
-          className={`rounded-sm px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${getStatusClass(
-            project.status
-          )}`}
-        >
-          {project.status_display || project.status || "Status"}
+        <span className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
+          {item.date}
         </span>
       </div>
 
-      <h3 className="text-base font-black leading-snug text-[#030454]">
-        {project.title}
+      <h3 className="text-lg font-black leading-snug text-[#030454]">
+        {item.title}
       </h3>
 
-      <p className="mt-2 text-xs leading-5 text-slate-500">
-        {project.project_code || "No code"} · {project.lga_name || "Statewide"}
-      </p>
-
-      <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4">
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
-            Sector
-          </p>
-          <p className="mt-1 text-sm font-bold text-[#030454]">
-            {project.sector_display || project.sector || "Not specified"}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
-            Budget
-          </p>
-          <p className="mt-1 text-sm font-bold text-[#030454]">
-            {formatCompactMoney(project.estimated_budget_naira)}
-          </p>
-        </div>
-
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
-            GHG reduction
-          </p>
-          <p className="mt-1 text-sm font-bold text-[#030454]">
-            {formatNumber(project.expected_ghg_reduction_tco2e, 0)} tCO₂e
-          </p>
-        </div>
-
-        <div>
-          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">
-            Beneficiaries
-          </p>
-          <p className="mt-1 text-sm font-bold text-[#030454]">
-            {formatCompactNumber(project.expected_beneficiaries)}
-          </p>
-        </div>
-
-        {(project.implementing_agency || project.funding_source) && (
-          <div className="col-span-2 border-t border-slate-200 pt-4">
-            {project.implementing_agency && (
-              <p className="text-xs leading-5 text-slate-500">
-                <span className="font-bold text-[#030454]">Agency:</span>{" "}
-                {project.implementing_agency}
-              </p>
-            )}
-
-            {project.funding_source && (
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                <span className="font-bold text-[#030454]">Funding:</span>{" "}
-                {project.funding_source}
-              </p>
-            )}
-          </div>
-        )}
-      </div>
+      <p className="mt-3 text-sm leading-7 text-slate-600">{item.summary}</p>
     </article>
   );
 }
@@ -264,13 +129,13 @@ function PartnerLogoCard({ partner, duplicate = false }) {
     <article
       aria-hidden={duplicate}
       title={partner.name}
-      className="flex h-[230px] w-[440px] min-w-[440px] items-center justify-center rounded-md border border-slate-200 bg-white p-10 shadow-[0_14px_35px_rgba(3,4,84,0.10)] transition duration-300 hover:-translate-y-1 hover:border-[#009B35]/60 hover:shadow-[0_20px_45px_rgba(3,4,84,0.14)] max-sm:h-[190px] max-sm:w-[320px] max-sm:min-w-[320px] max-sm:p-6"
+      className="flex h-[220px] w-[420px] min-w-[420px] items-center justify-center rounded-md border border-[#D8DDE2] bg-white p-10 shadow-[0_14px_35px_rgba(3,4,84,0.10)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(3,4,84,0.14)] max-sm:h-[180px] max-sm:w-[300px] max-sm:min-w-[300px] max-sm:p-6"
     >
       {partner.src ? (
         <img
           src={partner.src}
           alt={partner.name}
-          className="max-h-[165px] max-w-[340px] object-contain max-sm:max-h-[130px] max-sm:max-w-[250px]"
+          className="max-h-[155px] max-w-[320px] object-contain max-sm:max-h-[120px] max-sm:max-w-[230px]"
           onError={(event) => {
             event.currentTarget.style.display = "none";
 
@@ -300,7 +165,7 @@ function PartnersSection() {
   const scrollingPartners = [...partnerLogos, ...partnerLogos];
 
   return (
-    <section className="overflow-hidden border-y border-slate-200 bg-white px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
+    <section className="overflow-hidden border-y border-[#D8DDE2] bg-[#F7F9FA] px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
       <style>
         {`
           @keyframes partners-marquee {
@@ -407,25 +272,29 @@ export default function PublicPortalPage() {
         value: projects.total_projects || 0,
       },
       {
-        label: "Portfolio Budget",
-        value: formatCompactMoney(projects.total_budget_naira),
+        label: "Estimated GHG Reduction",
+        value: formatCompactNumber(projects.total_expected_ghg_reduction_tco2e),
       },
     ];
   }, [climateRisk, projects]);
 
   return (
-    <main className="min-h-screen bg-white font-['DM_Sans'] text-[#030454]">
+    <main className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#030454]">
       <PublicPortalHeader
         activePage="home"
+        tag="Kaduna public climate evidence portal"
         title={<>Climate intelligence for public decision support</>}
-        description={[
-          "Provides public-facing access to climate risk summaries, priority climate action projects, published reports and evidence documents.",
-          "Designed to support transparency, coordination and evidence-led decision making across Kaduna State.",
-        ]}
+        description="Access public climate risk summaries, greenhouse gas inventory insights, climate action project information and published evidence documents from the Kaduna State Climate Command Centre."
         stats={heroStats}
         showStats
-        primaryActionLabel="Explore Risk Landscape"
+        primaryActionLabel="Explore Climate Risk"
         secondaryActionLabel="View Public Reports"
+        onPrimaryAction={() => {
+          window.location.href = "/public/climate-risk";
+        }}
+        onSecondaryAction={() => {
+          window.location.href = "/public/reports";
+        }}
       />
 
       {error && (
@@ -438,121 +307,78 @@ export default function PublicPortalPage() {
 
       {isLoading ? (
         <section className="px-4 py-16 sm:px-8 lg:px-10">
-          <div className="mx-auto max-w-7xl rounded-sm border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
+          <div className="mx-auto max-w-7xl rounded-sm border border-[#CAD2D7] bg-white p-8 text-sm text-slate-500 shadow-sm">
             Loading public climate intelligence...
           </div>
         </section>
       ) : (
         <>
-          <section
-            id="risk-landscape"
-            className="bg-white px-4 py-16 sm:px-8 lg:px-10 lg:py-20"
-          >
-            <style>
-              {`
-                .public-risk-map-expanded,
-                .public-risk-map-expanded > div {
-                  height: 100%;
-                  min-height: 100%;
-                }
-
-                .public-risk-map-expanded .leaflet-container {
-                  height: 100% !important;
-                  min-height: 100% !important;
-                  width: 100% !important;
-                }
-              `}
-            </style>
-
-            <div className="mx-auto max-w-[1540px]">
-              <PublicSectionIntro
-                title="Climate risk comes first"
-                description="A public summary of where climate risk is concentrated across Kaduna State before reviewing projects, investments and reports."
-              />
-
-              <div className="mt-10 grid gap-6 xl:grid-cols-[minmax(0,2.7fr)_320px] xl:items-stretch">
-                <div className="rounded-sm border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="public-risk-map-expanded h-[520px] md:h-[620px] xl:h-[720px]">
-                    <PublicClimateRiskMapPreview />
-                  </div>
-                </div>
-
-                <TopRiskVisualPanel climateRisk={climateRisk} />
-              </div>
-            </div>
-          </section>
-
-          <section className="bg-[#030454] px-4 py-12 text-white sm:px-8 lg:px-10">
-            <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1fr_auto] lg:items-center">
-              <div>
-                <h2 className="font-['Playfair_Display'] text-4xl font-bold">
-                  Public climate action summary
-                </h2>
-
-                <p className="mt-3 max-w-xl text-sm font-light leading-7 text-white/70">
-                  Summary of registered climate projects, estimated budget,
-                  expected mitigation outcomes and intended beneficiaries.
-                </p>
-              </div>
-
-              <div className="grid gap-8 sm:grid-cols-3">
-                <div>
-                  <p className="font-['Playfair_Display'] text-4xl font-bold text-[#F3F74B]">
-                    {formatCompactMoney(projects.total_budget_naira)}
-                  </p>
-                  <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
-                    Portfolio Budget
-                  </p>
-                </div>
-
-                <div>
-                  <p className="font-['Playfair_Display'] text-4xl font-bold text-[#F3F74B]">
-                    {formatCompactNumber(
-                      projects.total_expected_ghg_reduction_tco2e
-                    )}
-                  </p>
-                  <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
-                    tCO₂e Reduction
-                  </p>
-                </div>
-
-                <div>
-                  <p className="font-['Playfair_Display'] text-4xl font-bold text-[#F3F74B]">
-                    {formatCompactNumber(projects.total_expected_beneficiaries)}
-                  </p>
-                  <p className="mt-1 text-[11px] font-black uppercase tracking-[0.14em] text-white/50">
-                    Beneficiaries
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
           <section className="bg-white px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
             <div className="mx-auto max-w-7xl">
               <PublicSectionIntro
-                title="Where action is happening"
-                description="Selected high-priority projects from the climate action portfolio, displayed for public awareness and reporting."
+                centered
+                title="Explore public climate information"
+                description="The public portal is organised into focused sections so visitors can quickly understand climate risk, emissions information, project implementation and published evidence."
               />
 
-              <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {(projects.top_projects || []).map((project) => (
-                  <ProjectCard key={project.id} project={project} />
-                ))}
+              <div className="mt-12 grid gap-6 lg:grid-cols-3">
+                <GatewayCard
+                  title="Climate Risk Intelligence"
+                  description="Understand where climate risks are concentrated across Kaduna State, including high-risk LGAs and public risk summaries."
+                  buttonLabel="Explore Climate Risk"
+                  href="/public/climate-risk"
+                  tone="blue"
+                />
 
-                {(projects.top_projects || []).length === 0 && (
-                  <PublicEmptyState
-                    title="No public project summary available"
-                    message="No public project summary records are available yet."
-                  />
-                )}
+                <GatewayCard
+                  title="GHG Inventory"
+                  description="View public greenhouse gas inventory summaries and sector-level emissions insights where approved data is available."
+                  buttonLabel="View GHG Inventory"
+                  href="/public/ghg-inventory"
+                  tone="green"
+                />
+
+                <GatewayCard
+                  title="Climate Action Portfolio"
+                  description="Explore climate action projects, expected beneficiaries and estimated greenhouse gas reduction outcomes."
+                  buttonLabel="View Projects"
+                  href="/public/projects"
+                  tone="yellow"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="bg-[#F7F9FA] px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
+            <div className="mx-auto max-w-7xl">
+              <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
+                <PublicSectionIntro
+                  title="News and Policy Updates"
+                  description="Follow public updates on climate project implementation, policy decisions, reports and stakeholder coordination."
+                />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    window.location.href = "/public/reports";
+                  }}
+                  className="w-fit rounded-md border-2 border-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-[#009B35] transition hover:bg-[#009B35] hover:text-white"
+                >
+                  View Evidence Reports
+                </button>
+              </div>
+
+              <div className="mt-10 grid gap-6 lg:grid-cols-3">
+                {publicNewsItems.map((item) => (
+                  <NewsCard key={item.title} item={item} />
+                ))}
               </div>
             </div>
           </section>
 
           <PartnersSection />
 
-          <section className="border-y border-slate-200 bg-white px-4 py-12 sm:px-8 lg:px-10">
+          <section className="border-y border-[#CAD2D7] bg-white px-4 py-12 sm:px-8 lg:px-10">
             <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1fr_auto] md:items-center">
               <div>
                 <h3 className="font-['Playfair_Display'] text-3xl font-bold text-[#030454]">
@@ -577,6 +403,8 @@ export default function PublicPortalPage() {
               </button>
             </div>
           </section>
+
+          <PublicDataNotice />
         </>
       )}
 
