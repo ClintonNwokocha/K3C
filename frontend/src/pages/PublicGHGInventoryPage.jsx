@@ -12,6 +12,10 @@ const aboutDataItems = [
     body: "tCO₂e means tonnes of carbon dioxide equivalent. It is a standard way of expressing different greenhouse gases using a common carbon-dioxide-equivalent unit.",
   },
   {
+    title: "What is the state GHG baseline?",
+    body: "The state GHG baseline is the reference emissions level used to compare future emissions and track progress toward climate targets. For Kaduna State, the public baseline is shown in MtCO₂e and should not be confused with the latest inventory year.",
+  },
+  {
     title: "What is shown on this public page?",
     body: "This page presents public-facing greenhouse gas inventory information where approved summary data is available. It is intended for awareness, coordination and public decision support.",
   },
@@ -125,49 +129,43 @@ function ExplorerControlBar({
   reportingYear,
 }) {
   return (
-    <section className="border-b border-[#D8DDE2] bg-white px-4 py-4 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1536px]">
-        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
-          <ControlField label="Sector">
-            <select
-              value={selectedSector}
-              onChange={(event) => onSectorChange(event.target.value)}
-              className="h-11 w-full rounded-md border border-[#D8DDE2] bg-white px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
-            >
-              <option value="all">All sectors</option>
+    <div className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] p-4">
+      <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+        <ControlField label="Sector">
+          <select
+            value={selectedSector}
+            onChange={(event) => onSectorChange(event.target.value)}
+            className="h-11 w-full rounded-md border border-[#D8DDE2] bg-white px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+          >
+            <option value="all">All sectors</option>
 
-              {sectorOptions.map((sector) => (
-                <option key={sector} value={sector}>
-                  {sector}
-                </option>
-              ))}
-            </select>
-          </ControlField>
+            {sectorOptions.map((sector) => (
+              <option key={sector} value={sector}>
+                {sector}
+              </option>
+            ))}
+          </select>
+        </ControlField>
 
-          <div className="flex flex-wrap gap-2 text-xs text-slate-500 lg:justify-end">
-            <span className="rounded-full bg-[#F7F9FA] px-3 py-2">
-              Reporting year:{" "}
-              <strong className="text-[#030454]">
-                {reportingYear || "Not published"}
-              </strong>
-            </span>
+        <div className="flex flex-wrap gap-2 text-xs text-slate-500 lg:justify-end">
+          <span className="rounded-full bg-white px-3 py-2">
+            Reporting year:{" "}
+            <strong className="text-[#030454]">
+              {reportingYear || "Not published"}
+            </strong>
+          </span>
 
-            <span className="rounded-full bg-[#F7F9FA] px-3 py-2">
-              Unit: <strong className="text-[#030454]">tCO₂e</strong>
-            </span>
+          <span className="rounded-full bg-white px-3 py-2">
+            Unit: <strong className="text-[#030454]">tCO₂e</strong>
+          </span>
 
-            <span className="rounded-full bg-[#F7F9FA] px-3 py-2">
-              Data view: <strong className="text-[#030454]">Public summary</strong>
-            </span>
-          </div>
+          <span className="rounded-full bg-white px-3 py-2">
+            Data view:{" "}
+            <strong className="text-[#030454]">Public summary</strong>
+          </span>
         </div>
-
-        <p className="mt-3 max-w-5xl text-sm leading-6 text-slate-500">
-          Use this page to view public greenhouse gas inventory summaries and
-          sector-level emissions information where approved data is available.
-        </p>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -240,8 +238,15 @@ function InventoryOverviewPanel({
   projects,
   filteredSectorRows,
   selectedSector,
+  onSectorChange,
+  sectorOptions,
+  reportingYear,
 }) {
-  const reportingYear = ghg.latest_year || ghg.reporting_year || "—";
+
+  const baselineMt = ghg.baseline_emissions_mtco2e;
+  const baselineValue = hasValidNumber(baselineMt)
+    ? `${formatNumber(baselineMt, 2)} MtCO₂e`
+    : "Not published";
 
   const totalEmissions = hasValidNumber(ghg.total_emissions_tco2e)
     ? `${formatNumber(ghg.total_emissions_tco2e, 0)} tCO₂e`
@@ -272,7 +277,21 @@ function InventoryOverviewPanel({
           </div>
 
           <div className="space-y-6 p-5">
-            <div className="grid gap-4 md:grid-cols-3">
+          <ExplorerControlBar
+            selectedSector={selectedSector}
+            onSectorChange={onSectorChange}
+            sectorOptions={sectorOptions}
+            reportingYear={reportingYear}
+          />
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              
+              <SummaryChip
+                label="State GHG baseline"
+                value={baselineValue}
+                helper="Kaduna State reference baseline for NDC and emissions progress tracking."
+              />
+              
               <SummaryChip
                 label="Reporting year"
                 value={reportingYear}
@@ -441,19 +460,15 @@ export default function PublicGHGInventoryPage() {
         </section>
       ) : (
         <>
-          <ExplorerControlBar
-            selectedSector={selectedSector}
-            onSectorChange={setSelectedSector}
-            sectorOptions={sectorOptions}
-            reportingYear={reportingYear}
-          />
-
-          <InventoryOverviewPanel
-            ghg={ghg}
-            projects={projects}
-            filteredSectorRows={filteredSectorRows}
-            selectedSector={selectedSector}
-          />
+         <InventoryOverviewPanel
+          ghg={ghg}
+          projects={projects}
+          filteredSectorRows={filteredSectorRows}
+          selectedSector={selectedSector}
+          onSectorChange={setSelectedSector}
+          sectorOptions={sectorOptions}
+          reportingYear={reportingYear}
+        />
 
           <AboutDataAccordion />
         </>

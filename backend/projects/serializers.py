@@ -22,6 +22,7 @@ class ClimateProjectSerializer(serializers.ModelSerializer):
         read_only=True,
     )
     created_by_name = serializers.SerializerMethodField()
+    project_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = ClimateProject
@@ -39,6 +40,12 @@ class ClimateProjectSerializer(serializers.ModelSerializer):
             "priority_display",
             "lga",
             "lga_name",
+            "latitude",
+            "longitude",
+            "project_image",
+            "project_image_url",
+            "public_summary",
+            "public_description",
             "description",
             "implementing_agency",
             "funding_source",
@@ -66,6 +73,17 @@ class ClimateProjectSerializer(serializers.ModelSerializer):
             or str(obj.created_by)
         )
 
+    def get_project_image_url(self, obj):
+        if not obj.project_image:
+            return ""
+
+        request = self.context.get("request")
+
+        if request:
+            return request.build_absolute_uri(obj.project_image.url)
+
+        return obj.project_image.url
+
 
 class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
@@ -78,6 +96,11 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
             "status",
             "priority",
             "lga",
+            "latitude",
+            "longitude",
+            "project_image",
+            "public_summary",
+            "public_description",
             "description",
             "implementing_agency",
             "funding_source",
@@ -104,6 +127,28 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
 
         return value
 
+    def validate_latitude(self, value):
+        if value is None:
+            return value
+
+        if value < -90 or value > 90:
+            raise serializers.ValidationError(
+                "Latitude must be between -90 and 90."
+            )
+
+        return value
+
+    def validate_longitude(self, value):
+        if value is None:
+            return value
+
+        if value < -180 or value > 180:
+            raise serializers.ValidationError(
+                "Longitude must be between -180 and 180."
+            )
+
+        return value
+
     def validate_estimated_budget_naira(self, value):
         if value < 0:
             raise serializers.ValidationError("Budget cannot be negative.")
@@ -122,6 +167,16 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError(
                 "Expected beneficiaries cannot be negative."
+            )
+
+        return value
+
+    def validate_public_summary(self, value):
+        value = str(value or "").strip()
+
+        if len(value) > 300:
+            raise serializers.ValidationError(
+                "Public summary cannot exceed 300 characters."
             )
 
         return value

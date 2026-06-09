@@ -57,13 +57,8 @@ function formatCompactNumber(value) {
 
   const number = Number(value);
 
-  if (number >= 1_000_000) {
-    return `${formatNumber(number / 1_000_000, 2)}M`;
-  }
-
-  if (number >= 1_000) {
-    return `${formatNumber(number / 1_000, 1)}K`;
-  }
+  if (number >= 1_000_000) return `${formatNumber(number / 1_000_000, 2)}M`;
+  if (number >= 1_000) return `${formatNumber(number / 1_000, 1)}K`;
 
   return formatNumber(number, 0);
 }
@@ -120,25 +115,13 @@ function getProjectBeneficiaries(project) {
 function getStatusClass(status) {
   const normalized = String(status || "").toLowerCase();
 
-  if (normalized.includes("completed")) {
-    return "bg-[#009B35]/10 text-[#009B35]";
-  }
-
+  if (normalized.includes("completed")) return "bg-[#009B35]/10 text-[#009B35]";
   if (normalized.includes("ongoing") || normalized.includes("active")) {
     return "bg-[#030454]/10 text-[#030454]";
   }
-
-  if (normalized.includes("planned")) {
-    return "bg-sky-50 text-sky-700";
-  }
-
-  if (normalized.includes("suspended")) {
-    return "bg-amber-50 text-amber-700";
-  }
-
-  if (normalized.includes("cancelled")) {
-    return "bg-red-50 text-red-700";
-  }
+  if (normalized.includes("planned")) return "bg-sky-50 text-sky-700";
+  if (normalized.includes("suspended")) return "bg-amber-50 text-amber-700";
+  if (normalized.includes("cancelled")) return "bg-red-50 text-red-700";
 
   return "bg-purple-50 text-purple-700";
 }
@@ -199,62 +182,65 @@ function ExplorerControlBar({
   totalProjects,
 }) {
   return (
-    <section className="border-b border-[#D8DDE2] bg-white px-4 py-4 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1536px]">
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <ControlField label="Sector">
-            <FilterSelect value={sectorFilter} onChange={setSectorFilter}>
-              <option value="all">All sectors</option>
-              {sectors.map((sector) => (
-                <option key={sector} value={sector}>
-                  {sector}
-                </option>
-              ))}
-            </FilterSelect>
-          </ControlField>
+    <div className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] p-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <ControlField label="Sector">
+          <FilterSelect value={sectorFilter} onChange={setSectorFilter}>
+            <option value="all">All sectors</option>
+            {sectors.map((sector) => (
+              <option key={sector} value={sector}>
+                {sector}
+              </option>
+            ))}
+          </FilterSelect>
+        </ControlField>
 
-          <ControlField label="Status">
-            <FilterSelect value={statusFilter} onChange={setStatusFilter}>
-              <option value="all">All statuses</option>
-              {statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </FilterSelect>
-          </ControlField>
+        <ControlField label="Status">
+          <FilterSelect value={statusFilter} onChange={setStatusFilter}>
+            <option value="all">All statuses</option>
+            {statuses.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </FilterSelect>
+        </ControlField>
 
-          <ControlField label="Funding Source">
-            <FilterSelect value={fundingFilter} onChange={setFundingFilter}>
-              <option value="all">All funding sources</option>
-              {fundingSources.map((source) => (
-                <option key={source} value={source}>
-                  {source}
-                </option>
-              ))}
-            </FilterSelect>
-          </ControlField>
+        <ControlField label="Funding Source">
+          <FilterSelect value={fundingFilter} onChange={setFundingFilter}>
+            <option value="all">All funding sources</option>
+            {fundingSources.map((source) => (
+              <option key={source} value={source}>
+                {source}
+              </option>
+            ))}
+          </FilterSelect>
+        </ControlField>
 
-          <ControlField label="LGA">
-            <FilterSelect value={lgaFilter} onChange={setLgaFilter}>
-              <option value="all">All LGAs</option>
-              {lgas.map((lga) => (
-                <option key={lga} value={lga}>
-                  {lga}
-                </option>
-              ))}
-            </FilterSelect>
-          </ControlField>
-        </div>
-
-        <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
-          <span className="rounded-full bg-[#F7F9FA] px-3 py-2">
-            Public projects:{" "}
-            <strong className="text-[#030454]">{totalProjects}</strong>
-          </span>
-        </div>
+        <ControlField label="LGA">
+          <FilterSelect value={lgaFilter} onChange={setLgaFilter}>
+            <option value="all">All LGAs</option>
+            {lgas.map((lga) => (
+              <option key={lga} value={lga}>
+                {lga}
+              </option>
+            ))}
+          </FilterSelect>
+        </ControlField>
       </div>
-    </section>
+
+      <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
+        <span className="rounded-full bg-white px-3 py-2">
+          Public projects:{" "}
+          <strong className="text-[#030454]">{totalProjects}</strong>
+        </span>
+
+        <span className="rounded-full bg-white px-3 py-2">
+          Financial values:{" "}
+          <strong className="text-[#030454]">Not shown publicly</strong>
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -342,11 +328,23 @@ function ProjectPortfolioTable({ projects }) {
   );
 }
 
-function ProjectPortfolioPanel({ projects, filteredProjects, summary }) {
-  const sectorsRepresented = Array.from(
-    new Set(projects.map((project) => getProjectSector(project)).filter(Boolean))
-  ).length;
-
+function ProjectPortfolioPanel({
+  projects,
+  filteredProjects,
+  summary,
+  sectorFilter,
+  setSectorFilter,
+  statusFilter,
+  setStatusFilter,
+  fundingFilter,
+  setFundingFilter,
+  lgaFilter,
+  setLgaFilter,
+  sectors,
+  statuses,
+  fundingSources,
+  lgas,
+}) {
   const fundingSourcesRepresented = Array.from(
     new Set(
       projects
@@ -376,6 +374,22 @@ function ProjectPortfolioPanel({ projects, filteredProjects, summary }) {
           </div>
 
           <div className="space-y-6 p-5">
+            <ExplorerControlBar
+              sectorFilter={sectorFilter}
+              setSectorFilter={setSectorFilter}
+              statusFilter={statusFilter}
+              setStatusFilter={setStatusFilter}
+              fundingFilter={fundingFilter}
+              setFundingFilter={setFundingFilter}
+              lgaFilter={lgaFilter}
+              setLgaFilter={setLgaFilter}
+              sectors={sectors}
+              statuses={statuses}
+              fundingSources={fundingSources}
+              lgas={lgas}
+              totalProjects={summary.total_projects || projects.length}
+            />
+
             <div className="grid gap-4 md:grid-cols-4">
               <SummaryChip
                 label="Public projects"
@@ -505,12 +519,18 @@ export default function PublicProjectsPage() {
       .map((project) => getProjectSector(project))
       .filter(Boolean);
 
-    return Array.from(new Set([...STANDARD_SECTOR_OPTIONS, ...publishedSectors]));
+    return Array.from(
+      new Set([...STANDARD_SECTOR_OPTIONS, ...publishedSectors])
+    );
   }, [projectList]);
 
   const statuses = useMemo(() => {
     return Array.from(
-      new Set(projectList.map((project) => getProjectStatus(project)).filter(Boolean))
+      new Set(
+        projectList
+          .map((project) => getProjectStatus(project))
+          .filter(Boolean)
+      )
     );
   }, [projectList]);
 
@@ -526,7 +546,9 @@ export default function PublicProjectsPage() {
 
   const lgas = useMemo(() => {
     return Array.from(
-      new Set(projectList.map((project) => getProjectLga(project)).filter(Boolean))
+      new Set(
+        projectList.map((project) => getProjectLga(project)).filter(Boolean)
+      )
     );
   }, [projectList]);
 
@@ -573,7 +595,10 @@ export default function PublicProjectsPage() {
         </section>
       ) : (
         <>
-          <ExplorerControlBar
+          <ProjectPortfolioPanel
+            projects={projectList}
+            filteredProjects={filteredProjects}
+            summary={projectSummary}
             sectorFilter={sectorFilter}
             setSectorFilter={setSectorFilter}
             statusFilter={statusFilter}
@@ -586,13 +611,6 @@ export default function PublicProjectsPage() {
             statuses={statuses}
             fundingSources={fundingSources}
             lgas={lgas}
-            totalProjects={projectSummary.total_projects || projectList.length}
-          />
-
-          <ProjectPortfolioPanel
-            projects={projectList}
-            filteredProjects={filteredProjects}
-            summary={projectSummary}
           />
 
           <AboutDataAccordion />

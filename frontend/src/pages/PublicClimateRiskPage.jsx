@@ -250,72 +250,62 @@ function ExplorerControlBar({
   }
 
   return (
-    <section className="border-b border-[#D8DDE2] bg-white px-4 py-4 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1536px]">
-        <div className="grid gap-4 lg:grid-cols-[280px_1fr_1fr_auto] lg:items-end">
-          <label className="block">
-            <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-              Risk category
-            </span>
+    <div className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] p-4">
+      <div className="grid gap-4 lg:grid-cols-[280px_1fr_1.2fr_auto] lg:items-end">
+        <ControlField label="Risk category">
+          <select
+            value={activeGroup.key}
+            onChange={handleGroupChange}
+            className="h-11 w-full rounded-md border border-[#D8DDE2] bg-white px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+          >
+            {riskLayerGroups.map((group) => (
+              <option key={group.key} value={group.key}>
+                {group.title}
+              </option>
+            ))}
+          </select>
+        </ControlField>
 
-            <select
-              value={activeGroup.key}
-              onChange={handleGroupChange}
-              className="h-11 w-full rounded-md border border-[#D8DDE2] bg-white px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
-            >
-              {riskLayerGroups.map((group) => (
-                <option key={group.key} value={group.key}>
-                  {group.title}
-                </option>
-              ))}
-            </select>
-          </label>
+        <ControlField label="Indicator">
+          <select
+            value={activeLayer}
+            onChange={(event) => onLayerChange(event.target.value)}
+            className="h-11 w-full rounded-md border border-[#D8DDE2] bg-white px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+          >
+            {activeGroup.items.map((item) => (
+              <option key={item.key} value={item.key}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </ControlField>
 
-          <label className="block">
-            <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
-              Indicator
-            </span>
+        <div className="rounded-md border border-[#D8DDE2] bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+          <span className="font-black text-[#030454]">
+            {activeLayerConfig.label}:
+          </span>{" "}
+          {activeLayerConfig.reverse
+            ? "Higher values indicate stronger capacity."
+            : "Higher values indicate higher concern."}
+        </div>
 
-            <select
-              value={activeLayer}
-              onChange={(event) => onLayerChange(event.target.value)}
-              className="h-11 w-full rounded-md border border-[#D8DDE2] bg-white px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
-            >
-              {activeGroup.items.map((item) => (
-                <option key={item.key} value={item.key}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </label>
+        <div className="flex flex-wrap gap-2 text-xs text-slate-500 lg:justify-end">
+          <span className="rounded-full bg-white px-3 py-2">
+            Year:{" "}
+            <strong className="text-[#030454]">
+              {latestYear || "Latest"}
+            </strong>
+          </span>
 
-          <div className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-4 py-3 text-sm leading-6 text-slate-600">
-            <span className="font-black text-[#030454]">
-              {activeLayerConfig.label}:
-            </span>{" "}
-            {activeLayerConfig.reverse
-              ? "Higher values indicate stronger capacity."
-              : "Higher values indicate higher concern."}
-          </div>
-
-          <div className="flex flex-wrap gap-2 text-xs text-slate-500 lg:justify-end">
-            <span className="rounded-full bg-[#F7F9FA] px-3 py-2">
-              Year:{" "}
-              <strong className="text-[#030454]">
-                {latestYear || "Latest"}
-              </strong>
-            </span>
-
-            <span className="rounded-full bg-[#F7F9FA] px-3 py-2">
-              LGAs:{" "}
-              <strong className="text-[#030454]">
-                {climateRisk.total_lgas || 0}
-              </strong>
-            </span>
-          </div>
+          <span className="rounded-full bg-white px-3 py-2">
+            LGAs:{" "}
+            <strong className="text-[#030454]">
+              {climateRisk.total_lgas || 0}
+            </strong>
+          </span>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -360,7 +350,7 @@ function LgaRankingChart({ climateRisk, profiles, activeLayer }) {
           return (
             <div
               key={profile.id || `${profile.lga_name}-${index}`}
-              className="grid gap-3 md:grid-cols-[220px_90px_1fr_90px] md:items-center"
+              className="grid gap-3 md:grid-cols-[240px_1fr_90px] md:items-center"
             >
               <div className="flex min-w-0 items-center gap-3">
                 <span className="w-8 shrink-0 font-mono text-xs font-black text-slate-400">
@@ -372,18 +362,23 @@ function LgaRankingChart({ climateRisk, profiles, activeLayer }) {
                 </span>
               </div>
 
-              <span className="font-mono text-sm font-black text-[#030454]">
-                {formatRiskScore(score)}
-              </span>
-
-              <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+              <div className="group relative">
                 <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${Math.min(Math.max(numericScore, 0), 100)}%`,
-                    backgroundColor: getScoreBarColor(score, layerConfig),
-                  }}
-                />
+                  className="h-3 overflow-hidden rounded-full bg-slate-100"
+                  title={`${layerConfig.label}: ${formatRiskScore(score)} / 100`}
+                >
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(Math.max(numericScore, 0), 100)}%`,
+                      backgroundColor: getScoreBarColor(score, layerConfig),
+                    }}
+                  />
+                </div>
+
+                <div className="pointer-events-none absolute left-1/2 top-5 z-20 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-[#030454] px-2 py-1 text-[11px] font-black text-white shadow-lg group-hover:block">
+                  {formatRiskScore(score)} / 100
+                </div>
               </div>
 
               <span
@@ -408,6 +403,7 @@ function MapAnalysisPanel({
   climateRisk,
   publicProfiles,
   onProfilesLoaded,
+  onLayerChange,
 }) {
   return (
     <section className="bg-[#F7F9FA] px-4 py-8 sm:px-8 lg:px-10">
@@ -439,6 +435,13 @@ function MapAnalysisPanel({
           </div>
 
           <div className="space-y-6 p-5">
+            <ExplorerControlBar
+              activeLayer={activeLayer}
+              onLayerChange={onLayerChange}
+              latestYear={climateRisk.latest_year}
+              climateRisk={climateRisk}
+            />
+
             <PublicClimateRiskMapPreview
               activeLayer={activeLayer}
               height="720px"
@@ -562,19 +565,13 @@ export default function PublicClimateRiskPage() {
         </section>
       ) : (
         <>
-          <ExplorerControlBar
-            activeLayer={activeRiskLayer}
-            onLayerChange={setActiveRiskLayer}
-            latestYear={climateRisk.latest_year}
-            climateRisk={climateRisk}
-          />
-
           <MapAnalysisPanel
             activeLayer={activeRiskLayer}
             activeLayerConfig={activeLayerConfig}
             climateRisk={climateRisk}
             publicProfiles={publicProfiles}
             onProfilesLoaded={setPublicProfiles}
+            onLayerChange={setActiveRiskLayer}
           />
 
           <AboutDataAccordion />

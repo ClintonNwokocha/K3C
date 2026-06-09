@@ -10,6 +10,11 @@ from climate_risk.models import ClimateRiskProfile
 from projects.models import ClimateProject
 from reports.models import ReportDocument
 
+try:
+    from foundation.models import NDCConstant
+except Exception:
+    NDCConstant = None
+
 
 def decimal_to_float(value):
     if value is None:
@@ -33,6 +38,19 @@ def get_public_file_url(request, report):
         return ""
 
     return request.build_absolute_uri(report.file.url)
+
+def decimal_to_float_or_none(value):
+    if value is None or value == "":
+        return None
+
+    return decimal_to_float(value)
+
+
+def get_project_image_url(request, project):
+    if not getattr(project, "project_image", None):
+        return ""
+
+    return request.build_absolute_uri(project.project_image.url)
 
 
 def build_public_climate_summary():
@@ -90,7 +108,7 @@ def build_public_climate_summary():
     }
 
 
-def build_public_project_summary():
+def build_public_project_summary(request):
     projects = ClimateProject.objects.filter(is_active=True)
 
     total_projects = projects.count()
@@ -146,7 +164,13 @@ def build_public_project_summary():
             "status_display": project.get_status_display(),
             "priority": project.priority,
             "priority_display": project.get_priority_display(),
+            "lga": project.lga_id,
             "lga_name": getattr(project.lga, "lga_name", "") if project.lga else "",
+            "latitude": decimal_to_float_or_none(project.latitude),
+            "longitude": decimal_to_float_or_none(project.longitude),
+            "project_image_url": get_project_image_url(request, project),
+            "public_summary": project.public_summary or "",
+            "public_description": project.public_description or "",
             "funding_source": project.funding_source or "Not specified",
             "expected_ghg_reduction_tco2e": decimal_to_float(
                 project.expected_ghg_reduction_tco2e
@@ -170,6 +194,54 @@ def build_public_project_summary():
         "public_projects": public_projects,
     }
 
+
+def build_public_ghg_summary():
+    constants = None
+
+    if NDCConstant is not None:
+        try:
+            constants = NDCConstant.objects.order_by("-id").first()
+        except Exception:
+            constants = None
+
+    kaduna_baseline_mt = (
+        getattr(constants, "kaduna_baseline_mt", None)
+        or Decimal("13.3")
+    )
+
+    nigeria_baseline_mt = (
+        getattr(constants, "nigeria_baseline_mt", None)
+        or Decimal("317")
+    )
+
+    kaduna_share_pct = (
+        getattr(constants, "kaduna_share_pct", None)
+        or Decimal("4.2")
+    )
+
+    target_year = getattr(constants, "target_year", None) or 2030
+
+    unconditional_pct = (
+        getattr(constants, "unconditional_pct", None)
+        or Decimal("47")
+    )
+
+    conditional_pct = (
+        getattr(constants, "conditional_pct", None)
+        or Decimal("50")
+    )
+
+    return {
+        "baseline_label": "Kaduna State GHG baseline",
+        "baseline_reference": "NDC reference baseline",
+        "baseline_emissions_mtco2e": decimal_to_float(kaduna_baseline_mt),
+        "baseline_emissions_tco2e": decimal_to_float(kaduna_baseline_mt) * 1000000,
+        "nigeria_baseline_mtco2e": decimal_to_float(nigeria_baseline_mt),
+        "kaduna_share_pct": decimal_to_float(kaduna_share_pct),
+        "target_year": target_year,
+        "unconditional_reduction_target_pct": decimal_to_float(unconditional_pct),
+        "conditional_reduction_target_pct": decimal_to_float(conditional_pct),
+    }
 
 def build_public_reports_summary(request):
     reports = ReportDocument.objects.filter(
@@ -220,7 +292,8 @@ def public_portal_summary(request):
         "message": "Public portal summary loaded.",
         "summary": {
             "climate_risk": build_public_climate_summary(),
-            "projects": build_public_project_summary(),
+            "ghg_inventory": build_public_ghg_summary(),
+            "projects": build_public_project_summary(request),
             "reports": build_public_reports_summary(request),
         },
     })
@@ -417,6 +490,11 @@ def public_climate_projects(request):
             "priority_display": project.get_priority_display(),
             "lga": project.lga_id,
             "lga_name": getattr(project.lga, "lga_name", "") if project.lga else "",
+            "latitude": decimal_to_float_or_none(project.latitude),
+            "longitude": decimal_to_float_or_none(project.longitude),
+            "project_image_url": get_project_image_url(request, project),
+            "public_summary": project.public_summary or "",
+            "public_description": project.public_description or "",
             "funding_source": project.funding_source or "Not specified",
             "expected_ghg_reduction_tco2e": decimal_to_float(
                 project.expected_ghg_reduction_tco2e

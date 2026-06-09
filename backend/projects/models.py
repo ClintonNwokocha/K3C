@@ -73,6 +73,40 @@ class ClimateProject(models.Model):
         related_name="climate_projects",
     )
 
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Project latitude in WGS84 decimal degrees.",
+    )
+
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Project longitude in WGS84 decimal degrees.",
+    )
+
+    project_image = models.ImageField(
+        upload_to="project_images/",
+        null=True,
+        blank=True,
+        help_text="Public-facing project image for the project showcase.",
+    )
+
+    public_summary = models.CharField(
+        max_length=300,
+        blank=True,
+        help_text="Short public summary shown on project showcase cards.",
+    )
+
+    public_description = models.TextField(
+        blank=True,
+        help_text="Longer public-facing description used for read-more details.",
+    )
+
     description = models.TextField(blank=True)
     implementing_agency = models.CharField(max_length=255, blank=True)
     funding_source = models.CharField(max_length=255, blank=True)
@@ -123,6 +157,8 @@ class ClimateProject(models.Model):
             models.Index(fields=["status"]),
             models.Index(fields=["priority"]),
             models.Index(fields=["lga"]),
+            models.Index(fields=["latitude", "longitude"]),
+            models.Index(fields=["funding_source"]),
         ]
 
     def __str__(self):
