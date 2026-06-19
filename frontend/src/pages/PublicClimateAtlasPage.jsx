@@ -762,7 +762,7 @@ export default function PublicClimateAtlasPage() {
                   <TileLayer
                     attribution="CartoDB Dark"
                     crossOrigin="anonymous"
-                    url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                    url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
                   />
                 )}
 
@@ -850,12 +850,12 @@ export default function PublicClimateAtlasPage() {
                 </div>
               </div>
 
-              <div className="absolute bottom-24 left-1/2 z-[900] -translate-x-1/2 rounded-md border border-[#D8DDE2] bg-white px-4 py-2 text-xs font-bold shadow">
+              <div className="absolute bottom-[160px] left-6 z-[900] rounded-md border border-[#D8DDE2] bg-white px-4 py-2 text-xs font-bold shadow">
                 {wardsVisible ? "Click any ward or LGA for profile" : "Zoom in to reveal wards"}
               </div>
 
               {selectedLga && (
-                <div className="absolute right-20 top-24 z-[900] w-[320px] rounded-xl border border-[#D8DDE2] bg-white p-4 shadow-xl">
+                <div className="absolute bottom-[116px] right-[60px] z-[900] w-[300px] rounded-xl border border-[#D8DDE2] bg-white p-4 shadow-xl">
                   <button type="button" onClick={() => setSelectedLga(null)} className="float-right font-black">×</button>
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#009B35]">LGA profile</p>
                   <h3 className="mt-1 text-xl font-black">{selectedLga.name}</h3>
@@ -869,7 +869,7 @@ export default function PublicClimateAtlasPage() {
               )}
 
               {selectedWard && (
-                <div className="absolute right-20 top-24 z-[900] w-[320px] rounded-xl border border-[#D8DDE2] bg-white p-4 shadow-xl">
+                <div className="absolute bottom-[116px] right-[60px] z-[900] w-[300px] rounded-xl border border-[#D8DDE2] bg-white p-4 shadow-xl">
                   <button type="button" onClick={() => setSelectedWard(null)} className="float-right font-black">×</button>
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#009B35]">Ward profile</p>
                   <h3 className="mt-1 text-xl font-black">{selectedWard.wardName}</h3>
