@@ -1,11 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   PublicEmptyState,
   PublicPortalFooter,
   PublicPortalHeader,
 } from "../components/PublicPortalChrome";
 import PublicClimateRiskMapPreview from "../components/PublicClimateRiskMapPreview";
-import { getPublicPortalSummary } from "../services/api";
+import {
+  getPublicPortalSummary,
+  getPublicClimateRiskProfiles,
+} from "../services/api";
 
 const riskLayerGroups = [
   {
@@ -126,20 +129,21 @@ function hasValidScore(value) {
   return Number.isFinite(Number(value));
 }
 
-function formatNumber(value, maximumFractionDigits = 2) {
-  if (!hasValidScore(value)) return "—";
-
-  return Number(value).toLocaleString(undefined, {
-    maximumFractionDigits,
-  });
-}
-
 function formatRiskScore(value) {
   if (!hasValidScore(value)) return "—";
 
   return Number(value).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+  });
+}
+
+function formatAverageScore(value) {
+  if (!hasValidScore(value)) return "—";
+
+  return Number(value).toLocaleString(undefined, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
   });
 }
 
@@ -197,6 +201,54 @@ function getScoreBarColor(value, layerConfig) {
   return "#009B35";
 }
 
+function getLayerStats(profiles, layerConfig) {
+  const validProfiles = profiles.filter((profile) =>
+    hasValidScore(profile?.[layerConfig.field])
+  );
+
+  if (!validProfiles.length) {
+    return {
+      averageScore: null,
+      concernCount: 0,
+      topProfile: null,
+    };
+  }
+
+  const scores = validProfiles.map((profile) =>
+    Number(profile[layerConfig.field])
+  );
+
+  const averageScore =
+    scores.reduce((total, score) => total + score, 0) / scores.length;
+
+  const concernCount = validProfiles.filter((profile) => {
+    const score = Number(profile[layerConfig.field]);
+
+    if (layerConfig.reverse) {
+      return score < 55;
+    }
+
+    return score >= 60;
+  }).length;
+
+  const sorted = [...validProfiles].sort((a, b) => {
+    const aScore = Number(a[layerConfig.field]);
+    const bScore = Number(b[layerConfig.field]);
+
+    if (layerConfig.reverse) {
+      return aScore - bScore;
+    }
+
+    return bScore - aScore;
+  });
+
+  return {
+    averageScore,
+    concernCount,
+    topProfile: sorted[0],
+  };
+}
+
 function getRankedProfiles(climateRisk, profiles, layerConfig) {
   const usableProfiles = profiles.length ? profiles : climateRisk.top_lgas || [];
 
@@ -218,6 +270,53 @@ function getRankedProfiles(climateRisk, profiles, layerConfig) {
       return bScore - aScore;
     })
     .slice(0, 8);
+}
+
+function ClimateRiskSummaryTiles({ activeLayer, profiles }) {
+  const layerConfig = getLayerConfig(activeLayer);
+  const layerStats = getLayerStats(profiles, layerConfig);
+
+  const concernLabel = layerConfig.reverse
+    ? "Weak Capacity LGAs"
+    : "High Concern LGAs";
+
+  return (
+    <section className="bg-[#F7F9FA] px-4 py-4 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-[1536px]">
+        <div className="grid gap-3 md:grid-cols-3">
+          <article className="rounded-xl border border-[#D8DDE2] bg-white p-5 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Average Score
+            </p>
+
+            <strong className="mt-2 block text-2xl font-black text-[#030454]">
+              {formatAverageScore(layerStats.averageScore)}
+            </strong>
+          </article>
+
+          <article className="rounded-xl border border-[#D8DDE2] bg-white p-5 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+              {concernLabel}
+            </p>
+
+            <strong className="mt-2 block text-2xl font-black text-[#030454]">
+              {layerStats.concernCount}
+            </strong>
+          </article>
+
+          <article className="rounded-xl border border-[#D8DDE2] bg-white p-5 shadow-sm">
+            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+              Priority LGA
+            </p>
+
+            <strong className="mt-2 block truncate text-2xl font-black text-[#030454]">
+              {layerStats.topProfile?.lga_name || "—"}
+            </strong>
+          </article>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function ControlField({ label, children }) {
@@ -250,13 +349,13 @@ function ExplorerControlBar({
   }
 
   return (
-    <div className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] p-4">
-      <div className="grid gap-4 lg:grid-cols-[280px_1fr_1.2fr_auto] lg:items-end">
+    <div className="rounded-xl border border-[#D8DDE2] bg-white p-4 shadow-sm">
+      <div className="grid gap-4 lg:grid-cols-[240px_260px_1fr_auto] lg:items-end">
         <ControlField label="Risk category">
           <select
             value={activeGroup.key}
             onChange={handleGroupChange}
-            className="h-11 w-full rounded-md border border-[#D8DDE2] bg-white px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+            className="h-11 w-full rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
           >
             {riskLayerGroups.map((group) => (
               <option key={group.key} value={group.key}>
@@ -270,7 +369,7 @@ function ExplorerControlBar({
           <select
             value={activeLayer}
             onChange={(event) => onLayerChange(event.target.value)}
-            className="h-11 w-full rounded-md border border-[#D8DDE2] bg-white px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+            className="h-11 w-full rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
           >
             {activeGroup.items.map((item) => (
               <option key={item.key} value={item.key}>
@@ -280,24 +379,22 @@ function ExplorerControlBar({
           </select>
         </ControlField>
 
-        <div className="rounded-md border border-[#D8DDE2] bg-white px-4 py-3 text-sm leading-6 text-slate-600">
+        <div className="rounded-md border border-[#E6EAEC] bg-[#F7F9FA] px-4 py-3 text-sm leading-6 text-slate-600">
           <span className="font-black text-[#030454]">
             {activeLayerConfig.label}:
           </span>{" "}
-          {activeLayerConfig.reverse
-            ? "Higher values indicate stronger capacity."
-            : "Higher values indicate higher concern."}
+          {activeLayerConfig.description}
         </div>
 
         <div className="flex flex-wrap gap-2 text-xs text-slate-500 lg:justify-end">
-          <span className="rounded-full bg-white px-3 py-2">
+          <span className="rounded-full bg-[#F7F9FA] px-3 py-2">
             Year:{" "}
             <strong className="text-[#030454]">
               {latestYear || "Latest"}
             </strong>
           </span>
 
-          <span className="rounded-full bg-white px-3 py-2">
+          <span className="rounded-full bg-[#F7F9FA] px-3 py-2">
             LGAs:{" "}
             <strong className="text-[#030454]">
               {climateRisk.total_lgas || 0}
@@ -323,7 +420,7 @@ function LgaRankingChart({ climateRisk, profiles, activeLayer }) {
   }
 
   return (
-    <div className="rounded-md border border-[#D8DDE2] bg-white p-5">
+    <div className="rounded-xl border border-[#D8DDE2] bg-white p-5 shadow-sm">
       <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
@@ -399,61 +496,62 @@ function LgaRankingChart({ climateRisk, profiles, activeLayer }) {
 
 function MapAnalysisPanel({
   activeLayer,
-  activeLayerConfig,
   climateRisk,
   publicProfiles,
   onProfilesLoaded,
   onLayerChange,
 }) {
   return (
-    <section className="bg-[#F7F9FA] px-4 py-8 sm:px-8 lg:px-10">
+    <section className="bg-[#F7F9FA] px-4 pb-5 pt-0 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-[1536px]">
-        <div className="rounded-md border border-[#CAD2D7] bg-white shadow-sm">
-          <div className="flex flex-col justify-between gap-4 border-b border-[#E6EAEC] px-6 py-5 md:flex-row md:items-start">
-            <div>
-              <h2 className="font-['Playfair_Display'] text-3xl font-bold text-[#030454]">
-                {activeLayerConfig.label} across Kaduna State
-              </h2>
+        <div className="space-y-4">
+          <ExplorerControlBar
+            activeLayer={activeLayer}
+            onLayerChange={onLayerChange}
+            latestYear={climateRisk.latest_year}
+            climateRisk={climateRisk}
+          />
 
-              <p className="mt-3 max-w-5xl text-sm leading-7 text-slate-600">
-                {activeLayerConfig.description}{" "}
-                {activeLayerConfig.reverse
-                  ? "Higher values indicate stronger capacity; lower values indicate weaker capacity."
-                  : "Higher values indicate higher concern."}
-              </p>
+          <div className="relative overflow-hidden rounded-2xl border border-[#030454]/10 bg-[#030454] p-5 shadow-sm">
+            <div className="absolute inset-y-0 right-0 w-1/2 bg-gradient-to-l from-[#009B35]/35 to-transparent" />
+
+            <div className="relative grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#F3F74B]">
+                  Satellite Intelligence Workspace
+                </p>
+
+                <h3 className="mt-2 text-2xl font-black text-white">
+                  Launch the Kaduna Interactive Climate Atlas
+                </h3>
+
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-white/70">
+                  Move from LGA risk summaries into an atlas-style workspace for NDVI,
+                  rainfall, heat, flood hazard, drought, LULC and terrain layers powered
+                  by the remote sensing backend.
+                </p>
+              </div>
+
+              <a
+                href="/public/climate-atlas"
+                className="inline-flex items-center justify-center rounded-md bg-[#F3F74B] px-5 py-3 text-sm font-black text-[#030454] transition hover:bg-white"
+              >
+                Open Climate Atlas
+              </a>
             </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = "/public/reports";
-              }}
-              className="w-fit rounded-md border border-[#030454] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:bg-[#030454] hover:text-white"
-            >
-              View Reports
-            </button>
           </div>
 
-          <div className="space-y-6 p-5">
-            <ExplorerControlBar
-              activeLayer={activeLayer}
-              onLayerChange={onLayerChange}
-              latestYear={climateRisk.latest_year}
-              climateRisk={climateRisk}
-            />
+          <PublicClimateRiskMapPreview
+            activeLayer={activeLayer}
+            height="540px"
+            onProfilesLoaded={onProfilesLoaded}
+          />
 
-            <PublicClimateRiskMapPreview
-              activeLayer={activeLayer}
-              height="720px"
-              onProfilesLoaded={onProfilesLoaded}
-            />
-
-            <LgaRankingChart
-              climateRisk={climateRisk}
-              profiles={publicProfiles}
-              activeLayer={activeLayer}
-            />
-          </div>
+          <LgaRankingChart
+            climateRisk={climateRisk}
+            profiles={publicProfiles}
+            activeLayer={activeLayer}
+          />
         </div>
       </div>
     </section>
@@ -522,8 +620,13 @@ export default function PublicClimateRiskPage() {
     setError("");
 
     try {
-      const data = await getPublicPortalSummary();
+      const [data, profileData] = await Promise.all([
+        getPublicPortalSummary(),
+        getPublicClimateRiskProfiles(),
+      ]);
+
       setSummaryData(data.summary || {});
+      setPublicProfiles(profileData.results || []);
     } catch (err) {
       console.error(err);
       setError("Could not load public climate risk summary.");
@@ -537,7 +640,6 @@ export default function PublicClimateRiskPage() {
   }, []);
 
   const climateRisk = summaryData?.climate_risk || {};
-  const activeLayerConfig = getLayerConfig(activeRiskLayer);
 
   return (
     <main className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#030454]">
@@ -557,6 +659,13 @@ export default function PublicClimateRiskPage() {
         </section>
       )}
 
+      {!isLoading && !error && (
+        <ClimateRiskSummaryTiles
+          activeLayer={activeRiskLayer}
+          profiles={publicProfiles}
+        />
+      )}
+
       {isLoading ? (
         <section className="px-4 py-16 sm:px-8 lg:px-10">
           <div className="mx-auto max-w-[1536px] rounded-sm border border-[#CAD2D7] bg-white p-8 text-sm text-slate-500 shadow-sm">
@@ -567,7 +676,6 @@ export default function PublicClimateRiskPage() {
         <>
           <MapAnalysisPanel
             activeLayer={activeRiskLayer}
-            activeLayerConfig={activeLayerConfig}
             climateRisk={climateRisk}
             publicProfiles={publicProfiles}
             onProfilesLoaded={setPublicProfiles}

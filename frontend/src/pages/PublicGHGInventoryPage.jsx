@@ -6,6 +6,37 @@ import {
 } from "../components/PublicPortalChrome";
 import { getPublicPortalSummary } from "../services/api";
 
+const STANDARD_SECTOR_OPTIONS = [
+  "Energy",
+  "IPPU",
+  "Agriculture",
+  "LULUCF",
+  "Waste",
+];
+
+const sectorInsightCopy = {
+  Energy: {
+    title: "Energy systems are usually the largest emissions driver.",
+    body: "Energy-sector emissions often come from electricity use, fuel combustion, transport, generators and industrial energy demand. Tracking this sector helps identify mitigation opportunities around efficiency, cleaner energy and transport transition.",
+  },
+  IPPU: {
+    title: "Industrial processes require technical emissions accounting.",
+    body: "IPPU covers emissions from industrial processes and product use. Public values should be interpreted with methodology notes because emissions may depend on production activity and sector-specific factors.",
+  },
+  Agriculture: {
+    title: "Agriculture connects emissions with food security.",
+    body: "Agriculture emissions may be linked to livestock, soil management, fertiliser use and land-based production. Mitigation must be balanced with livelihoods and food-system resilience.",
+  },
+  LULUCF: {
+    title: "Land use can be an emissions source or a removal opportunity.",
+    body: "LULUCF tracks land-use change, forests, vegetation and carbon removals. It is important for climate action because restoration and improved land management can support carbon sequestration.",
+  },
+  Waste: {
+    title: "Waste emissions can be reduced through better systems.",
+    body: "Waste-sector emissions are commonly linked to solid waste, wastewater and methane generation. Better collection, treatment, recycling and landfill management can reduce emissions.",
+  },
+};
+
 const aboutDataItems = [
   {
     title: "What does tCO₂e mean?",
@@ -31,14 +62,6 @@ const aboutDataItems = [
     title: "Proper use of the data",
     body: "Public GHG information should support communication, planning and coordination. Technical users should consult approved methodology documents, inventory reports and validated datasets before making formal reporting decisions.",
   },
-];
-
-const STANDARD_SECTOR_OPTIONS = [
-  "Energy",
-  "IPPU",
-  "Agriculture",
-  "LULUCF",
-  "Waste",
 ];
 
 function hasValidNumber(value) {
@@ -70,6 +93,10 @@ function formatCompactNumber(value) {
   return formatNumber(number, 0);
 }
 
+function getFirstValidNumber(...values) {
+  return values.find((value) => hasValidNumber(value));
+}
+
 function getSectorName(row) {
   return (
     row.sector_display ||
@@ -96,9 +123,20 @@ function getSectorShare(row) {
   return null;
 }
 
-function SummaryChip({ label, value, helper }) {
+function SummaryChip({ label, value, helper, tone = "default" }) {
+  const toneClasses = {
+    default: "border-[#D8DDE2] bg-white",
+    blue: "border-[#030454]/20 bg-[#030454]/5",
+    green: "border-[#009B35]/20 bg-[#009B35]/5",
+    yellow: "border-[#F3F74B] bg-[#F3F74B]/20",
+  };
+
   return (
-    <div className="rounded-md border border-[#D8DDE2] bg-white px-4 py-4">
+    <div
+      className={`rounded-md border px-4 py-4 ${
+        toneClasses[tone] || toneClasses.default
+      }`}
+    >
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </p>
@@ -119,6 +157,339 @@ function ControlField({ label, children }) {
 
       {children}
     </label>
+  );
+}
+
+function GhgMetricRibbon({ ghg, projects, reportingYear }) {
+  const baselineMt = getFirstValidNumber(
+    ghg.baseline_emissions_mtco2e,
+    ghg.state_emissions_mt,
+    ghg.baseline_mtco2e
+  );
+
+  const nigeriaBaselineMt = getFirstValidNumber(
+    ghg.nigeria_baseline_mtco2e,
+    ghg.national_baseline_mtco2e,
+    ghg.nigeria_emissions_mtco2e
+  );
+
+  const kadunaShare = getFirstValidNumber(
+    ghg.kaduna_share_of_national_pct,
+    ghg.share_of_national_pct,
+    ghg.national_share_pct
+  );
+
+  const targetYear = ghg.target_year || ghg.ndc_target_year || "2030";
+
+  const unconditionalTarget = getFirstValidNumber(
+    ghg.unconditional_reduction_pct,
+    ghg.ndc_unconditional_reduction_pct,
+    ghg.unconditional_target_pct
+  );
+
+  const conditionalTarget = getFirstValidNumber(
+    ghg.conditional_reduction_pct,
+    ghg.ndc_conditional_reduction_pct,
+    ghg.conditional_target_pct
+  );
+
+  const items = [
+    `Kaduna baseline: ${
+      hasValidNumber(baselineMt)
+        ? `${formatNumber(baselineMt, 2)} MtCO₂e`
+        : "Not published"
+    }`,
+    `Nigeria baseline: ${
+      hasValidNumber(nigeriaBaselineMt)
+        ? `${formatNumber(nigeriaBaselineMt, 0)} MtCO₂e`
+        : "Not published"
+    }`,
+    `Kaduna national share: ${
+      hasValidNumber(kadunaShare) ? `${formatNumber(kadunaShare, 1)}%` : "—"
+    }`,
+    `Target year: ${targetYear}`,
+    `Unconditional target: ${
+      hasValidNumber(unconditionalTarget)
+        ? `${formatNumber(unconditionalTarget, 0)}%`
+        : "—"
+    }`,
+    `Conditional target: ${
+      hasValidNumber(conditionalTarget)
+        ? `${formatNumber(conditionalTarget, 0)}%`
+        : "—"
+    }`,
+    `Reporting year: ${reportingYear || "Not published"}`,
+    `Estimated project reductions: ${formatCompactNumber(
+      projects.total_expected_ghg_reduction_tco2e
+    )} tCO₂e`,
+  ];
+
+  const scrollingItems = [...items, ...items];
+
+  return (
+    <section className="overflow-hidden border-y border-[#D8DDE2] bg-white">
+      <style>
+        {`
+          @keyframes ghg-info-ribbon {
+            0% {
+              transform: translateX(0);
+            }
+
+            100% {
+              transform: translateX(-50%);
+            }
+          }
+
+          .ghg-info-ribbon-track {
+            width: max-content;
+            animation: ghg-info-ribbon 55s linear infinite;
+            will-change: transform;
+          }
+
+          .ghg-info-ribbon-track:hover {
+            animation-play-state: paused;
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .ghg-info-ribbon-track {
+              animation: none;
+              flex-wrap: wrap;
+              width: 100%;
+            }
+          }
+        `}
+      </style>
+
+      <div className="ghg-info-ribbon-track flex">
+        {scrollingItems.map((item, index) => (
+          <div
+            key={`${item}-${index}`}
+            className="flex items-center gap-3 border-r border-[#E6EAEC] px-6 py-4 text-xs font-black uppercase tracking-[0.1em] text-[#030454]"
+          >
+            <span className="h-2.5 w-2.5 rounded-full bg-[#009B35]" />
+            {item}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function BaselineIntelligencePanel({ ghg, projects, reportingYear }) {
+  const baselineMt = getFirstValidNumber(
+    ghg.baseline_emissions_mtco2e,
+    ghg.state_emissions_mt,
+    ghg.baseline_mtco2e
+  );
+
+  const nigeriaBaselineMt = getFirstValidNumber(
+    ghg.nigeria_baseline_mtco2e,
+    ghg.national_baseline_mtco2e,
+    ghg.nigeria_emissions_mtco2e
+  );
+
+  const kadunaShare = getFirstValidNumber(
+    ghg.kaduna_share_of_national_pct,
+    ghg.share_of_national_pct,
+    ghg.national_share_pct
+  );
+
+  const targetYear = ghg.target_year || ghg.ndc_target_year || "2030";
+
+  const estimatedReduction = getFirstValidNumber(
+    projects.total_expected_ghg_reduction_tco2e,
+    ghg.estimated_reduction_tco2e
+  );
+
+  return (
+    <section className="bg-[#F7F9FA] px-4 py-8 sm:px-8 lg:px-10">
+      <div className="mx-auto grid max-w-[1536px] gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <div className="overflow-hidden rounded-md border border-[#CAD2D7] bg-[#030454] text-white shadow-sm">
+          <div className="relative p-7">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(0,155,53,0.35),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(243,247,75,0.18),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.06)_0_1px,transparent_1px_34px)]" />
+
+            <div className="relative">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F3F74B]">
+                GHG baseline intelligence
+              </p>
+
+              <h2 className="mt-4 font-['Playfair_Display'] text-4xl font-bold leading-tight text-white md:text-5xl">
+                Kaduna’s emissions baseline is the reference point for tracking
+                progress.
+              </h2>
+
+              <p className="mt-5 max-w-3xl text-sm leading-7 text-white/75">
+                This public view translates greenhouse gas inventory information
+                into simple baseline, comparison and target signals for public
+                decision support.
+              </p>
+
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
+                <div className="rounded-md border border-white/10 bg-white/10 p-5 backdrop-blur">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/55">
+                    Kaduna baseline
+                  </p>
+
+                  <p className="mt-2 text-3xl font-black text-white">
+                    {hasValidNumber(baselineMt)
+                      ? `${formatNumber(baselineMt, 2)} MtCO₂e`
+                      : "Not published"}
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-white/60">
+                    State reference baseline for tracking emissions progress.
+                  </p>
+                </div>
+
+                <div className="rounded-md border border-white/10 bg-white/10 p-5 backdrop-blur">
+                  <p className="text-[10px] font-black uppercase tracking-[0.14em] text-white/55">
+                    Reporting year
+                  </p>
+
+                  <p className="mt-2 text-3xl font-black text-white">
+                    {reportingYear || "Not published"}
+                  </p>
+
+                  <p className="mt-2 text-xs leading-5 text-white/60">
+                    Latest public inventory period where available.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SummaryChip
+            label="Nigeria baseline"
+            value={
+              hasValidNumber(nigeriaBaselineMt)
+                ? `${formatNumber(nigeriaBaselineMt, 0)} MtCO₂e`
+                : "Not published"
+            }
+            helper="National baseline used for public comparison where available."
+            tone="blue"
+          />
+
+          <SummaryChip
+            label="Kaduna share"
+            value={
+              hasValidNumber(kadunaShare)
+                ? `${formatNumber(kadunaShare, 1)}%`
+                : "Not published"
+            }
+            helper="Kaduna's approximate share of the national baseline."
+            tone="green"
+          />
+
+          <SummaryChip
+            label="Target year"
+            value={targetYear}
+            helper="Reference year for reduction pathway communication."
+            tone="yellow"
+          />
+
+          <SummaryChip
+            label="Project reductions"
+            value={
+              hasValidNumber(estimatedReduction)
+                ? `${formatCompactNumber(estimatedReduction)} tCO₂e`
+                : "Not published"
+            }
+            helper="Expected mitigation outcomes from public climate projects."
+            tone="default"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function NdcPathwayPanel({ ghg }) {
+  const targetYear = ghg.target_year || ghg.ndc_target_year || "2030";
+
+  const unconditionalTarget = getFirstValidNumber(
+    ghg.unconditional_reduction_pct,
+    ghg.ndc_unconditional_reduction_pct,
+    ghg.unconditional_target_pct
+  );
+
+  const conditionalTarget = getFirstValidNumber(
+    ghg.conditional_reduction_pct,
+    ghg.ndc_conditional_reduction_pct,
+    ghg.conditional_target_pct
+  );
+
+  const unconditionalWidth = hasValidNumber(unconditionalTarget)
+    ? `${Math.min(Math.max(Number(unconditionalTarget), 5), 100)}%`
+    : "0%";
+
+  const conditionalWidth = hasValidNumber(conditionalTarget)
+    ? `${Math.min(Math.max(Number(conditionalTarget), 5), 100)}%`
+    : "0%";
+
+  return (
+    <div className="rounded-md border border-[#D8DDE2] bg-white p-6 shadow-sm">
+      <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
+            Reduction pathway
+          </p>
+
+          <h3 className="mt-2 font-['Playfair_Display'] text-3xl font-bold text-[#030454]">
+            Public NDC target signal for {targetYear}
+          </h3>
+        </div>
+
+        <span className="w-fit rounded-full bg-[#F3F74B]/35 px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#030454]">
+          Baseline to target
+        </span>
+      </div>
+
+      <div className="mt-8 space-y-6">
+        <div>
+          <div className="mb-2 flex justify-between text-xs font-black uppercase tracking-[0.08em] text-slate-500">
+            <span>Unconditional reduction</span>
+            <span>
+              {hasValidNumber(unconditionalTarget)
+                ? `${formatNumber(unconditionalTarget, 0)}%`
+                : "Not published"}
+            </span>
+          </div>
+
+          <div className="h-4 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-[#009B35]"
+              style={{ width: unconditionalWidth }}
+            />
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 flex justify-between text-xs font-black uppercase tracking-[0.08em] text-slate-500">
+            <span>Conditional reduction</span>
+            <span>
+              {hasValidNumber(conditionalTarget)
+                ? `${formatNumber(conditionalTarget, 0)}%`
+                : "Not published"}
+            </span>
+          </div>
+
+          <div className="h-4 overflow-hidden rounded-full bg-slate-100">
+            <div
+              className="h-full rounded-full bg-[#030454]"
+              style={{ width: conditionalWidth }}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 rounded-md border-l-4 border-[#F3F74B] bg-[#F3F74B]/20 px-5 py-4 text-sm leading-7 text-[#030454]">
+        These percentages communicate the public target pathway. Formal
+        reporting should still rely on approved inventory methodology documents,
+        validated datasets and published technical reports.
+      </div>
+    </div>
   );
 }
 
@@ -179,7 +550,10 @@ function SectorBreakdownChart({ rows }) {
     );
   }
 
-  const maxValue = Math.max(...rows.map((row) => Number(getSectorValue(row) || 0)), 1);
+  const maxValue = Math.max(
+    ...rows.map((row) => Number(getSectorValue(row) || 0)),
+    1
+  );
 
   return (
     <div className="rounded-md border border-[#D8DDE2] bg-white p-5">
@@ -197,13 +571,17 @@ function SectorBreakdownChart({ rows }) {
       <div className="space-y-4">
         {rows.map((row, index) => {
           const value = Number(getSectorValue(row) || 0);
-          const width = `${Math.min(Math.max((value / maxValue) * 100, 4), 100)}%`;
+          const width = `${Math.min(
+            Math.max((value / maxValue) * 100, 4),
+            100
+          )}%`;
           const share = getSectorShare(row);
 
           return (
             <div
               key={`${getSectorName(row)}-${index}`}
-              className="grid gap-3 md:grid-cols-[220px_130px_1fr_90px] md:items-center"
+              className="group grid gap-3 rounded-md p-2 transition hover:bg-[#F7F9FA] md:grid-cols-[220px_130px_1fr_90px] md:items-center"
+              title={`${getSectorName(row)}: ${formatNumber(value, 0)} tCO₂e`}
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-black text-[#030454]">
@@ -217,7 +595,7 @@ function SectorBreakdownChart({ rows }) {
 
               <div className="h-3 overflow-hidden rounded-full bg-slate-100">
                 <div
-                  className="h-full rounded-full bg-[#009B35]"
+                  className="h-full rounded-full bg-[#009B35] transition group-hover:bg-[#030454]"
                   style={{ width }}
                 />
               </div>
@@ -233,85 +611,71 @@ function SectorBreakdownChart({ rows }) {
   );
 }
 
+function SectorInsightPanel({ selectedSector }) {
+  const insight =
+    selectedSector !== "all"
+      ? sectorInsightCopy[selectedSector]
+      : {
+          title: "Sector filtering helps identify where emissions action may matter most.",
+          body: "Use the sector selector to focus on Energy, IPPU, Agriculture, LULUCF or Waste. Public data should be interpreted as summary-level evidence until detailed methodology and technical reports are consulted.",
+        };
+
+  return (
+    <div className="rounded-md border border-[#D8DDE2] bg-white p-6 shadow-sm">
+      <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
+        What this means
+      </p>
+
+      <h3 className="mt-3 text-2xl font-black leading-tight text-[#030454]">
+        {insight.title}
+      </h3>
+
+      <p className="mt-4 text-sm leading-7 text-slate-600">{insight.body}</p>
+
+      <div className="mt-5 rounded-md border-l-4 border-[#F3F74B] bg-[#F3F74B]/20 px-5 py-4 text-sm leading-7 text-[#030454]">
+        Public guidance: use this page for awareness and coordination. Use
+        official inventory reports for formal accounting and reporting.
+      </div>
+    </div>
+  );
+}
+
 function InventoryOverviewPanel({
   ghg,
-  projects,
   filteredSectorRows,
   selectedSector,
   onSectorChange,
   sectorOptions,
   reportingYear,
 }) {
-
-  const baselineMt = ghg.baseline_emissions_mtco2e;
-  const baselineValue = hasValidNumber(baselineMt)
-    ? `${formatNumber(baselineMt, 2)} MtCO₂e`
-    : "Not published";
-
-  const totalEmissions = hasValidNumber(ghg.total_emissions_tco2e)
-    ? `${formatNumber(ghg.total_emissions_tco2e, 0)} tCO₂e`
-    : hasValidNumber(ghg.state_emissions_mt)
-      ? `${formatNumber(ghg.state_emissions_mt, 2)} MtCO₂e`
-      : "Not published";
-
-  const estimatedReduction = hasValidNumber(
-    projects.total_expected_ghg_reduction_tco2e
-  )
-    ? `${formatNumber(projects.total_expected_ghg_reduction_tco2e, 0)} tCO₂e`
-    : "Not published";
-
   return (
     <section className="bg-[#F7F9FA] px-4 py-8 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-[1536px]">
         <div className="rounded-md border border-[#CAD2D7] bg-white shadow-sm">
           <div className="border-b border-[#E6EAEC] px-6 py-5">
             <h2 className="font-['Playfair_Display'] text-3xl font-bold text-[#030454]">
-              Public greenhouse gas inventory overview
+              Public greenhouse gas inventory explorer
             </h2>
 
             <p className="mt-3 max-w-5xl text-sm leading-7 text-slate-600">
-              This public view summarises greenhouse gas emissions information
-              and estimated mitigation outcomes where approved summary data is
-              available.
+              Filter sector-level GHG data and interpret what the public summary
+              means for climate action planning.
             </p>
           </div>
 
           <div className="space-y-6 p-5">
-          <ExplorerControlBar
-            selectedSector={selectedSector}
-            onSectorChange={onSectorChange}
-            sectorOptions={sectorOptions}
-            reportingYear={reportingYear}
-          />
+            <ExplorerControlBar
+              selectedSector={selectedSector}
+              onSectorChange={onSectorChange}
+              sectorOptions={sectorOptions}
+              reportingYear={reportingYear}
+            />
 
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              
-              <SummaryChip
-                label="State GHG baseline"
-                value={baselineValue}
-                helper="Kaduna State reference baseline for NDC and emissions progress tracking."
-              />
-              
-              <SummaryChip
-                label="Reporting year"
-                value={reportingYear}
-                helper="Most recent public inventory period."
-              />
+            <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+              <SectorBreakdownChart rows={filteredSectorRows} />
 
-              <SummaryChip
-                label="Estimated GHG emissions"
-                value={totalEmissions}
-                helper="Displayed only where approved summary data exists."
-              />
-
-              <SummaryChip
-                label="Estimated GHG reduction"
-                value={estimatedReduction}
-                helper="Expected reduction from registered public climate projects."
-              />
+              <SectorInsightPanel selectedSector={selectedSector} />
             </div>
-
-            <SectorBreakdownChart rows={filteredSectorRows} />
 
             {selectedSector !== "all" && (
               <div className="rounded-md border-l-4 border-[#F3F74B] bg-[#F3F74B]/25 px-5 py-4 text-sm leading-7 text-[#030454]">
@@ -460,15 +824,32 @@ export default function PublicGHGInventoryPage() {
         </section>
       ) : (
         <>
-         <InventoryOverviewPanel
-          ghg={ghg}
-          projects={projects}
-          filteredSectorRows={filteredSectorRows}
-          selectedSector={selectedSector}
-          onSectorChange={setSelectedSector}
-          sectorOptions={sectorOptions}
-          reportingYear={reportingYear}
-        />
+          <GhgMetricRibbon
+            ghg={ghg}
+            projects={projects}
+            reportingYear={reportingYear}
+          />
+
+          <BaselineIntelligencePanel
+            ghg={ghg}
+            projects={projects}
+            reportingYear={reportingYear}
+          />
+
+          <section className="bg-[#F7F9FA] px-4 pb-8 sm:px-8 lg:px-10">
+            <div className="mx-auto max-w-[1536px]">
+              <NdcPathwayPanel ghg={ghg} />
+            </div>
+          </section>
+
+          <InventoryOverviewPanel
+            ghg={ghg}
+            filteredSectorRows={filteredSectorRows}
+            selectedSector={selectedSector}
+            onSectorChange={setSelectedSector}
+            sectorOptions={sectorOptions}
+            reportingYear={reportingYear}
+          />
 
           <AboutDataAccordion />
         </>

@@ -13,6 +13,7 @@ import GHGInventoryPage from "./pages/GHGInventoryPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import ClimateRiskPage from "./pages/ClimateRiskPage";
 import ProjectPortfolioPage from "./pages/ProjectPortfolioPage";
+import PublicClimateAtlasPage from "./pages/PublicClimateAtlasPage";
 import { canAccessAdministration } from "./utils/permissions";
 import {
   getCurrentUser,
@@ -189,6 +190,7 @@ function App() {
   const publicRoutes = {
     "/public": <PublicPortalPage />,
     "/public/climate-risk": <PublicClimateRiskPage />,
+    "/public/climate-atlas": <PublicClimateAtlasPage />,
     "/public/ghg-inventory": <PublicGHGInventoryPage />,
     "/public/projects": <PublicProjectsPage />,
     "/public/reports": <PublicReportsPage />,

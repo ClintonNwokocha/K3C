@@ -412,3 +412,38 @@ export async function getAuditLogs(params = {}) {
   const response = await api.get("/audit/logs/", { params });
   return response.data;
 }
+
+export async function getRemoteSensingLayers() {
+  const response = await api.get("/layers/");
+  return response.data;
+}
+
+export async function getRemoteSensingDashboardKpis() {
+  const response = await api.get("/dashboard/kpis/");
+  return response.data;
+}
+
+export async function getGeeStatus() {
+  const response = await api.get("/gee/status/");
+  return response.data;
+}
+
+export async function getRemoteSensingLgaStats(params = {}) {
+  const response = await api.get("/climate/lga-stats/", { params });
+  return response.data;
+}
+
+export async function getRemoteSensingLgaProfile(lgaId, params = {}) {
+  const response = await api.get(`/climate/lga-profile/${lgaId}/`, { params });
+  return response.data;
+}
+
+export async function getRemoteSensingTileUrl(layer) {
+  const response = await api.get(`/tiles/url/${layer}/`);
+  return response.data;
+}
+
+export async function getClimateHotspots(params = {}) {
+  const response = await api.get("/ai/hotspots/", { params });
+  return response.data;
+}
