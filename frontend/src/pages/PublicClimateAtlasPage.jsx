@@ -23,7 +23,7 @@ const LGA_LABEL_ZOOM = 8;
 const WARD_LABEL_ZOOM = 13;
 
 const VARIABLES = [
-  { key: "overall", label: "Overall Climate Risk", source: "risk", field: "overall_risk_score", unit: "/100" },
+  { key: "overall", label: "Overall Climate Intelligence", source: "risk", field: "overall_risk_score", unit: "/100" },
   { key: "heat", label: "Mean Temperature / Heat Risk", source: "risk", field: "heat_risk_score", unit: "/100" },
   { key: "rainfall_anomaly", label: "Rainfall Anomaly", source: "remote_sensing", unit: "mm" },
   { key: "flood_hazard", label: "Flood Hazard", source: "remote_sensing", unit: "index" },
@@ -34,7 +34,18 @@ const VARIABLES = [
 
 const DATASETS = ["KCCC Risk Database", "CHIRPS", "MODIS", "ERA5", "Sentinel-2"];
 const SEASONS = ["Annual", "Dry Season", "Wet Season"];
+
+const SEASON_PARAM = {
+  "Annual": "annual",
+  "Wet Season": "wet_season",
+  "Dry Season": "dry_season",
+};
 const PERIODS = ["Latest", "1981–2010", "1991–2020", "2021–2025"];
+const PERIOD_RANGE = {
+  "1981–2010": [1981, 2010],
+  "1991–2020": [1991, 2020],
+  "2021–2025": [2021, 2025],
+};
 const QUANTITIES = ["Mean", "Change rel. to baseline", "P10", "P90"];
 
 function normalizeName(value) {
@@ -79,6 +90,22 @@ function getColor(value) {
   if (n >= 60) return "#ea580c";
   if (n >= 40) return "#f59e0b";
   return "#1d9e75";
+}
+
+// NDVI-specific palette. Negative values are valid (water/rock) and rendered in blue.
+// Scale: < 0 → blue, 0–0.1 → tan, 0.1–0.2 → yellow-green, 0.2–0.35 → light green,
+//        0.35–0.5 → medium green, 0.5–0.65 → dark green, 0.65+ → very dark green.
+function getNdviColor(value) {
+  if (value === null || value === undefined || value === "") return "#d9dee3";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "#d9dee3";
+  if (n < 0)    return "#b2d8e8";
+  if (n < 0.1)  return "#e8d5a3";
+  if (n < 0.2)  return "#c8e07a";
+  if (n < 0.35) return "#8ec541";
+  if (n < 0.5)  return "#4aad52";
+  if (n < 0.65) return "#2d7d32";
+  return "#1a5e20";
 }
 
 function getFeatureCenter(feature) {
@@ -200,12 +227,12 @@ function AtlasToolButton({ label, symbol, active, onClick }) {
       type="button"
       onClick={onClick}
       title={label}
-      className={`group relative flex h-11 w-11 items-center justify-center border-b border-[#173B91]/25 text-lg font-black transition ${
+      className={`group relative flex h-12 w-12 items-center justify-center border-b border-[#173B91]/30 text-2xl font-black transition ${
         active ? "bg-[#173B91] text-white" : "bg-white text-[#173B91] hover:bg-[#F3F7FF]"
       }`}
     >
       {symbol}
-      <span className="pointer-events-none absolute right-12 top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-[#030454] px-2 py-1 text-[11px] font-black text-white shadow-lg group-hover:block">
+      <span className="pointer-events-none absolute right-14 top-1/2 hidden -translate-y-1/2 whitespace-nowrap rounded-md bg-[#173B91] px-3 py-1.5 text-xs font-bold text-white shadow-lg group-hover:block">
         {label}
       </span>
     </button>
@@ -263,7 +290,7 @@ function AtlasMapTools({
   }
 
   return (
-    <div className="absolute right-4 top-24 z-[900] flex flex-col overflow-visible rounded-md border border-[#173B91] bg-white shadow-sm">
+    <div className="absolute right-4 top-24 z-[900] flex flex-col overflow-visible rounded-md border border-[#173B91] bg-white shadow-md">
       <AtlasToolButton label={isFullscreen ? "Normal" : "Full"} symbol="⛶" onClick={toggleFullscreen} />
       <AtlasToolButton label="Zoom" symbol="+" onClick={() => map.zoomIn()} />
       <AtlasToolButton label="Select" symbol="▣" onClick={() => showMessage("Click any LGA or ward polygon to select.")} />
@@ -272,7 +299,7 @@ function AtlasMapTools({
       <AtlasToolButton label="Locate" symbol="⌖" onClick={locateUser} />
       <AtlasToolButton label="Grid" symbol="▧" active={showGrid} onClick={() => setShowGrid((v) => !v)} />
       <AtlasToolButton label="Wards" symbol="▤" active={showWards} onClick={() => setShowWards((v) => !v)} />
-      <AtlasToolButton label="Capture" symbol="📷" onClick={onCapture} />
+      <AtlasToolButton label="Export" symbol="📷" onClick={onCapture} />
       <AtlasToolButton label="Share" symbol="🔗" onClick={copyShareLink} />
     </div>
   );
@@ -360,6 +387,9 @@ function BriefingPanel({ question, answer, onQuestionChange, onAsk }) {
 }
 
 export default function PublicClimateAtlasPage() {
+  const searchParams = new URLSearchParams(window.location.search);
+  const isExportMode = searchParams.get("export") === "1";
+
   const captureRef = useRef(null);
 
   const [stateGeoJson, setStateGeoJson] = useState(null);
@@ -368,79 +398,119 @@ export default function PublicClimateAtlasPage() {
 
   const [profiles, setProfiles] = useState([]);
   const [remoteStats, setRemoteStats] = useState([]);
+  const [remoteStatsError, setRemoteStatsError] = useState(false);
   const [geeStatus, setGeeStatus] = useState(null);
 
   const [briefingQuestion, setBriefingQuestion] = useState("");
   const [briefingAnswer, setBriefingAnswer] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [baseMap, setBaseMap] = useState("satellite");
+  const [baseMap, setBaseMap] = useState(isExportMode ? (searchParams.get("basemap") || "satellite") : "satellite");
   const [showGrid, setShowGrid] = useState(false);
   const [showWards, setShowWards] = useState(true);
   const [currentZoom, setCurrentZoom] = useState(KADUNA_ZOOM);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [toolMessage, setToolMessage] = useState("");
 
-  const [selectedLga, setSelectedLga] = useState(null);
+  const [selectedLgaFeature, setSelectedLgaFeature] = useState(null);
   const [selectedWard, setSelectedWard] = useState(null);
   const [error, setError] = useState("");
+  const [remoteStatsLoading, setRemoteStatsLoading] = useState(false);
 
   const [config, setConfig] = useState({
-    variableKey: "overall",
+    variableKey: isExportMode ? (searchParams.get("variable") || "overall") : "overall",
     dataset: "KCCC Risk Database",
     season: "Annual",
     period: "Latest",
     quantity: "Mean",
     opacity: 0.68,
-    year: 2025,
+    year: isExportMode ? Number(searchParams.get("year") || "2025") : 2025,
+    admin_level: "lga",
   });
 
   const variable = VARIABLES.find((item) => item.key === config.variableKey) || VARIABLES[0];
   const profilesByName = useMemo(() => buildLookup(profiles), [profiles]);
   const metricsByName = useMemo(() => buildLookup(remoteStats), [remoteStats]);
   const wardsVisible = showWards && currentZoom >= WARD_VISIBLE_ZOOM;
+  const totalLgaCount = lgaGeoJson?.features?.length || 23;
+
+  // Period → slider bounds.
+  const periodRange = PERIOD_RANGE[config.period] || null;
+  const isLatest = config.period === "Latest";
+  const sliderMin = periodRange ? periodRange[0] : config.year;
+  const sliderMax = periodRange ? periodRange[1] : config.year;
+
+  // Tick years for the slider: every year for short ranges, every 5 years for longer ones.
+  const tickYears = useMemo(() => {
+    if (!periodRange) return [];
+    const [min, max] = periodRange;
+    const span = max - min;
+    const step = span <= 10 ? 1 : 5;
+    const start = step === 1 ? min : Math.ceil(min / step) * step;
+    const ticks = [];
+    for (let y = start; y <= max; y += step) ticks.push(y);
+    return ticks;
+  }, [periodRange]);
+
+  // Derived from selectedLgaFeature so the popup re-resolves reactively when
+  // remoteStats / profiles update (year, season, or variable change).
+  const selectedLga = useMemo(
+    () => (selectedLgaFeature ? resolveFeature(selectedLgaFeature) : null),
+    [selectedLgaFeature, metricsByName, profilesByName, variable],
+  );
+
+  // Mean NDVI across all returned LGAs — drives footer badge and briefing panel.
+  const meanNdviFromStats = useMemo(() => {
+    if (variable.key !== "ndvi" || !remoteStats.length) return null;
+    const vals = remoteStats.flatMap((s) => {
+      const v = Number(s.mean_value);
+      return Number.isFinite(v) ? [v] : [];
+    });
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  }, [remoteStats, variable.key]);
 
   async function captureAtlasLayout() {
+    setToolMessage("Generating export…");
     try {
-        setToolMessage("Select this browser tab to capture the atlas...");
-
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-            displaySurface: "browser",
-        },
-        audio: false,
-        });
-
-        const video = document.createElement("video");
-        video.srcObject = stream;
-
-        await video.play();
-
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-
-        const context = canvas.getContext("2d");
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        stream.getTracks().forEach((track) => track.stop());
-
-        const link = document.createElement("a");
-        link.href = canvas.toDataURL("image/png");
-        link.download = `kccc-climate-atlas-${config.variableKey}-${config.year}.png`;
-        link.click();
-
-        setToolMessage("Atlas screenshot saved.");
-        window.setTimeout(() => setToolMessage(""), 2200);
-    } catch (err) {
-        console.error(err);
-        setToolMessage("Screenshot cancelled or failed.");
-        window.setTimeout(() => setToolMessage(""), 2200);
+      const params = new URLSearchParams({
+        variable: config.variableKey,
+        year: String(config.year),
+        basemap: baseMap,
+      });
+      const response = await fetch(`/api/public/atlas-export/?${params}`);
+      if (!response.ok) throw new Error("Export failed");
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = `kccc-climate-atlas-${config.variableKey}-${config.year}.png`;
+      link.click();
+      URL.revokeObjectURL(objectUrl);
+      setToolMessage("Atlas exported.");
+      window.setTimeout(() => setToolMessage(""), 2200);
+    } catch {
+      setToolMessage("Export failed. Please try again.");
+      window.setTimeout(() => setToolMessage(""), 4000);
     }
-    }
+  }
 
   function updateConfig(key, value) {
     setConfig((current) => ({ ...current, [key]: value }));
+  }
+
+  function updatePeriod(period) {
+    const range = PERIOD_RANGE[period];
+    if (!range) {
+      // "Latest" — omit year constraint; API will resolve the most recent stored year.
+      setConfig((prev) => ({ ...prev, period }));
+      return;
+    }
+    const [min, max] = range;
+    setConfig((prev) => ({
+      ...prev,
+      period,
+      year: prev.year >= min && prev.year <= max ? prev.year : max,
+    }));
   }
 
   function generateClimateBriefing() {
@@ -467,7 +537,11 @@ export default function PublicClimateAtlasPage() {
     }
 
     if (q.includes("ndvi") || q.includes("vegetation")) {
-      setBriefingAnswer("Vegetation/NDVI will come from Sentinel-2 or Landsat-derived GEE zonal statistics.");
+      if (meanNdviFromStats !== null) {
+        setBriefingAnswer(`NDVI (Sentinel-2, ${config.season} ${config.year}): mean ${meanNdviFromStats.toFixed(3)} across ${remoteStats.length} LGAs. Values near 1.0 indicate dense vegetation; near 0 indicate bare land or cloud-affected pixels.`);
+      } else {
+        setBriefingAnswer("NDVI is synced from Sentinel-2 via GEE. Select 'Vegetation / NDVI' and ensure data has been synced for this year and season.");
+      }
       return;
     }
 
@@ -520,14 +594,41 @@ export default function PublicClimateAtlasPage() {
   async function loadRemoteStats() {
     if (variable.source !== "remote_sensing") {
       setRemoteStats([]);
+      setRemoteStatsError(false);
       return;
     }
 
+    setRemoteStatsLoading(true);
+    setRemoteStatsError(false);
     try {
-      const data = await getRemoteSensingLgaStats({ layer: variable.key });
+      const params = {
+        layer: variable.key,
+        season: SEASON_PARAM[config.season] || "annual",
+        admin_level: config.admin_level,
+      };
+      // "Latest" omits year so the backend resolves the most recent stored year.
+      if (!isLatest) {
+        params.year = config.year;
+      }
+      const data = await getRemoteSensingLgaStats(params);
       setRemoteStats(data.results || []);
-    } catch {
+      // Sync the resolved year back to the slider when period is "Latest".
+      const resolvedYear = data.filters?.year;
+      if (isLatest && resolvedYear && resolvedYear !== config.year) {
+        updateConfig("year", resolvedYear);
+      }
+    } catch (err) {
+      console.error("loadRemoteStats failed:", {
+        message: err.message,
+        status: err.response?.status,
+        data: err.response?.data,
+        baseURL: err.config?.baseURL,
+        url: err.config?.url,
+      });
       setRemoteStats([]);
+      setRemoteStatsError(true);
+    } finally {
+      setRemoteStatsLoading(false);
     }
   }
 
@@ -537,7 +638,13 @@ export default function PublicClimateAtlasPage() {
 
   useEffect(() => {
     loadRemoteStats();
-  }, [config.variableKey]);
+  }, [config.variableKey, config.year, config.season, config.admin_level, config.period]);
+
+  useEffect(() => {
+    if (isExportMode && lgaGeoJson) {
+      document.body.dataset.atlasExportReady = "1";
+    }
+  }, [isExportMode, lgaGeoJson]);
 
   function resolveFeature(feature) {
     const name = String(getFeatureName(feature)).trim();
@@ -567,12 +674,18 @@ export default function PublicClimateAtlasPage() {
 
   function styleLgaFeature(feature) {
     const info = resolveFeature(feature);
+    // Remote sensing layers use their own NDVI palette; risk layers use the 0-100 scale.
+    const fillColor = variable.source === "remote_sensing"
+      ? getNdviColor(info.value)
+      : info.color;
+    // Negative NDVI values are valid data — hasValue returns true for finite negatives.
+    const hasFill = hasValue(info.value);
 
     return {
       color: "#ffffff",
       weight: 2,
-      fillColor: info.color,
-      fillOpacity: hasValue(info.value) ? config.opacity : 0.18,
+      fillColor,
+      fillOpacity: hasFill ? config.opacity : 0.18,
       opacity: 0.95,
       dashArray: "",
     };
@@ -598,7 +711,7 @@ export default function PublicClimateAtlasPage() {
       mouseout: (event) => event.target.setStyle(styleLgaFeature(feature)),
       click: () => {
         setSelectedWard(null);
-        setSelectedLga(resolveFeature(feature));
+        setSelectedLgaFeature(feature);
       },
     });
   }
@@ -619,7 +732,7 @@ export default function PublicClimateAtlasPage() {
       },
       mouseout: (event) => event.target.setStyle(styleWardFeature(feature)),
       click: () => {
-        setSelectedLga(null);
+        setSelectedLgaFeature(null);
         setSelectedWard({ wardName, lgaName });
       },
     });
@@ -651,7 +764,7 @@ export default function PublicClimateAtlasPage() {
         }
       `}</style>
 
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-[#E6EAEC] bg-white px-5">
+      <header className={`flex h-12 shrink-0 items-center justify-between border-b border-[#E6EAEC] bg-white px-5${isExportMode ? " hidden" : ""}`}>
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-[#030454] text-xs font-black text-white">KS</div>
           <h1 className="text-sm font-black">Kaduna Interactive Climate Atlas · KCCC</h1>
@@ -660,7 +773,7 @@ export default function PublicClimateAtlasPage() {
         <div className="hidden text-center text-sm font-black text-[#030454] lg:block">{variable.label}</div>
 
         <div className="flex items-center gap-2">
-          <a href="/public/climate-risk" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">Back to Climate Risk</a>
+          <a href="/public/climate-risk" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">Back to Climate Intelligence</a>
           <a href="/public/reports" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">Reports</a>
           <a href="/public/projects" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">Projects</a>
           <span className={`rounded-full px-3 py-1 text-xs font-black ${geeStatus?.status === "ok" ? "bg-[#009B35]/10 text-[#009B35]" : "bg-amber-100 text-amber-700"}`}>
@@ -670,7 +783,7 @@ export default function PublicClimateAtlasPage() {
       </header>
 
       <section className="flex min-h-0 flex-1">
-        <aside className={`relative flex h-full shrink-0 flex-col border-r border-[#E6EAEC] bg-white transition-all duration-300 ${sidebarOpen ? "w-[300px]" : "w-[42px]"}`}>
+        <aside className={`relative flex h-full shrink-0 flex-col border-r border-[#E6EAEC] bg-white transition-all duration-300 ${sidebarOpen ? "w-[300px]" : "w-[42px]"}${isExportMode ? " hidden" : ""}`}>
           <button
             type="button"
             title={sidebarOpen ? "Collapse" : "Expand"}
@@ -700,7 +813,7 @@ export default function PublicClimateAtlasPage() {
                   {SEASONS.map((item) => <option key={item}>{item}</option>)}
                 </SelectField>
 
-                <SelectField label="Period" value={config.period} onChange={(value) => updateConfig("period", value)}>
+                <SelectField label="Period" value={config.period} onChange={updatePeriod}>
                   {PERIODS.map((item) => <option key={item}>{item}</option>)}
                 </SelectField>
 
@@ -728,7 +841,8 @@ export default function PublicClimateAtlasPage() {
           )}
         </aside>
 
-        <section ref={captureRef} className="relative min-w-0 flex-1">
+        <section className="flex min-w-0 flex-1 flex-col">
+          <div ref={captureRef} className="relative min-h-0 flex-1">
           <div className="absolute left-0 right-0 top-0 z-[800] border-b border-[#E6EAEC] bg-white/95 px-5 py-2 text-center text-sm backdrop-blur">
             <strong>{variable.label}</strong>
             <span className="mx-2 text-slate-400">|</span>
@@ -753,7 +867,6 @@ export default function PublicClimateAtlasPage() {
                 {baseMap === "satellite" && (
                   <TileLayer
                     attribution="Esri World Imagery"
-                    crossOrigin="anonymous"
                     url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
                   />
                 )}
@@ -761,7 +874,6 @@ export default function PublicClimateAtlasPage() {
                 {baseMap === "dark" && (
                   <TileLayer
                     attribution="CartoDB Dark"
-                    crossOrigin="anonymous"
                     url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
                   />
                 )}
@@ -769,7 +881,6 @@ export default function PublicClimateAtlasPage() {
                 {baseMap === "streets" && (
                   <TileLayer
                     attribution="OpenStreetMap"
-                    crossOrigin="anonymous"
                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                   />
                 )}
@@ -777,7 +888,6 @@ export default function PublicClimateAtlasPage() {
                 {baseMap === "terrain" && (
                   <TileLayer
                     attribution="OpenTopoMap"
-                    crossOrigin="anonymous"
                     url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
                   />
                 )}
@@ -785,7 +895,7 @@ export default function PublicClimateAtlasPage() {
                 <FitBounds geoJson={stateGeoJson || lgaGeoJson} />
 
                 <GeoJSON
-                  key={`lga-${config.variableKey}-${config.opacity}-${profiles.length}-${remoteStats.length}`}
+                  key={`lga-${config.variableKey}-${config.year}-${config.season}-${config.opacity}-${profiles.length}-${remoteStats.length}`}
                   data={lgaGeoJson}
                   style={styleLgaFeature}
                   onEachFeature={onEachLgaFeature}
@@ -812,27 +922,29 @@ export default function PublicClimateAtlasPage() {
                   showWards={wardsVisible}
                 />
 
-                <AtlasMapTools
-                  stateGeoJson={stateGeoJson}
-                  lgaGeoJson={lgaGeoJson}
-                  showGrid={showGrid}
-                  setShowGrid={setShowGrid}
-                  showWards={showWards}
-                  setShowWards={setShowWards}
-                  isFullscreen={isFullscreen}
-                  setIsFullscreen={setIsFullscreen}
-                  onToolMessage={setToolMessage}
-                  onCapture={captureAtlasLayout}
-                />
+                {!isExportMode && (
+                  <AtlasMapTools
+                    stateGeoJson={stateGeoJson}
+                    lgaGeoJson={lgaGeoJson}
+                    showGrid={showGrid}
+                    setShowGrid={setShowGrid}
+                    showWards={showWards}
+                    setShowWards={setShowWards}
+                    isFullscreen={isFullscreen}
+                    setIsFullscreen={setIsFullscreen}
+                    onToolMessage={setToolMessage}
+                    onCapture={captureAtlasLayout}
+                  />
+                )}
               </MapContainer>
 
-              <BasemapSwitcher baseMap={baseMap} setBaseMap={setBaseMap} />
+              {!isExportMode && <BasemapSwitcher baseMap={baseMap} setBaseMap={setBaseMap} />}
 
-              {showGrid && (
+              {!isExportMode && showGrid && (
                 <div className="pointer-events-none absolute inset-0 z-[850] bg-[linear-gradient(rgba(3,4,84,0.16)_1px,transparent_1px),linear-gradient(90deg,rgba(3,4,84,0.16)_1px,transparent_1px)] bg-[size:64px_64px]" />
               )}
 
-              {toolMessage && (
+              {!isExportMode && toolMessage && (
                 <div className="absolute bottom-32 left-1/2 z-[930] -translate-x-1/2 rounded-md bg-[#030454] px-4 py-2 text-xs font-bold text-white shadow-lg">
                   {toolMessage}
                 </div>
@@ -843,27 +955,70 @@ export default function PublicClimateAtlasPage() {
                   <span>{variable.label}</span>
                   <span>{variable.unit}</span>
                 </div>
-                <div className="h-3 rounded-full bg-gradient-to-r from-[#1d9e75] via-[#f59e0b] to-[#b91c1c]" />
-                <div className="mt-2 flex justify-between text-xs text-slate-500">
-                  <span>Low</span>
-                  <span>High</span>
-                </div>
+                {variable.source === "remote_sensing" ? (
+                  <>
+                    <div
+                      className="h-3 rounded-full"
+                      style={{ background: "linear-gradient(to right, #b2d8e8, #e8d5a3, #c8e07a, #8ec541, #4aad52, #2d7d32, #1a5e20)" }}
+                    />
+                    <div className="mt-2 flex justify-between text-xs text-slate-500">
+                      <span>&lt;0</span>
+                      <span>0.1</span>
+                      <span>0.35</span>
+                      <span>0.5</span>
+                      <span>0.8+</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="h-3 rounded-full bg-gradient-to-r from-[#1d9e75] via-[#f59e0b] to-[#b91c1c]" />
+                    <div className="mt-2 flex justify-between text-xs text-slate-500">
+                      <span>Low</span>
+                      <span>High</span>
+                    </div>
+                  </>
+                )}
               </div>
 
-              <div className="absolute bottom-[160px] left-6 z-[900] rounded-md border border-[#D8DDE2] bg-white px-4 py-2 text-xs font-bold shadow">
-                {wardsVisible ? "Click any ward or LGA for profile" : "Zoom in to reveal wards"}
-              </div>
+              {!isExportMode && (
+                <div className="absolute top-[44px] left-6 z-[900] rounded-md border border-[#D8DDE2] bg-white px-4 py-2 text-xs font-bold shadow">
+                  {wardsVisible ? "Click any ward or LGA for profile" : "Zoom in to reveal wards"}
+                </div>
+              )}
 
               {selectedLga && (
                 <div className="absolute bottom-[116px] right-[60px] z-[900] w-[300px] rounded-xl border border-[#D8DDE2] bg-white p-4 shadow-xl">
-                  <button type="button" onClick={() => setSelectedLga(null)} className="float-right font-black">×</button>
+                  <button type="button" onClick={() => setSelectedLgaFeature(null)} className="float-right font-black">×</button>
                   <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#009B35]">LGA profile</p>
                   <h3 className="mt-1 text-xl font-black">{selectedLga.name}</h3>
                   <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
-                    <div className="rounded-md bg-[#F7F9FA] p-3">Risk<br /><strong>{formatNumber(selectedLga.profile?.overall_risk_score)}</strong></div>
-                    <div className="rounded-md bg-[#F7F9FA] p-3">Heat<br /><strong>{formatNumber(selectedLga.profile?.heat_risk_score)}</strong></div>
-                    <div className="rounded-md bg-[#F7F9FA] p-3">Flood<br /><strong>{formatNumber(selectedLga.profile?.flood_risk_score)}</strong></div>
-                    <div className="rounded-md bg-[#F7F9FA] p-3">Drought<br /><strong>{formatNumber(selectedLga.profile?.drought_risk_score)}</strong></div>
+                    {variable.source === "remote_sensing" ? (
+                      selectedLga.metric ? (
+                        <>
+                          <div className="col-span-2 rounded-md bg-[#F7F9FA] p-3">
+                            {variable.label}<br />
+                            <strong>{formatNumber(selectedLga.metric.mean_value)}</strong>
+                            {" "}<span className="text-xs font-normal text-slate-500">{variable.unit}</span>
+                          </div>
+                          <div className="rounded-md bg-[#F7F9FA] p-3">Min<br /><strong>{formatNumber(selectedLga.metric.min_value)}</strong></div>
+                          <div className="rounded-md bg-[#F7F9FA] p-3">Max<br /><strong>{formatNumber(selectedLga.metric.max_value)}</strong></div>
+                          <div className="col-span-2 rounded-md bg-[#F7F9FA] p-3 text-xs text-slate-500">
+                            {config.season} · {config.year} · {selectedLga.metric.data_source || "GEE Sentinel-2"}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="col-span-2 rounded-md bg-[#F7F9FA] p-3 text-xs text-slate-500">
+                          No {variable.label} data available for this LGA and selection.
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <div className="rounded-md bg-[#F7F9FA] p-3">Risk<br /><strong>{formatNumber(selectedLga.profile?.overall_risk_score)}</strong></div>
+                        <div className="rounded-md bg-[#F7F9FA] p-3">Heat<br /><strong>{formatNumber(selectedLga.profile?.heat_risk_score)}</strong></div>
+                        <div className="rounded-md bg-[#F7F9FA] p-3">Flood<br /><strong>{formatNumber(selectedLga.profile?.flood_risk_score)}</strong></div>
+                        <div className="rounded-md bg-[#F7F9FA] p-3">Drought<br /><strong>{formatNumber(selectedLga.profile?.drought_risk_score)}</strong></div>
+                      </>
+                    )}
                   </div>
                 </div>
               )}
@@ -881,28 +1036,78 @@ export default function PublicClimateAtlasPage() {
               )}
             </>
           )}
+          </div>
+
+          {!isExportMode && variable.source === "remote_sensing" && !remoteStatsLoading && (
+            remoteStatsError ? (
+              <div role="alert" className="flex shrink-0 items-center gap-2 border-t border-red-200 bg-red-50 px-5 py-2.5 text-xs font-bold text-red-800">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                </svg>
+                Could not load {variable.label} data — check your connection or session.
+              </div>
+            ) : remoteStats.length === 0 ? (
+              <div role="status" className="flex shrink-0 items-center gap-2 border-t border-amber-200 bg-amber-50 px-5 py-2.5 text-xs font-bold text-amber-800">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+                </svg>
+                No data available for this selection — try a different year or season.
+              </div>
+            ) : remoteStats.length < totalLgaCount ? (
+              <div role="status" className="flex shrink-0 items-center gap-2 border-t border-blue-100 bg-[#EEF3FF] px-5 py-2.5 text-xs font-bold text-[#173B91]">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5 shrink-0" aria-hidden="true">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+                </svg>
+                {variable.label} data available for {remoteStats.length} of {totalLgaCount} LGAs.
+              </div>
+            ) : null
+          )}
         </section>
       </section>
 
-      <footer className="grid h-[98px] shrink-0 grid-cols-[1fr_520px] gap-5 border-t border-[#E6EAEC] bg-white px-7 py-3">
+      <footer className={`grid h-[98px] shrink-0 grid-cols-[1fr_520px] gap-5 border-t border-[#E6EAEC] bg-white px-7 py-3${isExportMode ? " hidden" : ""}`}>
         <div className="min-w-0">
-          <div className="flex items-center gap-5">
-            <span className="text-xs text-[#173B91]">1990</span>
-            <input
-              type="range"
-              min="1990"
-              max="2025"
-              value={config.year}
-              onChange={(event) => updateConfig("year", Number(event.target.value))}
-              className="flex-1 accent-[#173B91]"
-            />
-            <span className="text-xs text-[#173B91]">2025</span>
-            <strong className="w-12 text-center text-sm">{config.year}</strong>
+          <div className="flex items-center gap-3">
+            {isLatest ? (
+              <p className="text-sm text-[#173B91]">
+                Latest available data:{" "}
+                <strong>{config.year > 0 ? String(config.year) : "resolving…"}</strong>
+              </p>
+            ) : (
+              <>
+                <span className="min-w-[32px] text-right text-xs text-[#173B91]">{sliderMin}</span>
+                <input
+                  type="range"
+                  min={sliderMin}
+                  max={sliderMax}
+                  step={1}
+                  value={config.year}
+                  onChange={(event) => updateConfig("year", Number(event.target.value))}
+                  className="flex-1 accent-[#173B91]"
+                  list="atlas-year-ticks"
+                />
+                <datalist id="atlas-year-ticks">
+                  {tickYears.map((y) => <option key={y} value={y} />)}
+                </datalist>
+                <span className="text-xs text-[#173B91]">{sliderMax}</span>
+                <strong className="w-10 text-center text-sm">{config.year}</strong>
+              </>
+            )}
           </div>
+          {!isLatest && tickYears.length > 0 && (
+            <div className="mt-0.5 flex justify-between px-[44px] text-[10px] text-[#173B91]/50">
+              {tickYears.map((y) => <span key={y}>{y}</span>)}
+            </div>
+          )}
 
           <div className="mt-3 hidden gap-3 lg:flex">
             <span className="rounded-md bg-[#F7F9FA] px-3 py-2 text-xs font-bold">Warming trend: <strong className="text-red-600">Pending GEE</strong></span>
-            <span className="rounded-md bg-[#F7F9FA] px-3 py-2 text-xs font-bold">Veg. change: <strong className="text-[#009B35]">Pending GEE</strong></span>
+            <span className="rounded-md bg-[#F7F9FA] px-3 py-2 text-xs font-bold">
+              Veg. (NDVI avg):{" "}
+              <strong className={meanNdviFromStats !== null ? "text-[#009B35]" : "text-slate-400"}>
+                {meanNdviFromStats !== null ? meanNdviFromStats.toFixed(3) : "No data"}
+              </strong>
+            </span>
             <span className="rounded-md bg-[#F7F9FA] px-3 py-2 text-xs font-bold">Extreme rain: <strong className="text-red-600">Pending GEE</strong></span>
             <span className="rounded-md bg-[#F7F9FA] px-3 py-2 text-xs font-bold">Flood freq.: <strong className="text-red-600">Pending GEE</strong></span>
           </div>

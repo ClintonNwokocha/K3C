@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.db.models import Avg, Max, Min
 from django.shortcuts import get_object_or_404
 
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
@@ -32,6 +32,7 @@ def get_latest_year():
 
 
 @api_view(["GET"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def gee_status(request):
     result = gee_service.status()
@@ -44,6 +45,7 @@ def gee_status(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def remote_sensing_layers(request):
     layers = RemoteSensingLayer.objects.filter(
@@ -59,6 +61,7 @@ def remote_sensing_layers(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def tile_url(request, layer):
     layer_obj = get_object_or_404(
@@ -87,11 +90,21 @@ def tile_url(request, layer):
 
 
 @api_view(["GET"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def lga_stats(request):
     layer_key = request.query_params.get("layer", "ndvi")
     year = request.query_params.get("year")
     month = request.query_params.get("month")
+    season = request.query_params.get("season")
+    admin_level = request.query_params.get("admin_level", "lga")
+
+    valid_admin_levels = {c[0] for c in RemoteSensingLGAMetric.AdminLevel.choices}
+    if admin_level not in valid_admin_levels:
+        return Response(
+            {"status": "error", "message": f"Invalid admin_level. Valid values: {', '.join(sorted(valid_admin_levels))}"},
+            status=400,
+        )
 
     layer_obj = get_object_or_404(
         RemoteSensingLayer,
@@ -102,14 +115,21 @@ def lga_stats(request):
 
     metrics = RemoteSensingLGAMetric.objects.select_related("lga", "layer").filter(
         layer=layer_obj,
+        admin_level=admin_level,
     )
 
-    if year:
-        metrics = metrics.filter(year=year)
+    # Resolve the year: use the explicit request or find the latest stored year.
+    requested_year = int(year) if year else None
+    if requested_year:
+        resolved_year = requested_year
+        metrics = metrics.filter(year=resolved_year)
     else:
-        latest_year = metrics.aggregate(value=Max("year")).get("value")
-        if latest_year:
-            metrics = metrics.filter(year=latest_year)
+        resolved_year = metrics.aggregate(value=Max("year")).get("value")
+        if resolved_year:
+            metrics = metrics.filter(year=resolved_year)
+
+    if season:
+        metrics = metrics.filter(season=season)
 
     if month:
         metrics = metrics.filter(month=month)
@@ -126,7 +146,10 @@ def lga_stats(request):
         "message": "LGA remote sensing statistics loaded.",
         "filters": {
             "layer": layer_key,
-            "year": int(year) if year else None,
+            "admin_level": admin_level,
+            "requested_year": requested_year,
+            "year": resolved_year,
+            "season": season or None,
             "month": int(month) if month else None,
         },
         "summary": {
@@ -141,6 +164,7 @@ def lga_stats(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def lga_profile(request, lga):
     year = request.query_params.get("year") or get_latest_year()
@@ -195,6 +219,7 @@ def lga_profile(request, lga):
 
 
 @api_view(["GET"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def dashboard_kpis(request):
     latest_year = get_latest_year()
@@ -235,6 +260,7 @@ def dashboard_kpis(request):
 
 
 @api_view(["GET"])
+@authentication_classes([])
 @permission_classes([AllowAny])
 def ai_hotspots(request):
     """
