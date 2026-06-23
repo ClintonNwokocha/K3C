@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 
 
 class RemoteSensingLayer(models.Model):
@@ -39,18 +40,48 @@ class RemoteSensingLayer(models.Model):
 
 
 class RemoteSensingLGAMetric(models.Model):
+    class AdminLevel(models.TextChoices):
+        LGA = "lga", "LGA"
+        WARD = "ward", "Ward"
+
+    class Season(models.TextChoices):
+        ANNUAL = "annual", "Annual"
+        WET_SEASON = "wet_season", "Wet Season"
+        DRY_SEASON = "dry_season", "Dry Season"
+
     layer = models.ForeignKey(
         RemoteSensingLayer,
         on_delete=models.CASCADE,
         related_name="lga_metrics",
     )
+    # Nullable so ward-level records (which have no LGARegistry row) can be stored.
     lga = models.ForeignKey(
         "core.LGARegistry",
         on_delete=models.CASCADE,
         related_name="remote_sensing_metrics",
+        null=True,
+        blank=True,
     )
 
+    admin_level = models.CharField(
+        max_length=10,
+        choices=AdminLevel.choices,
+        default=AdminLevel.LGA,
+    )
+    # lgacode or wardcode — canonical identity key for GEE sync records.
+    admin_code = models.CharField(max_length=50, blank=True, db_index=True)
+    # lganame or wardname — denormalised display name.
+    admin_name = models.CharField(max_length=150, blank=True)
+
     year = models.PositiveIntegerField()
+    # Named multi-month period used by the GEE sync pipeline.
+    season = models.CharField(
+        max_length=20,
+        choices=Season.choices,
+        default=Season.ANNUAL,
+        blank=True,
+    )
+    # Kept for backward-compat with the CSV import command (monthly granularity).
     month = models.PositiveSmallIntegerField(null=True, blank=True)
 
     mean_value = models.DecimalField(max_digits=18, decimal_places=6, null=True, blank=True)
@@ -66,17 +97,30 @@ class RemoteSensingLGAMetric(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ("layer", "lga", "year", "month")
-        ordering = ["lga__lga_name", "-year", "-month"]
+        ordering = ["admin_name", "-year"]
+        constraints = [
+            # Backward-compat: CSV-imported LGA records keyed by FK + year + month.
+            models.UniqueConstraint(
+                fields=["layer", "lga", "year", "month"],
+                condition=Q(lga__isnull=False),
+                name="uniq_rs_lga_month",
+            ),
+            # GEE sync records keyed by admin identity + year + season.
+            models.UniqueConstraint(
+                fields=["layer", "admin_level", "admin_code", "year", "season"],
+                name="uniq_rs_admin_season",
+            ),
+        ]
         indexes = [
-            models.Index(fields=["year", "month"]),
-            models.Index(fields=["layer", "year"]),
+            models.Index(fields=["admin_level", "admin_code"]),
+            models.Index(fields=["layer", "year", "season"]),
             models.Index(fields=["lga", "year"]),
         ]
 
     def __str__(self):
-        period = f"{self.year}-{self.month:02d}" if self.month else str(self.year)
-        return f"{self.layer.key} - {self.lga.lga_name} - {period}"
+        label = self.admin_name or (self.lga.lga_name if self.lga else "—")
+        period = f"{self.year}-{self.month:02d}" if self.month else f"{self.year}/{self.season}"
+        return f"{self.layer.key} - {label} - {period}"
 
 
 class RemoteSensingSyncLog(models.Model):
