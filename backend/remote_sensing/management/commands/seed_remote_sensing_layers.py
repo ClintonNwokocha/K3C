@@ -35,6 +35,8 @@ LAYERS = [
         "gee_dataset": "ERA5 / CHIRTS / MODIS derived anomaly",
         "gee_band": "temperature_anomaly",
         "visualization": {"min": -3, "max": 3, "palette": ["blue", "white", "red"]},
+        "is_public": False,
+        "is_active": False,
     },
     {
         "key": "rainfall",
@@ -142,6 +144,8 @@ LAYERS = [
         "gee_dataset": "Hansen Global Forest Change / Sentinel-derived tree cover",
         "gee_band": "treecover",
         "visualization": {"min": 0, "max": 100, "palette": ["white", "green"]},
+        "is_public": False,
+        "is_active": False,
     },
     {
         "key": "forest_change",
@@ -150,6 +154,8 @@ LAYERS = [
         "gee_dataset": "Hansen Global Forest Change",
         "gee_band": "lossyear",
         "visualization": {"min": 0, "max": 24, "palette": ["white", "yellow", "red"]},
+        "is_public": False,
+        "is_active": False,
     },
     {
         "key": "ndvi_landsat",
