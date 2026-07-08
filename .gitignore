@@ -21,3 +21,14 @@ frontend/dist/
 # OS / editor
 .DS_Store
 .vscode/
+
+
+
+# Local AI / development state
+.claude/
+AGENTS.md
+
+# Local archives and scratch scripts
+frontend/src.zip
+test_gee.py
+frontend/ci_brief_test.mjs
