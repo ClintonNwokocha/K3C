@@ -10,6 +10,7 @@ from django.utils import timezone
 from core.models import LGARegistry
 from remote_sensing.gee_service import gee_service
 from remote_sensing.models import RemoteSensingLGAMetric, RemoteSensingLayer, RemoteSensingSyncLog
+from remote_sensing.sync_registry import resolve_season_dates
 
 
 _GEOJSON_FILE = {
@@ -25,15 +26,6 @@ _NAME_FIELD = {
 _CODE_FIELD = {
     "lga":  "lgacode",
     "ward": "wardcode",
-}
-
-# Inclusive start / end dates for each season (Nigeria / Kaduna conventions).
-# end_date is the last day that should be included in the composite.
-# The command adds one day before passing to GEE (filterDate is exclusive on end).
-_SEASON_DATES = {
-    "annual":     lambda y: (datetime.date(y,     1,  1), datetime.date(y,      12, 31)),
-    "wet_season": lambda y: (datetime.date(y,     5,  1), datetime.date(y,      10, 31)),
-    "dry_season": lambda y: (datetime.date(y,    11,  1), datetime.date(y + 1,   3, 31)),
 }
 
 
@@ -120,7 +112,7 @@ class Command(BaseCommand):
         skip_existing = options["skip_existing"]
 
         # --- Resolve inclusive date window, then convert end to GEE-exclusive ---
-        start_d, end_d = _SEASON_DATES[season](year)
+        start_d, end_d = resolve_season_dates(year, season)
         if options.get("start_date"):
             start_d = datetime.date.fromisoformat(options["start_date"])
         if options.get("end_date"):
