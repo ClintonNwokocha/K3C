@@ -27,6 +27,7 @@ urlpatterns = [
     path("api/public/", include("public_portal.urls")),
 
     path("api/", include("remote_sensing.urls")),
+    path("api/infrastructure/", include("infrastructure.urls")),
 ]
 
 if settings.DEBUG:

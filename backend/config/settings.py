@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "reports",
     "public_portal",
     "remote_sensing",
+    "infrastructure",
 ]
 
 MIDDLEWARE = [
