@@ -196,7 +196,7 @@ function buildPrintHtml(profile, records, groupedRecords, recommendations) {
     <!doctype html>
     <html>
       <head>
-        <title>${escapeHtml(profile.lga_name)} Climate Risk Evidence Brief</title>
+        <title>${escapeHtml(profile.lga_name)} Climate Intelligence Evidence Brief</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -252,7 +252,7 @@ function buildPrintHtml(profile, records, groupedRecords, recommendations) {
         </style>
       </head>
       <body>
-        <h1>${escapeHtml(profile.lga_name)} Climate Risk Evidence Brief</h1>
+        <h1>${escapeHtml(profile.lga_name)} Climate Intelligence Evidence Brief</h1>
         <p class="muted">Year: ${escapeHtml(profile.year)} | Data source: ${escapeHtml(
     profile.data_source || "Not specified"
   )}</p>
@@ -260,7 +260,7 @@ function buildPrintHtml(profile, records, groupedRecords, recommendations) {
         <h2>Risk Summary</h2>
         <div class="grid">
           <div class="card">
-            <div class="muted">Overall Climate Risk Index</div>
+            <div class="muted">Overall Climate Intelligence Index</div>
             <div class="score">${formatNumber(profile.overall_risk_score, 2)} / 100</div>
           </div>
           <div class="card">
@@ -380,7 +380,7 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Select an LGA to generate its climate risk evidence brief.
+          Select an LGA to generate its Climate Intelligence evidence brief.
         </p>
       </section>
     );
@@ -395,7 +395,7 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
           </p>
 
           <h2 className="mt-2 text-2xl font-black text-[#030454]">
-            {selectedProfile.lga_name} Climate Risk Brief
+            {selectedProfile.lga_name} Climate Intelligence Brief
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
@@ -439,7 +439,7 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ScoreCard
-          label="Overall Climate Risk Index"
+          label="Overall Climate Intelligence Index"
           value={selectedProfile.overall_risk_score}
         />
 

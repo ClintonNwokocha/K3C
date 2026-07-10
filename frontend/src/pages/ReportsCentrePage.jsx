@@ -16,7 +16,7 @@ import {
 } from "../services/api";
 
 const reportTypeOptions = [
-  { value: "climate_risk", label: "Climate Risk Report" },
+  { value: "climate_risk", label: "Climate Intelligence Report" },
   { value: "ghg_inventory", label: "GHG Inventory Report" },
   { value: "project_portfolio", label: "Project Portfolio Report" },
   { value: "ndc_progress", label: "NDC Progress Report" },
@@ -34,7 +34,7 @@ const statusOptions = [
 ];
 
 const sourceModuleOptions = [
-  { value: "climate_risk", label: "Climate Risk" },
+  { value: "climate_risk", label: "Climate Intelligence" },
   { value: "ghg_inventory", label: "GHG Inventory" },
   { value: "project_portfolio", label: "Project Portfolio" },
   { value: "executive_dashboard", label: "Executive Dashboard" },
@@ -351,7 +351,7 @@ function ReportFormSection({
               value={form.title}
               onChange={(event) => updateForm("title", event.target.value)}
               className={inputClass}
-              placeholder="Example: Kaduna Climate Risk Brief 2026"
+              placeholder="Example: Kaduna Climate Intelligence Brief 2026"
               required
             />
           </div>
@@ -956,7 +956,7 @@ export default function ReportsCentrePage({ currentUser }) {
     <div className="space-y-6">
       <CommandPageHeader
         title="Reports Centre"
-        description="Store, manage, review and publish climate risk reports, GHG inventory outputs, project portfolio reports, NDC progress reports, executive briefs and exported datasets."
+        description="Store, manage, review and publish Climate Intelligence reports, GHG inventory outputs, project portfolio reports, NDC progress reports, executive briefs and exported datasets."
         actions={
           <div className="flex flex-wrap gap-3">
             <CommandButton variant="outline" onClick={loadReports}>

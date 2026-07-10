@@ -49,7 +49,7 @@ export default function Login({ onLogin, error }) {
             </h1>
 
             <p className="mt-6 max-w-xl text-base font-light leading-8 text-white/75">
-              Secure access for authorised staff to manage climate risk data,
+              Secure access for authorised staff to manage Climate Intelligence data,
               greenhouse gas inventory, climate projects, reports and
               audit-ready evidence.
             </p>
@@ -60,7 +60,7 @@ export default function Login({ onLogin, error }) {
               <p className="text-xs font-bold uppercase tracking-[0.12em] text-white/40">
                 Module
               </p>
-              <p className="mt-2 font-bold">Climate Risk</p>
+              <p className="mt-2 font-bold">Climate Intelligence</p>
             </div>
 
             <div className="rounded-lg border border-white/10 bg-white/5 p-4">

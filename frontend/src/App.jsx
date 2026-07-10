@@ -29,12 +29,12 @@ const pageDetails = {
   dashboard: {
     title: "Executive Dashboard",
     description:
-      "High-level platform summary for climate risk, emissions, projects, reports, and alerts.",
+      "High-level platform summary for Climate Intelligence, emissions, projects, reports, and alerts.",
   },
   risk: {
-    title: "Climate Risk Map",
+    title: "Climate Intelligence Map",
     description:
-      "Interactive LGA-level climate risk map showing flood, drought, heat, exposure, and vulnerability indicators.",
+      "Interactive LGA-level Climate Intelligence map showing flood, drought, heat, exposure, and vulnerability indicators.",
   },
   ghg: {
     title: "GHG Inventory",
@@ -189,6 +189,7 @@ function App() {
 
   const publicRoutes = {
     "/public": <PublicPortalPage />,
+    "/public/climate-intelligence": <PublicClimateRiskPage />,
     "/public/climate-risk": <PublicClimateRiskPage />,
     "/public/climate-atlas": <PublicClimateAtlasPage />,
     "/public/ghg-inventory": <PublicGHGInventoryPage />,

@@ -2,7 +2,7 @@ import OfficialLogo from "./OfficialLogo";
 
 const publicNavItems = [
   { key: "home", label: "Home", href: "/public" },
-  { key: "climate-risk", label: "Climate Risk", href: "/public/climate-risk" },
+  { key: "climate-intelligence", label: "Climate Intelligence", href: "/public/climate-risk" },
   { key: "ghg", label: "GHG Inventory", href: "/public/ghg-inventory" },
   { key: "projects", label: "Projects", href: "/public/projects" },
   { key: "reports", label: "Reports", href: "/public/reports" },
@@ -35,7 +35,7 @@ export function PublicPortalHeader({
   showStats = false,
   compact = false,
   showActions = true,
-  primaryActionLabel = "Explore Climate Risk",
+  primaryActionLabel = "Explore Climate Intelligence",
   secondaryActionLabel = "View Reports",
   onPrimaryAction,
   onSecondaryAction,

@@ -1,10 +1,15 @@
+import logging
 from decimal import Decimal
 
+from django.conf import settings
 from django.db.models import Avg, Count, Max, Sum
+from django.http import HttpResponse
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+
+logger = logging.getLogger(__name__)
 
 from climate_risk.models import ClimateRiskProfile
 from projects.models import ClimateProject
@@ -517,3 +522,69 @@ def public_climate_projects(request):
         },
         "results": results,
     })
+
+
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def atlas_export(request):
+    from playwright.sync_api import sync_playwright
+
+    variable = request.query_params.get("variable", "overall")
+    year     = request.query_params.get("year", "2025")
+    basemap  = request.query_params.get("basemap", "satellite")
+
+    frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
+    url = (
+        f"{frontend_url}/public/climate-atlas"
+        f"?export=1&variable={variable}&year={year}&basemap={basemap}"
+    )
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            context = browser.new_context(
+                viewport={"width": 1920, "height": 1080},
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/124.0.0.0 Safari/537.36"
+                ),
+            )
+            page = context.new_page()
+            # domcontentloaded avoids stalling on continuous tile requests
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            # Wait for Leaflet map container to mount
+            page.wait_for_selector(".leaflet-container", timeout=20000)
+            # Wait for React to signal GeoJSON is loaded and map is ready
+            page.wait_for_function(
+                "document.body.dataset.atlasExportReady === '1'",
+                timeout=25000,
+            )
+            # Wait until several tile images have fully decoded (naturalWidth > 0)
+            page.wait_for_function(
+                """() => {
+                    const imgs = document.querySelectorAll('.leaflet-tile-pane img');
+                    if (imgs.length === 0) return false;
+                    const loaded = Array.from(imgs).filter(
+                        i => i.complete && i.naturalWidth > 0
+                    );
+                    return loaded.length >= Math.min(4, imgs.length);
+                }""",
+                timeout=20000,
+            )
+            # Final settle for sub-pixel tile paint
+            page.wait_for_timeout(2000)
+            png_bytes = page.screenshot(type="png")
+            context.close()
+            browser.close()
+
+        response = HttpResponse(png_bytes, content_type="image/png")
+        response["Content-Disposition"] = (
+            f'attachment; filename="kccc-atlas-{variable}-{year}.png"'
+        )
+        return response
+
+    except Exception as err:
+        logger.exception("atlas_export failed for url=%s", url)
+        detail = str(err) if settings.DEBUG else "Export failed. Please try again."
+        return Response({"error": detail}, status=500)

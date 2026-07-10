@@ -281,7 +281,7 @@ export default function ClimateRiskParameterPanel({
       <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
-            Climate Risk Parameters
+            Climate Intelligence Parameters
           </p>
 
           <h2 className="mt-2 text-2xl font-black text-[#030454]">

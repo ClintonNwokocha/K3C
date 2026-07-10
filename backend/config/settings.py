@@ -11,6 +11,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
+KCCC_ENABLE_INTERNAL_PREVIEWS = os.getenv("KCCC_ENABLE_INTERNAL_PREVIEWS", "false").lower() in ("true", "1", "yes")
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv(
@@ -101,6 +103,8 @@ STATIC_URL = "static/"
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()

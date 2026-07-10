@@ -93,7 +93,7 @@ export default function ClimateRiskScoringPanel({
       setError(
         err?.response?.data
           ? JSON.stringify(err.response.data)
-          : "Could not recalculate climate risk scores."
+          : "Could not recalculate Climate Intelligence scores."
       );
     } finally {
       setIsRunning(false);
@@ -124,7 +124,7 @@ export default function ClimateRiskScoringPanel({
       setError(
         err?.response?.data
           ? JSON.stringify(err.response.data)
-          : "Could not normalize and recalculate climate risk scores."
+          : "Could not normalize and recalculate Climate Intelligence scores."
       );
     } finally {
       setIsNormalizing(false);
@@ -136,7 +136,7 @@ export default function ClimateRiskScoringPanel({
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
         <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
-          Climate Risk Scoring Engine
+          Climate Intelligence Scoring Engine
         </p>
 
         <h2 className="mt-2 text-2xl font-black text-[#030454]">
@@ -145,7 +145,7 @@ export default function ClimateRiskScoringPanel({
 
         <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
           This converts raw parameter values into normalized scores, then uses
-          those normalized scores to update final LGA climate risk indexes.
+          those normalized scores to update final LGA Climate Intelligence indexes.
         </p>
       </div>
 

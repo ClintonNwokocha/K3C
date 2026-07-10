@@ -8,7 +8,7 @@ import {
 import { getPublicReportDocuments } from "../services/api";
 
 const reportTypeOptions = [
-  { value: "climate_risk", label: "Climate Risk Report" },
+  { value: "climate_risk", label: "Climate Intelligence Report" },
   { value: "ghg_inventory", label: "GHG Inventory Report" },
   { value: "project_portfolio", label: "Project Portfolio Report" },
   { value: "ndc_progress", label: "NDC Progress Report" },
@@ -20,7 +20,7 @@ const reportTypeOptions = [
 const reportUseCases = {
   climate_risk: {
     label: "Risk planning",
-    title: "Supports climate risk prioritisation",
+    title: "Supports Climate Intelligence prioritisation",
     body: "Useful for identifying LGAs, hazards and risk drivers that may require preparedness, adaptation planning or further technical assessment.",
     tone: "green",
   },
@@ -66,12 +66,12 @@ const audienceGuidance = [
   {
     label: "Residents",
     title: "Read public summaries first",
-    body: "Start with executive briefs and climate risk reports to understand what the evidence means for your community or LGA.",
+    body: "Start with executive briefs and Climate Intelligence reports to understand what the evidence means for your community or LGA.",
   },
   {
     label: "Policy teams",
     title: "Use reports for prioritisation",
-    body: "Use climate risk, GHG and project portfolio reports to support adaptation planning, budgeting discussions and coordination.",
+    body: "Use Climate Intelligence, GHG and project portfolio reports to support adaptation planning, budgeting discussions and coordination.",
   },
   {
     label: "Partners",
@@ -198,7 +198,7 @@ function EvidenceRibbon({ reports, summary, years }) {
     `Published documents: ${summary.published_reports || reports.length || 0}`,
     `Report types: ${reportTypes}`,
     `Latest year: ${latestYear}`,
-    `Climate risk evidence: ${
+    `Climate Intelligence evidence: ${
       reports.some((report) => report.report_type === "climate_risk")
         ? "Available"
         : "Pending"
@@ -614,7 +614,7 @@ function ReportLibrary({
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <PublicSectionIntro
             title="Evidence library"
-            description="Browse public-facing climate risk reports, greenhouse gas inventory outputs, project portfolio reports, executive briefs and data exports."
+            description="Browse public-facing Climate Intelligence reports, greenhouse gas inventory outputs, project portfolio reports, executive briefs and data exports."
           />
 
           <div className="rounded-md bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-[#030454] shadow-sm">
@@ -787,7 +787,7 @@ export default function PublicReportsPage() {
             </h3>
 
             <p className="mt-3 max-w-2xl text-sm font-light leading-7 text-white/70">
-              Go back to the public portal to view the climate risk map, public
+              Go back to the public portal to view the Climate Intelligence map, public
               project summary and partner information.
             </p>
           </div>

@@ -182,7 +182,7 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-              Monitor climate risk, greenhouse gas inventory, climate action
+              Monitor Climate Intelligence, greenhouse gas inventory, climate action
               projects, reports, public transparency outputs and audit-ready
               governance workflows from one internal command dashboard.
             </p>
@@ -263,8 +263,8 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           <ModuleCard
             icon={CloudSun}
-            title="Climate Risk"
-            description="Review LGA climate risk scores, maps, raw parameter records and scoring outputs."
+            title="Climate Intelligence"
+            description="Review LGA Climate Intelligence scores, maps, raw parameter records and scoring outputs."
             actionLabel="Open risk module"
             tone="green"
             onClick={() => navigateTo("risk")}
@@ -309,7 +309,7 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
           <div className="space-y-4">
             <FocusItem
               icon={Globe2}
-              title="Where are the highest climate risks?"
+              title="Where are the highest Climate Intelligences?"
               description="Use LGA risk maps and scores to identify priority locations and risk drivers."
               tone="green"
             />
@@ -373,7 +373,7 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
                 <p className="font-black text-[#030454]">Public Portal</p>
               </div>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Public-facing climate risk and action summaries are available.
+                Public-facing Climate Intelligence and action summaries are available.
               </p>
             </div>
           </div>
@@ -382,8 +382,8 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <SectionHeader
-          title="Executive climate risk summary"
-          description="Leadership-level view of LGA climate risk scores, highest-risk LGAs and adaptation signals."
+          title="Executive Climate Intelligence summary"
+          description="Leadership-level view of LGA Climate Intelligence scores, highest-risk LGAs and adaptation signals."
         />
 
         <ExecutiveClimateRiskSummary />

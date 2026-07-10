@@ -53,7 +53,7 @@ function buildProjectRows(projects) {
       "Expected Beneficiaries",
       "Start Date",
       "End Date",
-      "Climate Risk Relevance",
+      "Climate Intelligence Relevance",
       "Location Notes",
       "Created At",
       "Updated At",

@@ -120,7 +120,7 @@ function getMetricField(metric) {
 
 function getMetricLabel(metric) {
   const labels = {
-    overall: "Overall Climate Risk Index",
+    overall: "Overall Climate Intelligence Index",
     flood: "Flood Risk Index",
     drought: "Drought Risk Index",
     heat: "Heat Risk Index",
@@ -130,7 +130,7 @@ function getMetricLabel(metric) {
     adaptive_capacity: "Adaptive Capacity Index",
   };
 
-  return labels[metric] || "Overall Climate Risk Index";
+  return labels[metric] || "Overall Climate Intelligence Index";
 }
 
 function getScoreClass(value, metric) {
@@ -438,7 +438,7 @@ export default function ClimateRiskMap({
       return `
         <div style="min-width: 220px;">
           <strong>${escapeHtml(lgaName)}</strong><br/>
-          <span>No matching climate risk profile found.</span><br/>
+          <span>No matching Climate Intelligence profile found.</span><br/>
           <span>Check GeoJSON LGA name and database LGA name.</span>
         </div>
       `;

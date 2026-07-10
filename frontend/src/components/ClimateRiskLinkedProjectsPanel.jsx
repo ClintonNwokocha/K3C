@@ -129,7 +129,7 @@ function getDefaultRiskRelevance(profile) {
 
   const riskText = riskParts.length
     ? riskParts.join(", ")
-    : "climate risk and resilience needs";
+    : "Climate Intelligence and resilience needs";
 
   return `This project responds to ${riskText} in ${profile.lga_name}.`;
 }
@@ -340,7 +340,7 @@ export default function ClimateRiskLinkedProjectsPanel({
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             View and register climate projects linked to this LGA’s risk
-            profile. This connects climate risk analysis to adaptation and
+            profile. This connects Climate Intelligence analysis to adaptation and
             mitigation action planning.
           </p>
         </div>
@@ -639,7 +639,7 @@ export default function ClimateRiskLinkedProjectsPanel({
 
             <div className="md:col-span-3">
               <label className="mb-2 block text-sm font-bold text-[#030454]">
-                Climate Risk Relevance
+                Climate Intelligence Relevance
               </label>
 
               <textarea
@@ -765,7 +765,7 @@ export default function ClimateRiskLinkedProjectsPanel({
 
               {project.climate_risk_relevance && (
                 <div className="mt-4 rounded-xl border-l-4 border-[#030454] bg-[#030454]/5 px-5 py-4 text-sm leading-6 text-[#030454]">
-                  <p className="font-black">Climate Risk Relevance</p>
+                  <p className="font-black">Climate Intelligence Relevance</p>
                   <p className="mt-1">{project.climate_risk_relevance}</p>
                 </div>
               )}

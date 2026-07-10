@@ -41,3 +41,34 @@ def log_audit_action(request, action, instance, old_value=None, new_value=None):
         new_value=make_json_safe(new_value),
         ip_address=get_client_ip(request),
     )
+
+
+def log_screening_access(request, *, year, season, admin_level, result_count):
+    """
+    Write one AuditLog entry for a successful Climate Action Screening access.
+
+    Captures only the metadata required for traceability:
+    actor, role, filters, result count, and IP.  Never logs the full
+    indicator payload or any secret.
+
+    Findable in Django admin at:
+    /admin/audit/auditlog/?action=climate_action_screening_view
+    """
+    user = request.user if request.user and request.user.is_authenticated else None
+    role = getattr(getattr(user, "profile", None), "role", "unknown") if user else "anonymous"
+
+    AuditLog.objects.create(
+        user=user,
+        action="climate_action_screening_view",
+        table_name="climate_action_screening",
+        record_id=f"{year}/{season}/{admin_level}",
+        old_value=None,
+        new_value={
+            "year": year,
+            "season": season,
+            "admin_level": admin_level,
+            "result_count": result_count,
+            "actor_role": role,
+        },
+        ip_address=get_client_ip(request),
+    )

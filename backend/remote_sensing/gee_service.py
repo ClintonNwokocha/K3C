@@ -12,6 +12,10 @@ from typing import Any, Dict, Optional
 _lulc_map_cache: Dict[str, Any] = {}
 _LULC_CACHE_TTL_S: int = 1800  # 30 min; GEE map IDs stay valid for ~4 h
 
+# Server-side elevation tile cache (SRTM is static — same visualization every time).
+_elevation_tile_cache: Dict[str, Any] = {}
+_ELEVATION_CACHE_TTL_S: int = 1800  # 30 min
+
 
 @dataclass
 class GEEResult:
@@ -1056,6 +1060,71 @@ class GoogleEarthEngineService:
                     "method_version": "srtm_terrain_tile_v1",
                 },
             )
+
+    def get_elevation_upstream_template(self) -> "GEEResult":
+        """
+        Return the GEE tile URL template for the SRTM elevation layer, using a
+        server-side TTL cache.
+
+        The upstream template (which contains an authenticated GEE map ID) is
+        stored in process memory only.  It is never returned to the browser.
+        Callers must treat this value as an internal secret.
+        """
+        cached = _elevation_tile_cache.get("srtm")
+        if cached and cached["expires"] > time.monotonic():
+            return GEEResult(available=True, data={"upstream_template": cached["template"]})
+
+        result = self.get_elevation_tile_url()
+        if not result.available:
+            return result
+
+        template = result.data.get("tile_url", "")
+        _elevation_tile_cache["srtm"] = {
+            "template": template,
+            "expires": time.monotonic() + _ELEVATION_CACHE_TTL_S,
+        }
+        return GEEResult(available=True, data={"upstream_template": template})
+
+    def fetch_elevation_tile_bytes(
+        self,
+        upstream_template: str,
+        z: int,
+        x: int,
+        y: int,
+    ) -> Optional[bytes]:
+        """
+        Fetch one SRTM PNG tile from the GEE upstream using server-side credentials.
+
+        The upstream_template contains the authenticated GEE map ID.  It is
+        used to build the specific tile URL internally; it is not logged and
+        never appears in any response body.
+
+        Returns raw PNG bytes on success, None on any failure.
+        """
+        tile_url = (
+            upstream_template
+            .replace("{z}", str(z))
+            .replace("{x}", str(x))
+            .replace("{y}", str(y))
+        )
+        try:
+            import ee  # noqa: PLC0415
+            from google.auth.transport.requests import AuthorizedSession  # noqa: PLC0415
+
+            state = ee.data._get_state()
+            creds = state.credentials
+            if creds is None:
+                init_result = self.initialize()
+                if not init_result.available:
+                    return None
+                creds = ee.data._get_state().credentials
+            session = AuthorizedSession(creds)
+            resp = session.get(tile_url, timeout=30, allow_redirects=False)
+            if resp.status_code == 200:
+                return resp.content
+            return None
+        except Exception:  # noqa: BLE001
+            return None
 
     def sample_elevation_at_point(self, lat: float, lng: float) -> GEEResult:
         """

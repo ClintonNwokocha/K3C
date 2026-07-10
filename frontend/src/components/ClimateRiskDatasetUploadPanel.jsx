@@ -183,7 +183,7 @@ export default function ClimateRiskDatasetUploadPanel({
           </p>
 
           <h2 className="mt-2 text-2xl font-black text-[#030454]">
-            Upload Processed Climate Risk CSV
+            Upload Processed Climate Intelligence CSV
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
@@ -206,7 +206,7 @@ export default function ClimateRiskDatasetUploadPanel({
       <div className="space-y-5">
         {!canManage && (
           <Notice type="yellow">
-            Only Admin and Analyst users can upload climate risk datasets.
+            Only Admin and Analyst users can upload Climate Intelligence datasets.
           </Notice>
         )}
 
@@ -385,7 +385,7 @@ export default function ClimateRiskDatasetUploadPanel({
                       colSpan="9"
                       className="px-3 py-8 text-center text-slate-500"
                     >
-                      No climate risk dataset uploads yet.
+                      No Climate Intelligence dataset uploads yet.
                     </td>
                   </tr>
                 )}

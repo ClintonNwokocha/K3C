@@ -28,7 +28,7 @@ const navItems = [
   },
   {
     key: "risk",
-    name: "Climate Risk Map",
+    name: "Climate Intelligence Map",
     description: "LGA risk intelligence",
     icon: CloudSun,
     allowedRoles: [
@@ -140,7 +140,7 @@ export default function AppShell({
             </p>
 
             <p className="mt-2 text-sm leading-6 text-white/65">
-              Climate risk, GHG inventory, project tracking, reports and
+              Climate Intelligence, GHG inventory, project tracking, reports and
               audit-ready evidence.
             </p>
           </div>

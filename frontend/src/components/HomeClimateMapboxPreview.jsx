@@ -41,7 +41,7 @@ const PREVIEW_SLIDES = [
     description:
       "Preview how rainfall patterns can support flood preparedness, early warning and LGA-level climate planning.",
     href: "/public/climate-risk",
-    cta: "Explore climate risk",
+    cta: "Explore Climate Intelligence",
   },
   {
     key: "flood",
@@ -69,7 +69,7 @@ const PREVIEW_SLIDES = [
     status: "Portfolio linked",
     title: "Climate action visibility",
     description:
-      "Connect climate risk awareness with adaptation projects, expected beneficiaries and implementation progress.",
+      "Connect Climate Intelligence awareness with adaptation projects, expected beneficiaries and implementation progress.",
     href: "/public/projects",
     cta: "View projects",
   },
@@ -321,7 +321,7 @@ export default function HomeClimateMapboxPreview({ height = "610px" }) {
             <span>${point.type} Signal</span>
             <strong>${point.name}</strong>
             <p>${point.note}</p>
-            <small>Click to open the Climate Risk Explorer</small>
+            <small>Click to open the Climate Intelligence Explorer</small>
           </div>
         `);
 

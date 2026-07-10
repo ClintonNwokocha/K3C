@@ -79,7 +79,7 @@ export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
         <h2 className="text-xl font-black text-[#030454]">Edit Risk Scores</h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Select an LGA to edit its climate risk profile.
+          Select an LGA to edit its Climate Intelligence profile.
         </p>
       </div>
     );
@@ -153,7 +153,7 @@ export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
     >
       <div>
         <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
-          Climate Risk Management
+          Climate Intelligence Management
         </p>
 
         <h2 className="mt-2 text-2xl font-black text-[#030454]">

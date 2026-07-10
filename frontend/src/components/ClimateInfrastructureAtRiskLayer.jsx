@@ -299,7 +299,7 @@ export default function ClimateInfrastructureAtRiskLayer({
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Map and manage schools, hospitals, markets, roads/bridges, water
-            facilities, settlements, and other assets exposed to climate risk.
+            facilities, settlements, and other assets exposed to Climate Intelligence.
           </p>
         </div>
 

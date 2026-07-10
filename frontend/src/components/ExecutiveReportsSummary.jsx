@@ -270,7 +270,7 @@ export default function ExecutiveReportsSummary() {
             </h3>
 
             <div className="mt-5 space-y-3 text-sm">
-              <CountRow label="Climate Risk" value={summary.by_type?.climate_risk || 0} />
+              <CountRow label="Climate Intelligence" value={summary.by_type?.climate_risk || 0} />
               <CountRow label="GHG Inventory" value={summary.by_type?.ghg_inventory || 0} />
               <CountRow
                 label="Project Portfolio"

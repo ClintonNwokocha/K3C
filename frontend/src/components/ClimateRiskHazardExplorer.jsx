@@ -5,11 +5,11 @@ const hazardOptions = [
   {
     key: "overall",
     label: "Overall",
-    title: "Overall Climate Risk Index",
+    title: "Overall Climate Intelligence Index",
     description:
-      "Composite climate risk index combining hazard, exposure, vulnerability and adaptive capacity gap.",
+      "Composite Climate Intelligence index combining hazard, exposure, vulnerability and adaptive capacity gap.",
     field: "overall_risk_score",
-    higherMeaning: "Higher score means higher overall climate risk.",
+    higherMeaning: "Higher score means higher overall Climate Intelligence.",
   },
   {
     key: "flood",
@@ -179,7 +179,7 @@ export default function ClimateRiskHazardExplorer({
         </p>
 
         <h2 className="mt-2 text-2xl font-black text-[#030454]">
-          Explore Climate Risk by Hazard
+          Explore Climate Intelligence by Hazard
         </h2>
 
         <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">

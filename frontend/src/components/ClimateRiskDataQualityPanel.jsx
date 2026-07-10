@@ -153,11 +153,11 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
         </p>
 
         <h2 className="mt-2 text-2xl font-black text-[#030454]">
-          Climate Risk Data Completeness
+          Climate Intelligence Data Completeness
         </h2>
 
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          This panel checks whether each LGA has the required climate risk
+          This panel checks whether each LGA has the required Climate Intelligence
           index fields for flood, drought, heat, erosion, exposure,
           vulnerability and adaptive capacity.
         </p>
@@ -303,7 +303,7 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
                   colSpan="6"
                   className="px-3 py-8 text-center text-slate-500"
                 >
-                  No climate risk profiles available for quality checks.
+                  No Climate Intelligence profiles available for quality checks.
                 </td>
               </tr>
             )}

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    atlas_export,
     public_climate_projects,
     public_climate_risk_profiles,
     public_portal_summary,
@@ -12,4 +13,5 @@ urlpatterns = [
     path("climate-risk/", public_climate_risk_profiles, name="public-climate-risk"),
     path("projects/", public_climate_projects, name="public-climate-projects"),
     path("reports/", public_report_documents, name="public-report-documents"),
+    path("atlas-export/", atlas_export, name="public-atlas-export"),
 ]

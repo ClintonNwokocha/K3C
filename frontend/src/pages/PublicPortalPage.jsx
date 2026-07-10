@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import HomeClimateMapboxPreview from "../components/HomeClimateMapboxPreview";
 import {
   PublicDataNotice,
   PublicPortalFooter,
 } from "../components/PublicPortalChrome";
-import { getPublicPortalSummary } from "../services/api";
+import { getPublicPortalSummary, getRemoteSensingLgaStats } from "../services/api";
 
 const partnerLogos = [
   {
@@ -38,7 +37,7 @@ const publicNewsItems = [
     date: "May 2026",
     title: "Climate evidence portal supports coordinated decision-making",
     summary:
-      "The public portal improves access to approved climate risk summaries, GHG information and published evidence documents.",
+      "The public portal improves access to approved Climate Intelligence summaries, GHG information and published evidence documents.",
     href: "/public/reports",
   },
   {
@@ -53,10 +52,10 @@ const publicNewsItems = [
 
 const gatewayCards = [
   {
-    title: "Climate Risk Intelligence",
+    title: "Climate Intelligence",
     description:
-      "Understand where climate risks are concentrated across Kaduna State, including high-risk LGAs and public risk summaries.",
-    buttonLabel: "Explore Climate Risk",
+      "Explore Kaduna's vegetation monitoring, climate risk profiles, and data availability across 23 LGAs.",
+    buttonLabel: "Explore Climate Intelligence",
     href: "/public/climate-risk",
     tone: "blue",
   },
@@ -105,7 +104,7 @@ function navigateTo(href) {
 function HomeTopNav() {
   const navItems = [
     { label: "Home", href: "/public", active: true },
-    { label: "Climate Risk", href: "/public/climate-risk" },
+    { label: "Climate Intelligence", href: "/public/climate-risk" },
     { label: "GHG Inventory", href: "/public/ghg-inventory" },
     { label: "Projects", href: "/public/projects" },
     { label: "Reports", href: "/public/reports" },
@@ -181,7 +180,7 @@ function HomeHero() {
           </h1>
 
           <p className="mt-5 max-w-3xl text-base leading-7 text-white/78 sm:text-lg sm:leading-8">
-            Explore Kaduna State climate risk, emissions insights, project
+            Explore Kaduna State Climate Intelligence, emissions insights, project
             implementation and approved evidence reports in one public portal.
           </p>
 
@@ -191,15 +190,15 @@ function HomeHero() {
               onClick={() => navigateTo("/public/climate-risk")}
               className="rounded-md bg-[#F3F74B] px-7 py-3.5 text-sm font-black uppercase tracking-[0.13em] text-[#030454] shadow-[0_18px_40px_rgba(243,247,75,0.18)] transition hover:-translate-y-0.5 hover:bg-white"
             >
-              Explore Climate Risk
+              Explore Climate Intelligence
             </button>
 
             <button
               type="button"
-              onClick={() => navigateTo("/public/reports")}
+              onClick={() => navigateTo("/public/climate-atlas")}
               className="rounded-md border border-white/25 bg-white/5 px-7 py-3.5 text-sm font-black uppercase tracking-[0.13em] text-white transition hover:-translate-y-0.5 hover:border-white hover:bg-white hover:text-[#030454]"
             >
-              View Public Reports
+              Open Climate Atlas
             </button>
           </div>
         </div>
@@ -254,14 +253,11 @@ function MovingIntelligenceSummary({ summaryData }) {
     },
     {
       label: "Public reports",
-      value: formatNumber(
-        reports.total_reports || reports.public_reports || 0,
-        0
-      ),
+      value: formatNumber(reports.total_public_reports || 0, 0),
     },
     {
-      label: "GEE integration",
-      value: "Rainfall and weather feeds planned",
+      label: "NDVI monitoring",
+      value: "Annual · Wet · Dry seasons",
     },
   ];
 
@@ -590,25 +586,229 @@ function ReportsCallout() {
   );
 }
 
+function WhatIsChangingSection({ ndviStats, isLoading }) {
+  const results = useMemo(() => {
+    if (!ndviStats?.results) return [];
+    return [...ndviStats.results]
+      .filter((item) => item.mean_value != null && !isNaN(parseFloat(item.mean_value)))
+      .sort((a, b) => Number(b.mean_value) - Number(a.mean_value));
+  }, [ndviStats]);
+
+  return (
+    <section className="bg-white px-4 py-14 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-7xl">
+        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#009B35]">
+          What the data shows
+        </p>
+        <h2 className="font-['Playfair_Display'] text-4xl font-bold leading-tight text-[#030454]">
+          Vegetation condition across Kaduna, 2025
+        </h2>
+        <p className="mt-4 max-w-2xl text-sm font-light leading-7 text-slate-600">
+          NDVI (Normalized Difference Vegetation Index) measures vegetation greenness from
+          Sentinel-2 satellite imagery. Higher values indicate denser, healthier vegetation cover.
+          NDVI monitoring is currently available for 2025 across 23 Kaduna LGAs.
+        </p>
+
+        <div className="mt-8">
+          {isLoading ? (
+            <div className="rounded-md border border-[#CAD2D7] bg-[#F7F9FA] p-6 text-sm text-slate-500">
+              Loading vegetation data...
+            </div>
+          ) : results.length === 0 ? (
+            <div className="rounded-md border border-[#CAD2D7] bg-[#F7F9FA] p-6 text-sm text-slate-500">
+              Vegetation data for 2025 is being processed. Check back soon.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-y-2 md:grid-cols-2 md:gap-x-10">
+              {results.map((item) => {
+                const val = parseFloat(item.mean_value);
+                const barPct = Math.max(0, Math.min(100, val * 100)).toFixed(1);
+                return (
+                  <div
+                    key={item.admin_code || item.admin_name}
+                    className="flex items-center gap-3"
+                  >
+                    <span className="w-28 shrink-0 text-right text-xs font-bold text-[#030454]">
+                      {item.admin_name}
+                    </span>
+                    <div className="flex-1 overflow-hidden rounded-full bg-[#E6EAEC] h-3.5">
+                      <div
+                        style={{ width: `${barPct}%` }}
+                        className="h-3.5 rounded-full bg-[#009B35] transition-all"
+                      />
+                    </div>
+                    <span className="w-12 shrink-0 text-right font-mono text-xs text-slate-500">
+                      {val.toFixed(3)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <p className="mt-6 text-[11px] text-slate-400">
+          Source: Sentinel-2 Surface Reflectance Harmonized via Google Earth Engine · 2025 annual composite.
+        </p>
+
+        <button
+          type="button"
+          onClick={() => navigateTo("/public/climate-atlas")}
+          className="mt-5 rounded-md border border-[#030454]/20 px-5 py-2.5 text-xs font-black uppercase tracking-[0.12em] text-[#030454] transition hover:bg-[#030454] hover:text-white"
+        >
+          Explore full NDVI data in the Climate Atlas
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function DataSourcesSection() {
+  const sources = [
+    {
+      key: "eo",
+      label: "Earth Observation",
+      description:
+        "Vegetation (NDVI) monitoring is available for 2025 across 23 Kaduna LGAs using Sentinel-2 Surface Reflectance from Google Earth Engine.",
+      available: [{ label: "Vegetation / NDVI", detail: "2025 · 23 LGAs · Annual, Wet & Dry seasons" }],
+      upcoming: [
+        { label: "Rainfall", status: "In development" },
+        { label: "Land Surface Temperature", status: "Planned" },
+        { label: "Flood Hazard", status: "Planned" },
+        { label: "Drought Index", status: "Planned" },
+      ],
+    },
+    {
+      key: "risk",
+      label: "Climate Risk Assessment",
+      description:
+        "Composite risk profiles have been prepared for Kaduna LGAs using a multi-indicator scoring methodology covering flood risk, drought, heat exposure, vulnerability, and adaptive capacity.",
+      note: "These are composite assessment records built from indicator scores. They are not derived from real-time satellite data and have not been validated against remote-sensing measurements.",
+      available: [{ label: "LGA risk profiles", detail: "2025 · 23 LGAs · Composite methodology" }],
+      upcoming: [],
+    },
+    {
+      key: "local",
+      label: "Local Observations",
+      description:
+        "Integration of local weather stations, river gauges, and field survey data with the platform is in the design phase.",
+      available: [],
+      upcoming: [{ label: "Local weather & hydrology", status: "Design phase" }],
+    },
+  ];
+
+  const statusColour = {
+    "In development": "text-amber-700 bg-amber-50 border-amber-200",
+    "Planned": "text-slate-600 bg-slate-50 border-slate-200",
+    "Design phase": "text-slate-500 bg-slate-50 border-slate-200",
+  };
+
+  return (
+    <section className="bg-[#F7F9FA] px-4 py-14 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-7xl">
+        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#009B35]">
+          Data sources &amp; trust
+        </p>
+        <h2 className="font-['Playfair_Display'] text-4xl font-bold leading-tight text-[#030454]">
+          What is behind the numbers
+        </h2>
+        <p className="mt-4 max-w-2xl text-sm font-light leading-7 text-slate-600">
+          All data on this portal is clearly labelled by source, methodology, and operational status.
+        </p>
+
+        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {sources.map((src) => (
+            <div
+              key={src.key}
+              className="rounded-xl border border-[#CAD2D7] bg-white p-6 shadow-sm"
+            >
+              <p className="text-sm font-black uppercase tracking-[0.1em] text-[#030454]">
+                {src.label}
+              </p>
+              <p className="mt-3 text-xs leading-6 text-slate-600">{src.description}</p>
+
+              {src.available.length > 0 && (
+                <div className="mt-4 space-y-1.5">
+                  {src.available.map((item) => (
+                    <div
+                      key={item.label}
+                      className="flex flex-wrap items-start gap-2"
+                    >
+                      <span className="rounded border border-[#009B35]/30 bg-[#009B35]/8 px-2 py-0.5 text-[10px] font-bold text-[#007a29]">
+                        Available
+                      </span>
+                      <span className="text-xs text-slate-600">
+                        {item.label}
+                        {item.detail && (
+                          <span className="ml-1 text-slate-400">· {item.detail}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {src.upcoming.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {src.upcoming.map((item) => (
+                    <div key={item.label} className="flex flex-wrap items-start gap-2">
+                      <span
+                        className={`rounded border px-2 py-0.5 text-[10px] font-bold ${
+                          statusColour[item.status] || "text-slate-500 bg-slate-50 border-slate-200"
+                        }`}
+                      >
+                        {item.status}
+                      </span>
+                      <span className="text-xs text-slate-500">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {src.note && (
+                <p className="mt-4 rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-800">
+                  {src.note}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function PublicPortalPage() {
   const [summaryData, setSummaryData] = useState(null);
+  const [ndviStats, setNdviStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [ndviLoading, setNdviLoading] = useState(true);
   const [error, setError] = useState("");
 
   async function loadSummary() {
     setIsLoading(true);
+    setNdviLoading(true);
     setError("");
 
-    try {
-      const data = await getPublicPortalSummary();
-      setSummaryData(data.summary || {});
-    } catch (err) {
-      console.error(err);
+    const [summaryResult, ndviResult] = await Promise.allSettled([
+      getPublicPortalSummary(),
+      getRemoteSensingLgaStats({ layer: "ndvi", year: 2025, season: "annual", admin_level: "lga" }),
+    ]);
+
+    if (summaryResult.status === "fulfilled") {
+      setSummaryData(summaryResult.value.summary || {});
+    } else {
+      console.error(summaryResult.reason);
       setError("Could not load public portal summary.");
       setSummaryData({});
-    } finally {
-      setIsLoading(false);
     }
+
+    if (ndviResult.status === "fulfilled") {
+      setNdviStats(ndviResult.value);
+    }
+
+    setIsLoading(false);
+    setNdviLoading(false);
   }
 
   useEffect(() => {
@@ -632,13 +832,6 @@ export default function PublicPortalPage() {
       ) : (
         <>
           <MovingIntelligenceSummary summaryData={safeSummaryData} />
-
-          <section className="bg-[#030454] px-4 py-16 text-white sm:px-8 lg:px-10 lg:py-20">
-            <div className="mx-auto max-w-[1536px]">
-              <HomeClimateMapboxPreview height="610px" />
-            </div>
-          </section>
-
           <ExploreSection />
           <NewsPolicySection />
           <PartnersSection />
@@ -651,3 +844,4 @@ export default function PublicPortalPage() {
     </main>
   );
 }
+

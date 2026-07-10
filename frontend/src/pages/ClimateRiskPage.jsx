@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import ClimateActionLensMap from "../components/ClimateActionLensMap";
 import ClimateRiskDatasetUploadPanel from "../components/ClimateRiskDatasetUploadPanel";
 import ClimateRiskScoringPanel from "../components/ClimateRiskScoringPanel";
 import ClimateRiskEditPanel from "../components/ClimateRiskEditPanel";
@@ -19,8 +20,9 @@ import {
   CommandStatCard,
   CommandTabs,
 } from "../components/CommandUI";
-import { getClimateRiskProfiles } from "../services/api";
-import { canManageClimateRisk } from "../utils/permissions";
+import { getClimateActionScreeningData, getClimateRiskProfiles } from "../services/api";
+import { canManageClimateRisk, canViewInternalModules } from "../utils/permissions";
+import { derivePathwaysFromIndicators, READINESS } from "../utils/climatePathways";
 
 const COLORS = {
   blue: "#030454",
@@ -93,11 +95,12 @@ const climateRiskTabs = [
   { key: "transparency", label: "Transparency" },
   { key: "projects", label: "Linked Projects" },
   { key: "table", label: "Risk Table" },
+  { key: "screening", label: "Climate Action Screening" },
 ];
 
 function IndexExplanationBox() {
   return (
-    <CommandNotice title="How to read the climate risk scores" tone="blue">
+    <CommandNotice title="How to read the Climate Intelligence scores" tone="blue">
       <p>
         Risk values shown on this page are normalized indexes from{" "}
         <strong>0 to 100</strong>. A higher hazard, exposure, or vulnerability
@@ -158,7 +161,7 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
     return (
       <CommandSection
         title="No LGA selected"
-        description="Click any LGA polygon on the map or any row in the table to view its climate risk details."
+        description="Click any LGA polygon on the map or any row in the table to view its Climate Intelligence details."
       >
         <div />
       </CommandSection>
@@ -168,7 +171,7 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
   if (!selectedProfile) {
     return (
       <CommandNotice title={selectedLgaName} tone="yellow">
-        This LGA was selected, but no matching climate risk profile was found.
+        This LGA was selected, but no matching Climate Intelligence profile was found.
         Check that the GeoJSON LGA name matches the database LGA name.
       </CommandNotice>
     );
@@ -190,7 +193,7 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
     >
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-          Overall Climate Risk Index
+          Overall Climate Intelligence Index
         </p>
 
         <p className="mt-3 text-4xl font-black text-[#030454]">
@@ -305,7 +308,7 @@ function TopLgasPanel({
   return (
     <CommandSection
       title="Highest-risk LGAs"
-      description="Top LGAs by overall climate risk index."
+      description="Top LGAs by overall Climate Intelligence index."
       actions={
         showOpenTable && typeof setActiveTab === "function" ? (
           <CommandButton variant="outline" onClick={() => setActiveTab("table")}>
@@ -417,7 +420,7 @@ function RiskMapSection({
           onChange={(event) => setMapMetric(event.target.value)}
           className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
         >
-          <option value="overall">Overall Climate Risk Index</option>
+          <option value="overall">Overall Climate Intelligence Index</option>
           <option value="flood">Flood Risk Index</option>
           <option value="drought">Drought Risk Index</option>
           <option value="heat">Heat Risk Index</option>
@@ -475,8 +478,8 @@ function ParametersSection({
   return (
     <>
       <CommandSection
-        title="Climate risk dataset upload"
-        description="Upload climate risk profile datasets when validated data is available."
+        title="Climate Intelligence dataset upload"
+        description="Upload Climate Intelligence profile datasets when validated data is available."
       >
         <ClimateRiskDatasetUploadPanel
           canManage={canManageRisk}
@@ -485,7 +488,7 @@ function ParametersSection({
       </CommandSection>
 
       <CommandSection
-        title="Climate risk parameter records"
+        title="Climate Intelligence parameter records"
         description="Store raw hazard, exposure, vulnerability, and adaptive-capacity evidence behind final normalized scores."
       >
         <ClimateRiskParameterPanel
@@ -551,7 +554,7 @@ function InfrastructureSection({
 
       <CommandSection
         title="Exposed assets layer"
-        description="Map and manage infrastructure assets exposed to climate risk."
+        description="Map and manage infrastructure assets exposed to Climate Intelligence."
       >
         <ClimateInfrastructureAtRiskLayer
           key={`infrastructure-${
@@ -584,7 +587,7 @@ function RiskTableSection({
     <div className="grid items-start gap-6 xl:grid-cols-3">
       <CommandSection
         title="LGA risk table"
-        description="Filter and compare climate risk across LGAs. Click a row to update the selected LGA detail panel."
+        description="Filter and compare Climate Intelligence across LGAs. Click a row to update the selected LGA detail panel."
         className="xl:col-span-2"
         actions={
           <div className="flex flex-wrap gap-3">
@@ -623,7 +626,7 @@ function RiskTableSection({
       >
         {isLoading ? (
           <p className="text-sm text-slate-500">
-            Loading climate risk profiles...
+            Loading Climate Intelligence profiles...
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -783,6 +786,9 @@ export default function ClimateRiskPage({ currentUser }) {
   const [selectedLgaName, setSelectedLgaName] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [ciData, setCiData] = useState(null);
+  const [ciLoading, setCiLoading] = useState(false);
+  const [ciPermissionDenied, setCiPermissionDenied] = useState(false);
 
   async function loadRiskProfiles() {
     setIsLoading(true);
@@ -807,7 +813,7 @@ export default function ClimateRiskPage({ currentUser }) {
       }
     } catch (err) {
       console.error(err);
-      setError("Could not load climate risk profiles.");
+      setError("Could not load Climate Intelligence profiles.");
     } finally {
       setIsLoading(false);
     }
@@ -817,6 +823,22 @@ export default function ClimateRiskPage({ currentUser }) {
     loadRiskProfiles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedYear, riskLevel]);
+
+  useEffect(() => {
+    if (!canViewInternalModules(currentUser)) return;
+    setCiLoading(true);
+    setCiPermissionDenied(false);
+    getClimateActionScreeningData({ admin_level: "lga", season: "annual" })
+      .then((data) => setCiData(data))
+      .catch((err) => {
+        const status = err?.response?.status;
+        if (status === 401 || status === 403) {
+          setCiPermissionDenied(true);
+        }
+        setCiData(null);
+      })
+      .finally(() => setCiLoading(false));
+  }, [currentUser]);
 
   const profiles = riskData?.results || [];
   const summary = riskData?.summary;
@@ -838,6 +860,14 @@ export default function ClimateRiskPage({ currentUser }) {
       setSelectedLgaName(profiles[0].lga_name);
     }
   }, [profiles, selectedLgaName]);
+
+  const visibleTabs = useMemo(
+    () =>
+      canViewInternalModules(currentUser)
+        ? climateRiskTabs
+        : climateRiskTabs.filter((t) => t.key !== "screening"),
+    [currentUser]
+  );
 
   const selectedProfile = useMemo(() => {
     if (!selectedLgaName) return null;
@@ -863,8 +893,8 @@ export default function ClimateRiskPage({ currentUser }) {
   return (
     <div className="space-y-6">
       <CommandPageHeader
-        title="Kaduna LGA Climate Risk Profiles"
-        description="Climate risk workspace for flood, drought, heat, erosion, exposure, vulnerability and adaptive-capacity scoring across Kaduna LGAs."
+        title="Kaduna LGA Climate Intelligence Profiles"
+        description="Climate Intelligence workspace for flood, drought, heat, erosion, exposure, vulnerability and adaptive-capacity scoring across Kaduna LGAs."
         actions={
           <CommandButton onClick={loadRiskProfiles} variant="primary">
             Refresh Risk Data
@@ -873,14 +903,14 @@ export default function ClimateRiskPage({ currentUser }) {
       />
 
       {error && (
-        <CommandNotice title="Error loading climate risk profiles" tone="red">
+        <CommandNotice title="Error loading Climate Intelligence profiles" tone="red">
           {error}
         </CommandNotice>
       )}
 
       <div className="sticky top-24 z-10">
         <CommandTabs
-          tabs={climateRiskTabs}
+          tabs={visibleTabs}
           activeTab={activeTab}
           onChange={setActiveTab}
         />
@@ -961,7 +991,7 @@ export default function ClimateRiskPage({ currentUser }) {
 
       {activeTab === "quality" && (
         <CommandSection
-          title="Climate risk data quality review"
+          title="Climate Intelligence data quality review"
           description="Review missing fields, data completeness and scoring readiness."
         >
           <ClimateRiskDataQualityPanel profiles={profiles} />
@@ -971,7 +1001,7 @@ export default function ClimateRiskPage({ currentUser }) {
       {activeTab === "transparency" && (
         <CommandSection
           title="Risk scoring transparency"
-          description="Inspect how final climate risk scores are derived."
+          description="Inspect how final Climate Intelligence scores are derived."
         >
           <ClimateRiskScoringTransparencyPanel
             selectedProfile={selectedProfile}
@@ -982,13 +1012,29 @@ export default function ClimateRiskPage({ currentUser }) {
       {activeTab === "projects" && (
         <CommandSection
           title="Climate projects linked to selected LGA"
-          description="Review action responses connected to the selected climate risk profile."
+          description="Review action responses connected to the selected Climate Intelligence profile."
         >
           <ClimateRiskLinkedProjectsPanel
             selectedProfile={selectedProfile}
             canManage={canManageRisk}
           />
         </CommandSection>
+      )}
+
+      {activeTab === "screening" && canViewInternalModules(currentUser) && (
+        ciPermissionDenied ? (
+          <CommandNotice title="Access denied" tone="red">
+            You do not have permission to access Climate Action Screening. Contact your
+            system administrator if you believe this is an error.
+          </CommandNotice>
+        ) : (
+          <ScreeningMatrixSection
+            ciData={ciData}
+            ciLoading={ciLoading}
+            setSelectedLgaName={setSelectedLgaName}
+            setActiveTab={setActiveTab}
+          />
+        )
       )}
 
       {activeTab === "table" && (
@@ -1008,6 +1054,564 @@ export default function ClimateRiskPage({ currentUser }) {
           summary={summary}
         />
       )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Status display for the matrix overall-readiness column.
+// Uses the four approved labels per project governance rules.
+// ---------------------------------------------------------------------------
+const MATRIX_STATUS_DISPLAY = {
+  ready_for_planning_discussion: {
+    label: "Ready for planning discussion",
+    cls: "text-[#030454] bg-[#030454]/8 border border-[#030454]/20",
+  },
+  requires_field_verification: {
+    label: "Requires field verification",
+    cls: "text-amber-700 bg-amber-50 border border-amber-200",
+  },
+  insufficient_evidence: {
+    label: "Insufficient evidence",
+    cls: "text-slate-500 bg-slate-50 border border-slate-200",
+  },
+  not_assessed: {
+    label: "Not assessed",
+    cls: "text-slate-400 bg-white border border-slate-200",
+  },
+};
+
+const STATUS_PRIORITY = [
+  "ready_for_planning_discussion",
+  "requires_field_verification",
+  "insufficient_evidence",
+  "not_assessed",
+];
+
+function computeOverallStatus(pathways) {
+  return pathways.reduce((best, p) => {
+    const bi = STATUS_PRIORITY.indexOf(best);
+    const pi = STATUS_PRIORITY.indexOf(p.readinessStatus);
+    return pi !== -1 && (bi === -1 || pi < bi) ? p.readinessStatus : best;
+  }, "not_assessed");
+}
+
+const COMPLETENESS_KEYS = ["rainfall_anomaly", "spi", "ndvi", "lst"];
+
+function computeCompleteness(indicators) {
+  const present = COMPLETENESS_KEYS.filter((k) => indicators?.[k] != null).length;
+  return { present, total: COMPLETENESS_KEYS.length };
+}
+
+function formatScreeningSeason(season) {
+  if (season === "annual") return "Annual";
+  if (season === "wet_season") return "Wet Season";
+  if (season === "dry_season") return "Dry Season";
+  return season || "—";
+}
+
+// ---------------------------------------------------------------------------
+// ScreeningMatrixSection
+// ---------------------------------------------------------------------------
+function ScreeningMatrixSection({ ciData, ciLoading, setSelectedLgaName, setActiveTab }) {
+  const [screeningView, setScreeningView] = useState("matrix");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [pathwayFilter, setPathwayFilter] = useState("all");
+  const [sortField, setSortField] = useState("name");
+  const [sortAsc, setSortAsc] = useState(true);
+  const [expandedCode, setExpandedCode] = useState(null);
+
+  const evidencePeriod = useMemo(() => {
+    if (!ciData?.filters) return "—";
+    return `${ciData.filters.year} · ${formatScreeningSeason(ciData.filters.season)}`;
+  }, [ciData?.filters]);
+
+  const matrixRows = useMemo(() => {
+    if (!ciData?.results) return [];
+    return ciData.results.map((item) => {
+      const pathways = derivePathwaysFromIndicators(item.indicators);
+      const overallStatus = computeOverallStatus(pathways);
+      const completeness = computeCompleteness(item.indicators);
+      return {
+        admin_code: item.admin_code,
+        admin_name: item.admin_name,
+        indicators: item.indicators,
+        pathways,
+        overallStatus,
+        completeness,
+      };
+    });
+  }, [ciData]);
+
+  const filtered = useMemo(() => {
+    let rows = matrixRows;
+    if (search.trim()) {
+      const s = search.toLowerCase();
+      rows = rows.filter((r) => r.admin_name.toLowerCase().includes(s));
+    }
+    if (statusFilter !== "all") {
+      rows = rows.filter((r) => r.overallStatus === statusFilter);
+    }
+    if (pathwayFilter !== "all") {
+      rows = rows.filter((r) => r.pathways.some((p) => p.id === pathwayFilter));
+    }
+    return [...rows].sort((a, b) => {
+      let cmp = 0;
+      if (sortField === "name") cmp = a.admin_name.localeCompare(b.admin_name);
+      else if (sortField === "completeness")
+        cmp = a.completeness.present - b.completeness.present;
+      else if (sortField === "status")
+        cmp =
+          STATUS_PRIORITY.indexOf(a.overallStatus) -
+          STATUS_PRIORITY.indexOf(b.overallStatus);
+      return sortAsc ? cmp : -cmp;
+    });
+  }, [matrixRows, search, statusFilter, pathwayFilter, sortField, sortAsc]);
+
+  function toggleSort(field) {
+    if (sortField === field) setSortAsc((v) => !v);
+    else {
+      setSortField(field);
+      setSortAsc(true);
+    }
+  }
+
+  function SortIcon({ field }) {
+    if (sortField !== field)
+      return <span className="ml-1 text-slate-300">↕</span>;
+    return <span className="ml-1">{sortAsc ? "↑" : "↓"}</span>;
+  }
+
+  function OverallStatusBadge({ status }) {
+    const d = MATRIX_STATUS_DISPLAY[status] || MATRIX_STATUS_DISPLAY.not_assessed;
+    return (
+      <span className={`inline-block rounded px-2 py-0.5 text-xs font-bold ${d.cls}`}>
+        {d.label}
+      </span>
+    );
+  }
+
+  function PathwayCell({ pathway }) {
+    if (!pathway) {
+      return (
+        <span className="text-xs italic text-slate-400">
+          No current screening signal in available indicators.
+        </span>
+      );
+    }
+    const r = READINESS[pathway.readinessStatus] || READINESS.insufficient_evidence;
+    return (
+      <span className={`inline-block rounded px-1.5 py-0.5 text-xs font-bold ${r.cls}`}>
+        {r.label}
+      </span>
+    );
+  }
+
+  return (
+    <>
+      <CommandNotice title="Climate Action Screening — Scope and Limitations" tone="blue">
+        Rule-based LGA screening for planning discussion and field validation. It is not a
+        hazard model, prediction, investment ranking, or regulatory determination. Results
+        are derived from satellite indicators aggregated to LGA administrative boundaries.
+        All screening considerations require independent field verification before any
+        planning action is taken.
+      </CommandNotice>
+
+      {/* View toggle — Screening Matrix | Map Lens */}
+      <div className="flex gap-2">
+        {[
+          { id: "matrix", label: "Screening Matrix" },
+          { id: "map", label: "Map Lens" },
+        ].map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            onClick={() => setScreeningView(v.id)}
+            className={`rounded-md px-5 py-2.5 text-xs font-black uppercase tracking-[0.08em] transition ${
+              screeningView === v.id
+                ? "bg-[#030454] text-white shadow-sm"
+                : "border border-slate-200 bg-white text-slate-500 hover:border-[#030454] hover:text-[#030454]"
+            }`}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
+      {screeningView === "map" ? (
+        <ClimateActionLensMap
+          ciData={ciData}
+          ciLoading={ciLoading}
+          setSelectedLgaName={setSelectedLgaName}
+          setActiveTab={setActiveTab}
+        />
+      ) : (
+      <CommandSection
+        title="Climate Action Screening Matrix"
+        description={`LGA-level rule-based action-pathway screening · ${evidencePeriod} · Click an LGA name to open its full Climate Intelligence evidence context.`}
+        actions={
+          <div className="flex flex-wrap gap-3">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search LGA..."
+              className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+            />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+            >
+              <option value="all">All statuses</option>
+              <option value="ready_for_planning_discussion">
+                Ready for planning discussion
+              </option>
+              <option value="requires_field_verification">
+                Requires field verification
+              </option>
+              <option value="insufficient_evidence">Insufficient evidence</option>
+            </select>
+            <select
+              value={pathwayFilter}
+              onChange={(e) => setPathwayFilter(e.target.value)}
+              className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+            >
+              <option value="all">All action pathways</option>
+              <option value="drought_ag">Drought / Ag-adaptation</option>
+              <option value="ecosystem">Vegetation / Restoration</option>
+              <option value="heat_green">Heat / Urban-greening</option>
+            </select>
+          </div>
+        }
+      >
+        {ciLoading ? (
+          <p className="text-sm text-slate-500">
+            Loading climate intelligence data...
+          </p>
+        ) : !ciData?.results?.length ? (
+          <CommandNotice title="No CI data available" tone="grey">
+            No climate intelligence records were found. Ensure GEE metrics have been
+            synchronised before using this view.
+          </CommandNotice>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1200px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500">
+                  <th
+                    className="cursor-pointer px-3 py-3 font-bold hover:text-[#030454]"
+                    onClick={() => toggleSort("name")}
+                  >
+                    LGA
+                    <SortIcon field="name" />
+                  </th>
+                  <th className="px-3 py-3 font-bold">Evidence period</th>
+                  <th className="px-3 py-3 font-bold">Vegetation / restoration</th>
+                  <th className="px-3 py-3 font-bold">Drought / ag-adaptation</th>
+                  <th className="px-3 py-3 font-bold">Heat / urban-greening</th>
+                  <th className="px-3 py-3 font-bold">Hist. water / drainage</th>
+                  <th
+                    className="cursor-pointer px-3 py-3 font-bold hover:text-[#030454]"
+                    onClick={() => toggleSort("completeness")}
+                  >
+                    Evidence completeness
+                    <SortIcon field="completeness" />
+                  </th>
+                  <th
+                    className="cursor-pointer px-3 py-3 font-bold hover:text-[#030454]"
+                    onClick={() => toggleSort("status")}
+                  >
+                    Action-readiness status
+                    <SortIcon field="status" />
+                  </th>
+                  <th className="w-8 px-3 py-3" />
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((row) => {
+                  const droughtPath =
+                    row.pathways.find((p) => p.id === "drought_ag") || null;
+                  const vegPath =
+                    row.pathways.find((p) => p.id === "ecosystem") || null;
+                  const heatPath =
+                    row.pathways.find((p) => p.id === "heat_green") || null;
+                  const isExpanded = expandedCode === row.admin_code;
+
+                  return (
+                    <>
+                      <tr
+                        key={row.admin_code}
+                        className={`border-b border-slate-100 transition last:border-0 ${
+                          isExpanded ? "bg-[#EEF6FD]" : "hover:bg-slate-50"
+                        }`}
+                      >
+                        <td className="px-3 py-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedLgaName(row.admin_name);
+                              setActiveTab("evidence");
+                            }}
+                            className="font-bold text-[#030454] underline decoration-dotted hover:text-[#173B91]"
+                          >
+                            {row.admin_name}
+                          </button>
+                        </td>
+                        <td className="px-3 py-3 text-slate-500">{evidencePeriod}</td>
+                        <td className="px-3 py-3">
+                          <PathwayCell pathway={vegPath} />
+                        </td>
+                        <td className="px-3 py-3">
+                          <PathwayCell pathway={droughtPath} />
+                        </td>
+                        <td className="px-3 py-3">
+                          <PathwayCell pathway={heatPath} />
+                        </td>
+                        <td className="px-3 py-3">
+                          <span className="inline-block rounded border border-slate-200 px-2 py-0.5 text-xs italic text-slate-400">
+                            Not assessed
+                          </span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span
+                            className={`text-sm font-bold ${
+                              row.completeness.present === row.completeness.total
+                                ? "text-[#009B35]"
+                                : row.completeness.present >= 2
+                                ? "text-[#030454]"
+                                : "text-amber-600"
+                            }`}
+                          >
+                            {row.completeness.present}/{row.completeness.total}
+                          </span>
+                          <span className="ml-1 text-xs text-slate-400">indicators</span>
+                        </td>
+                        <td className="px-3 py-3">
+                          <OverallStatusBadge status={row.overallStatus} />
+                        </td>
+                        <td className="px-3 py-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedCode(isExpanded ? null : row.admin_code)
+                            }
+                            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                            title={isExpanded ? "Collapse evidence" : "View evidence"}
+                          >
+                            {isExpanded ? "▲" : "▼"}
+                          </button>
+                        </td>
+                      </tr>
+                      {isExpanded && (
+                        <tr
+                          key={`${row.admin_code}-detail`}
+                          className="border-b border-slate-200 bg-[#F8FAFE]"
+                        >
+                          <td colSpan={9} className="px-5 py-5">
+                            <ScreeningEvidencePanel
+                              row={row}
+                              evidencePeriod={evidencePeriod}
+                              onViewFull={() => {
+                                setSelectedLgaName(row.admin_name);
+                                setActiveTab("evidence");
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  );
+                })}
+                {filtered.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={9}
+                      className="px-3 py-8 text-center text-slate-500"
+                    >
+                      No LGAs match the current filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CommandSection>
+      )}
+
+      <CommandNotice
+        title="Historical water / drainage column — not assessed in this matrix"
+        tone="yellow"
+      >
+        Historical Surface Water (JRC GSW v1.4) data is not included in the statewide
+        screening matrix. This column requires additional field-methodology validation
+        before aggregated HSW data can be used as a planning-discussion screening input.
+        Individual LGA Climate Intelligence Briefs in the Public Climate Atlas include
+        this indicator where the data layer has been loaded.
+      </CommandNotice>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ScreeningEvidencePanel — expandable row detail
+// ---------------------------------------------------------------------------
+const SCREENING_INDICATOR_DEFS = [
+  {
+    key: "rainfall_anomaly",
+    label: "Rainfall anomaly",
+    unit: "%",
+    decimals: 1,
+    source: "CHIRPS v2.0 · 1991–2020 baseline",
+    caution: "Relative to 1991–2020 reference period; baseline period choice affects the result.",
+  },
+  {
+    key: "spi",
+    label: "Drought index (SPI)",
+    unit: "index",
+    decimals: 2,
+    source: "CHIRPS-derived SPI",
+    caution: "Precipitation-only index. Does not represent hydrological or agricultural drought.",
+  },
+  {
+    key: "ndvi",
+    label: "Vegetation (NDVI)",
+    unit: "index",
+    decimals: 3,
+    source: "Sentinel-2 SR / Landsat C2L2",
+    caution: "Does not distinguish drought, harvesting, seasonal variation, or land-use change.",
+  },
+  {
+    key: "lst",
+    label: "Surface temp. (LST)",
+    unit: "°C",
+    decimals: 1,
+    source: "MODIS Terra LST",
+    caution: "Satellite sensor reading. Not equivalent to air temperature.",
+  },
+];
+
+function ScreeningEvidencePanel({ row, evidencePeriod, onViewFull }) {
+  const { indicators, pathways, admin_name } = row;
+  const triggeredPathways = pathways.filter((p) => p.id !== "no_signal");
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-2">
+      {/* Left: indicator table */}
+      <div>
+        <p className="mb-3 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+          Indicators used · {evidencePeriod} · LGA administrative boundary (aggregated)
+        </p>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-slate-200 text-slate-400">
+              <th className="py-1.5 text-left font-semibold">Indicator</th>
+              <th className="py-1.5 text-left font-semibold">Value</th>
+              <th className="py-1.5 text-left font-semibold">Classification</th>
+              <th className="py-1.5 text-left font-semibold">Source</th>
+            </tr>
+          </thead>
+          <tbody>
+            {SCREENING_INDICATOR_DEFS.map(({ key, label, unit, decimals, source }) => {
+              const ind = indicators?.[key];
+              return (
+                <tr key={key} className="border-b border-slate-100 last:border-0">
+                  <td className="py-1.5 font-semibold text-slate-700">{label}</td>
+                  <td className="py-1.5 text-slate-600">
+                    {ind?.value != null ? (
+                      `${Number(ind.value).toFixed(decimals)} ${unit}`
+                    ) : (
+                      <span className="italic text-slate-400">Not available</span>
+                    )}
+                  </td>
+                  <td className="py-1.5 text-slate-600">
+                    {ind?.condition || (
+                      <span className="italic text-slate-400">—</span>
+                    )}
+                  </td>
+                  <td className="py-1.5 text-slate-400">{source}</td>
+                </tr>
+              );
+            })}
+            <tr>
+              <td className="py-1.5 font-semibold text-slate-400">
+                Hist. surface water
+              </td>
+              <td colSpan={3} className="py-1.5 italic text-slate-400">
+                Not assessed — see notice below matrix
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p className="mt-3 text-xs leading-5 text-slate-500">
+          <strong>Geographic scale:</strong> All values are LGA administrative boundary
+          aggregates. Sub-LGA and community-level variation is not captured by these
+          indicators.
+        </p>
+
+        <div className="mt-3 space-y-1">
+          {SCREENING_INDICATOR_DEFS.map(({ key, label, caution }) =>
+            indicators?.[key] ? (
+              <p key={key} className="text-[11px] leading-4 text-slate-400">
+                <strong className="text-slate-500">{label}:</strong> {caution}
+              </p>
+            ) : null
+          )}
+        </div>
+      </div>
+
+      {/* Right: pathway details */}
+      <div>
+        <p className="mb-3 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
+          Screening pathways and required validation
+        </p>
+
+        {triggeredPathways.length === 0 ? (
+          <p className="text-xs italic text-slate-400">
+            No screening pathways triggered. All available indicators are within
+            near-normal or stable classification ranges for this LGA.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {triggeredPathways.map((p) => (
+              <div
+                key={p.id}
+                className="rounded-lg border border-slate-200 bg-white p-3"
+              >
+                <p className="text-xs font-bold text-[#030454]">{p.theme}</p>
+                {p.triggers?.length > 0 && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    <strong>Evidence:</strong> {p.triggers.join("; ")}
+                  </p>
+                )}
+                <p className="mt-1.5 text-[11px] italic leading-4 text-amber-700">
+                  {p.scientificCaution}
+                </p>
+                <div className="mt-2">
+                  <p className="text-[11px] font-semibold text-slate-500">
+                    Required next validation:
+                  </p>
+                  <ul className="mt-1 list-disc pl-4 text-[11px] leading-[1.5] text-slate-500">
+                    {p.validationSteps?.map((step, i) => (
+                      <li key={i}>{step}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={onViewFull}
+          className="mt-4 text-xs font-bold text-[#030454] underline decoration-dotted hover:text-[#173B91]"
+        >
+          View full Climate Intelligence evidence for {admin_name} →
+        </button>
+      </div>
     </div>
   );
 }

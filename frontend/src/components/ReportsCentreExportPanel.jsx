@@ -88,7 +88,7 @@ function buildSummaryRows(reports, summary) {
     ["Public Reports", summary?.public_reports || 0],
     ["Approved Reports", summary?.approved_reports || 0],
     ["Published Reports", summary?.published_reports || 0],
-    ["Climate Risk Reports", byType.climate_risk || 0],
+    ["Climate Intelligence Reports", byType.climate_risk || 0],
     ["GHG Inventory Reports", byType.ghg_inventory || 0],
     ["Project Portfolio Reports", byType.project_portfolio || 0],
     ["NDC Progress Reports", byType.ndc_progress || 0],

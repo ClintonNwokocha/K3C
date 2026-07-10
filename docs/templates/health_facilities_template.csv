@@ -1,0 +1,5 @@
+name,lga_name,facility_type,functional_status,ownership,state,ward,latitude,longitude,bed_capacity,population_served
+Kawo PHC,Kaduna North,phc,functional,public,Kaduna,Kawo,10.5200000,7.4400000,20,5000
+Zaria General Hospital,Zaria,secondary,functional,public,Kaduna,Zaria City,11.0770000,7.7070000,120,50000
+Igabi Maternity Home,Igabi,maternity,partial,faith_based,Kaduna,Rigachikun,10.6200000,7.3800000,,
+Example Clinic,Birnin Gwari,clinic,unknown,private,Kaduna,,,,,

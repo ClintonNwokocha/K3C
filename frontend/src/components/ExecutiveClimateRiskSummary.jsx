@@ -96,7 +96,7 @@ export default function ExecutiveClimateRiskSummary() {
       setAssets(assetResponse.results || []);
     } catch (err) {
       console.error(err);
-      setError("Could not load climate risk dashboard summary.");
+      setError("Could not load Climate Intelligence dashboard summary.");
     } finally {
       setIsLoading(false);
     }
@@ -141,7 +141,7 @@ export default function ExecutiveClimateRiskSummary() {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-sm text-slate-500">
-          Loading climate risk dashboard summary...
+          Loading Climate Intelligence dashboard summary...
         </p>
       </section>
     );
@@ -160,15 +160,15 @@ export default function ExecutiveClimateRiskSummary() {
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-start">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
-            Climate Risk Intelligence
+            Climate Intelligence Intelligence
           </p>
 
           <h2 className="mt-2 text-2xl font-black text-[#030454]">
-            Kaduna Climate Risk Executive Summary
+            Kaduna Climate Intelligence Executive Summary
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Live summary from the Climate Risk module, including LGA risk
+            Live summary from the Climate Intelligence module, including LGA risk
             profiles, priority LGAs, weak adaptive capacity and
             infrastructure-at-risk indicators.
           </p>
@@ -179,7 +179,7 @@ export default function ExecutiveClimateRiskSummary() {
           onClick={loadDashboardClimateRisk}
           className="rounded-md border border-slate-200 bg-white px-5 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
         >
-          Refresh Climate Risk
+          Refresh Climate Intelligence
         </button>
       </div>
 
@@ -187,7 +187,7 @@ export default function ExecutiveClimateRiskSummary() {
         <StatCard
           label="LGAs Assessed"
           value={summary.total_lgas || 0}
-          helper="Active climate risk profiles."
+          helper="Active Climate Intelligence profiles."
           tone="blue"
         />
 
@@ -245,7 +245,7 @@ export default function ExecutiveClimateRiskSummary() {
           </h3>
 
           <p className="mt-1 text-sm leading-6 text-slate-500">
-            Highest LGAs by overall climate risk index.
+            Highest LGAs by overall Climate Intelligence index.
           </p>
 
           <div className="mt-5 space-y-4">

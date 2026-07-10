@@ -447,3 +447,75 @@ export async function getClimateHotspots(params = {}) {
   const response = await api.get("/ai/hotspots/", { params });
   return response.data;
 }
+
+export async function getRemoteSensingLulcPreview(params = {}) {
+  const response = await api.get("/remote-sensing/lulc/", { params });
+  return response.data;
+}
+
+export async function getRemoteSensingLulcTileUrl(params = {}) {
+  const response = await api.get("/remote-sensing/lulc-tile/", { params });
+  return response.data;
+}
+
+export async function getFloodOccurrencePreview() {
+  const response = await api.get("/remote-sensing/flood-occurrence/");
+  return response.data;
+}
+
+export async function getPublicHistoricalSurfaceWater() {
+  const response = await api.get("/remote-sensing/public/historical-surface-water/");
+  return response.data;
+}
+
+export async function getElevationPreview() {
+  const response = await api.get("/remote-sensing/elevation/");
+  return response.data;
+}
+
+export async function getPublicElevationSummary() {
+  const response = await api.get("/remote-sensing/public/elevation/");
+  return response.data;
+}
+
+export async function getElevationTileUrl() {
+  const response = await api.get("/remote-sensing/elevation/tile/", {
+    headers: { "X-KCCC-Internal-Preview": "elevation" },
+  });
+  return response.data;
+}
+
+export async function sampleElevationPoint(lat, lng) {
+  const response = await api.get("/remote-sensing/elevation/sample/", {
+    params: { lat, lng },
+    headers: { "X-KCCC-Internal-Preview": "elevation" },
+  });
+  return response.data;
+}
+
+export async function getElevationTileUrlPublic() {
+  const response = await api.get("/remote-sensing/elevation/public-tile/");
+  return response.data;
+}
+
+export async function sampleElevationPointPublic(lat, lng) {
+  const response = await api.get("/remote-sensing/elevation/public-sample/", {
+    params: { lat, lng },
+  });
+  return response.data;
+}
+
+export async function getClimateIntelligence(params = {}) {
+  const response = await api.get("/remote-sensing/climate-intelligence/", { params });
+  return response.data;
+}
+
+export async function getClimateActionScreeningData(params = {}) {
+  const response = await api.get("/remote-sensing/internal/climate-action-screening/", { params });
+  return response.data;
+}
+
+export async function getClimateIntelligenceProfile(params = {}) {
+  const response = await api.get("/remote-sensing/climate-intelligence/profile/", { params });
+  return response.data;
+}

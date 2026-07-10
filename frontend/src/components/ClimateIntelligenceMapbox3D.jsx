@@ -41,7 +41,7 @@ const CLIMATE_SLIDES = [
     title: "Project Activity",
     value: "Adaptation response",
     description:
-      "Connect climate risks with active and planned interventions across sectors and local government areas.",
+      "Connect Climate Intelligences with active and planned interventions across sectors and local government areas.",
     color: "green",
     href: "/public/projects",
     cta: "View projects",

@@ -298,7 +298,7 @@ export default function ClimateRiskScoringTransparencyPanel({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Select an LGA to inspect how its climate risk scores are supported by
+          Select an LGA to inspect how its Climate Intelligence scores are supported by
           parameter evidence.
         </p>
       </section>
@@ -357,7 +357,7 @@ export default function ClimateRiskScoringTransparencyPanel({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ScoreCard
-          label="Overall Climate Risk Index"
+          label="Overall Climate Intelligence Index"
           value={selectedProfile.overall_risk_score}
           helper="Final backend-calculated score."
           tone="blue"

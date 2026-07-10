@@ -305,7 +305,7 @@ function SelectedProjectDetail({
 
       {selectedProject.climate_risk_relevance && (
         <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-          <p className="font-black text-[#030454]">Climate Risk Relevance</p>
+          <p className="font-black text-[#030454]">Climate Intelligence Relevance</p>
           <p className="mt-2 leading-6 text-slate-600">
             {selectedProject.climate_risk_relevance}
           </p>
@@ -652,7 +652,7 @@ function ProjectFormSection({
 
           <div className="md:col-span-3">
             <label className="mb-2 block text-sm font-bold text-[#030454]">
-              Climate Risk Relevance
+              Climate Intelligence Relevance
             </label>
             <textarea
               rows="3"
