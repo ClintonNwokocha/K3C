@@ -138,6 +138,7 @@ function App() {
       return (
         <Dashboard
           foundation={foundation}
+          ghgSummary={ghgSummary}
           currentUser={currentUser}
           onPageChange={setActivePage}
         />

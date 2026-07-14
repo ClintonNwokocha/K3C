@@ -1,18 +1,21 @@
 import {
   Activity,
   ArrowRight,
-  BarChart3,
   CloudSun,
   Database,
   FileText,
   FolderKanban,
   Globe2,
   Leaf,
-  ShieldCheck,
 } from "lucide-react";
 import ExecutiveClimateRiskSummary from "../components/ExecutiveClimateRiskSummary";
 import ExecutiveProjectPortfolioSummary from "../components/ExecutiveProjectPortfolioSummary";
 import ExecutiveReportsSummary from "../components/ExecutiveReportsSummary";
+import DashboardCommandMetricsRow from "../components/DashboardCommandMetricsRow";
+import DashboardClimateAtlasDatasets from "../components/DashboardClimateAtlasDatasets";
+import DashboardRecentInsights from "../components/DashboardRecentInsights";
+import ExecutiveGHGInventorySummary from "../components/ExecutiveGHGInventorySummary";
+import { useExecutiveDashboardData } from "../hooks/useExecutiveDashboardData";
 
 function formatRole(role) {
   const labels = {
@@ -33,31 +36,6 @@ function formatDate() {
     month: "short",
     day: "numeric",
   });
-}
-
-function CommandMetric({ label, value, helper, tone = "blue" }) {
-  const toneClasses = {
-    blue: "border-[#030454]/15 bg-[#030454]/5",
-    green: "border-[#009B35]/20 bg-[#009B35]/8",
-    yellow: "border-[#F3F74B]/70 bg-[#F3F74B]/18",
-    white: "border-slate-200 bg-white",
-  };
-
-  return (
-    <div
-      className={`rounded-xl border p-5 shadow-sm ${
-        toneClasses[tone] || toneClasses.blue
-      }`}
-    >
-      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-        {label}
-      </p>
-
-      <p className="mt-3 text-2xl font-black text-[#030454]">{value}</p>
-
-      <p className="mt-2 text-sm leading-6 text-slate-600">{helper}</p>
-    </div>
-  );
 }
 
 function ModuleCard({
@@ -153,8 +131,10 @@ function FocusItem({ icon: Icon, title, description, tone = "blue" }) {
   );
 }
 
-export default function Dashboard({ foundation, currentUser, onPageChange }) {
+export default function Dashboard({ foundation, ghgSummary, currentUser, onPageChange }) {
   const role = currentUser?.profile?.role || "viewer";
+  const { data: dashboardData, loading: dashboardLoading, errors: dashboardErrors } =
+    useExecutiveDashboardData();
 
   function navigateTo(pageKey) {
     if (typeof onPageChange === "function") {
@@ -224,35 +204,14 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <CommandMetric
-          label="Climate Intelligence"
-          value="Risk"
-          helper="LGA risk scores, maps, parameters and scoring evidence."
-          tone="green"
-        />
-
-        <CommandMetric
-          label="Mitigation Tracking"
-          value="GHG"
-          helper="Greenhouse gas inventory workflows and sector records."
-          tone="blue"
-        />
-
-        <CommandMetric
-          label="Climate Action"
-          value="Projects"
-          helper="Adaptation, mitigation and cross-cutting project tracking."
-          tone="yellow"
-        />
-
-        <CommandMetric
-          label="Accountability"
-          value="Reports"
-          helper="Official reports, public documents and audit-ready records."
-          tone="white"
-        />
-      </section>
+      <DashboardCommandMetricsRow
+        risk={dashboardData.risk}
+        projects={dashboardData.projects}
+        reports={dashboardData.reports}
+        ghgSummary={ghgSummary}
+        loading={dashboardLoading}
+        errors={dashboardErrors}
+      />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <SectionHeader
@@ -332,53 +291,26 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <SectionHeader
-            title="Current platform readiness"
-            description="Use this section as a quick internal reminder of what needs attention before deployment."
+            title="Recent climate intelligence and action"
+            description="Signals decision-makers should see first — highest-risk LGAs, the latest emissions position, and the newest projects and reports."
           />
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-              <div className="flex items-center gap-3">
-                <ShieldCheck size={20} className="text-[#030454]" />
-                <p className="font-black text-[#030454]">Permissions</p>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Role-based access has been centralized across modules.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-              <div className="flex items-center gap-3">
-                <BarChart3 size={20} className="text-[#009B35]" />
-                <p className="font-black text-[#030454]">Validation</p>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Forms, uploads and data limits are being tightened.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-              <div className="flex items-center gap-3">
-                <FileText size={20} className="text-[#030454]" />
-                <p className="font-black text-[#030454]">Reports</p>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Public reports and internal documents are separated.
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
-              <div className="flex items-center gap-3">
-                <CloudSun size={20} className="text-[#009B35]" />
-                <p className="font-black text-[#030454]">Public Portal</p>
-              </div>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                Public-facing Climate Intelligence and action summaries are available.
-              </p>
-            </div>
-          </div>
+          <DashboardRecentInsights
+            risk={dashboardData.risk}
+            projects={dashboardData.projects}
+            reports={dashboardData.reports}
+            ghgSummary={ghgSummary}
+            loading={dashboardLoading}
+            errors={dashboardErrors}
+          />
         </div>
       </section>
+
+      <DashboardClimateAtlasDatasets
+        layers={dashboardData.layers}
+        loading={dashboardLoading}
+        error={dashboardErrors.layers}
+      />
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <SectionHeader
@@ -387,6 +319,15 @@ export default function Dashboard({ foundation, currentUser, onPageChange }) {
         />
 
         <ExecutiveClimateRiskSummary />
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <SectionHeader
+          title="GHG inventory executive summary"
+          description="Cross-sector emissions totals, review-queue status and NDC implemented-progress preview."
+        />
+
+        <ExecutiveGHGInventorySummary ghgSummary={ghgSummary} />
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
