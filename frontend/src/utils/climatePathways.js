@@ -74,11 +74,11 @@ export const PROVENANCE = {
   lulc: {
     indicator: "Land Cover (LULC)",
     source: "Dynamic World v1 (Google / WRI, Sentinel-2)",
-    method: "Near-real-time pixel classification; Sep–Oct composite dominant class per LGA",
-    coverage: "2018–present; 2024 validated only",
+    method: "Late wet season (Sep–Oct) composite, dominant class per LGA",
+    coverage: "2018–2025 (late wet season composite, all years)",
     resolution: "10 m Sentinel-2",
     caution:
-      "Internal QA preview only — not published, not validated for 2018–2023. Does not constitute land-cover change analysis.",
+      "Observed land-cover classification for a single composite period. Does not constitute land-cover change analysis or trend detection.",
   },
 };
 

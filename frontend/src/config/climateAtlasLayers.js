@@ -4,6 +4,7 @@
   "lst",
   "rainfall_anomaly",
   "drought_index",
+  "annual_lulc",
   "elevation",
   "flood_occurrence",
 ];
@@ -222,6 +223,21 @@ export const CLIMATE_ATLAS_LAYER_CONFIGS = {
       requiredLayerKeys: ["drought_index"],
     },
   },
+  annual_lulc: {
+    key: "annual_lulc",
+    selectorLabel: "Annual Land Use / Land Cover",
+    displayLabel: "Annual Land Use / Land Cover",
+    backendLayerKeys: [],
+    unit: "dominant class",
+    description:
+      "Dynamic World v1 annual land-use / land-cover classification. " +
+      "Sep–Oct composite, 2018–2025. 23 Kaduna LGAs.",
+    dataSource: "Dynamic World v1 (Google Earth Engine · Sentinel-2)",
+    coverageNote: "Sep–Oct composite · 2018–2025 · 10 m Sentinel-2",
+    availability: {
+      requiredLayerKeys: ["annual_lulc"],
+    },
+  },
   elevation: {
     key: "elevation",
     selectorLabel: "Elevation LGA Summary — SRTM approximately 2000",
@@ -298,8 +314,10 @@ export const ELEVATION_INTERNAL_CONFIG = {
   dataSource: "USGS SRTMGL1 v003",
   coverageNote: "Static DEM · ~2000 SRTM mission · 30 m",
   scientificCaution:
-    "Static topographic layer, not a climate variable or forecast. " +
-    "SRTM elevation reflects terrain as of ~2000 and does not capture subsequent land-surface changes.",
+    "Static topographic layer, not a climate variable or forecast. Provides terrain context only. " +
+    "Terrain Detail mode shows sampled SRTM cell elevation at approximately 30 m source resolution; " +
+    "LGA Summary shows the mean of those cells. SRTM elevation reflects terrain as of ~2000, does not " +
+    "capture subsequent land-surface changes, and is not survey-grade.",
 };
 
 // Internal-preview Flood Occurrence config.  NOT in CLIMATE_ATLAS_LAYER_ORDER.
@@ -377,7 +395,7 @@ export function getAtlasVariableStatistic(key) {
 
 export function getAtlasLegendState(key, { rainfallBreaks = null, anomalyBreaks = null } = {}) {
   const config = getAtlasLayerConfig(key);
-  if (!config) return null;
+  if (!config || !config.legend) return null;
 
   if (key === "rainfall") {
     return {

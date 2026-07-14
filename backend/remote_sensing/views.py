@@ -84,10 +84,38 @@ def remote_sensing_layers(request):
         is_public=True,
     ).order_by("label")
 
+    results = list(RemoteSensingLayerSerializer(layers, many=True).data)
+
+    # LULC uses LandCoverDataset (not RemoteSensingLayer), so it is injected as a
+    # synthetic catalogue entry rather than a RemoteSensingLayer row.  Only the
+    # late_wet_season baseline (2018-2025) counts toward public availability.
+    lulc_published = LandCoverDataset.objects.filter(
+        composite_window="late_wet_season",
+        is_public=True,
+        is_validated=True,
+    ).exists()
+    if lulc_published:
+        results.append({
+            "key": "annual_lulc",
+            "label": "Annual Land Use / Land Cover",
+            "unit": "dominant class",
+            "description": (
+                "Dynamic World v1 annual land-use / land-cover classification. "
+                "Sep–Oct composite (late_wet_season), 2018–2025. "
+                "23 Kaduna LGAs."
+            ),
+            "source": None,
+            "band": None,
+            "gee_dataset": None,
+            "gee_band": None,
+            "visualization": None,
+            "last_synced_at": None,
+        })
+
     return Response({
         "status": "ok",
         "message": "Remote sensing layers loaded.",
-        "results": RemoteSensingLayerSerializer(layers, many=True).data,
+        "results": results,
     })
 
 
@@ -469,10 +497,17 @@ def _build_ci_briefing(indicators: dict):
         cond = lst.get("condition", "moderate surface temperature")
         lines.append(f"Land surface temperature indicates {cond}.")
 
-    if indicators.get("lulc"):
-        cautions.append(
-            "LULC data is an internal preview only. Not published. Not validated."
-        )
+    lulc = indicators.get("lulc")
+    if lulc:
+        if lulc.get("is_public") and lulc.get("is_validated"):
+            cautions.append(
+                "LULC data is an observed land-cover classification (Dynamic World v1). "
+                "Does not constitute a land-cover change claim."
+            )
+        else:
+            cautions.append(
+                "LULC data is an internal preview only. Not published. Not validated."
+            )
         lines.append("No land-cover change claim is made.")
 
     return lines, cautions
@@ -496,7 +531,7 @@ def climate_intelligence(request):
         season               – annual | wet_season | dry_season  (default: annual)
         admin_level          – lga | ward  (default: lga)
         include_lulc_preview – true | false  (default: false)
-                               LULC data is never public; always marked internal preview.
+                               LULC notice reflects the dataset's actual is_public/is_validated flags.
     """
     year_param  = request.query_params.get("year")
     season      = request.query_params.get("season", "annual")
@@ -591,7 +626,11 @@ def climate_intelligence(request):
                     "quality_flag": meta.get("quality_flag", "unknown"),
                     "is_public": dataset.is_public,
                     "is_validated": dataset.is_validated,
-                    "notice": "Internal preview only",
+                    "notice": (
+                        "Dynamic World v1 · observed land-cover classification"
+                        if dataset.is_public and dataset.is_validated
+                        else "Internal preview only"
+                    ),
                 }
 
     results = []
@@ -698,7 +737,7 @@ def climate_intelligence_profile(request):
         year                 – integer; defaults to latest available for this LGA and season
         season               – annual | wet_season | dry_season  (default: annual)
         include_lulc_preview – true | false  (default: false)
-                               LULC data is never public; always marked internal preview.
+                               LULC notice reflects the dataset's actual is_public/is_validated flags.
     """
     admin_code_param = request.query_params.get("admin_code", "").strip()
     admin_name_param = request.query_params.get("admin_name", "").strip()
@@ -848,7 +887,11 @@ def climate_intelligence_profile(request):
                     "quality_flag":   meta.get("quality_flag", "unknown"),
                     "is_public":      dataset.is_public,
                     "is_validated":   dataset.is_validated,
-                    "notice":         "Internal preview only",
+                    "notice": (
+                        "Dynamic World v1 · observed land-cover classification"
+                        if dataset.is_public and dataset.is_validated
+                        else "Internal preview only"
+                    ),
                 }
                 indicators["lulc"] = lulc_data
 
@@ -1322,7 +1365,6 @@ def lulc_preview(request):
     dataset = dataset_qs.order_by("-year").first()
 
     empty_classes = _build_lulc_classes(provider)
-    notice = "Internal preview only. This dataset is not published and not yet validated."
 
     if dataset is None:
         return Response({
@@ -1332,8 +1374,16 @@ def lulc_preview(request):
             "quality_summary": {"high": 0, "medium": 0, "low": 0},
             "results": [],
             "available_years": available_years,
-            "notice": notice,
+            "notice": "No Annual Land Use / Land Cover dataset available for the requested year.",
         })
+
+    if dataset.is_public and dataset.is_validated:
+        notice = (
+            "Annual Land Use / Land Cover — Dynamic World v1. Observed land-cover "
+            "classification, late wet season (Sep–Oct) composite, 2018–2025."
+        )
+    else:
+        notice = "Internal preview only. This dataset is not published and not yet validated."
 
     snapshots = list(
         dataset.snapshots.filter(admin_level=admin_level).order_by("admin_name")

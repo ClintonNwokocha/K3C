@@ -705,7 +705,7 @@ function CICardBody({ ciItem, ciLoading, showLulc }) {
   );
 }
 
-function CIProfilePanel({ profile, loading, error, showLulc }) {
+function CIProfilePanel({ profile, loading, error, showLulc, lulcPublic }) {
   if (loading) {
     return <p className="text-[10px] text-slate-400">Loading climate intelligence profile...</p>;
   }
@@ -773,7 +773,9 @@ function CIProfilePanel({ profile, loading, error, showLulc }) {
                   <span className="font-normal text-slate-500"> {Number(land_cover.dominant_pct).toFixed(1)}%</span>
                 )}
               </span>
-              <p className="mt-0.5 text-[9px] leading-3 text-amber-600">Internal preview · Not published · Not validated</p>
+              <p className={`mt-0.5 text-[9px] leading-3 ${lulcPublic ? "text-slate-400" : "text-amber-600"}`}>
+                {lulcPublic ? "Dynamic World v1 · Observed land-cover classification" : "Internal preview · Not published · Not validated"}
+              </p>
             </div>
           </div>
         )}
@@ -889,22 +891,31 @@ export default function PublicClimateAtlasPage() {
   );
   const isElevationPublic = publicLayerKeys.has("elevation");
   const isFloodPublic = publicLayerKeys.has("flood_occurrence");
+  const isLulcPublic = publicLayerKeys.has("annual_lulc");
+  const isLulcAvailable = isLulcPublic || INTERNAL_LULC_PREVIEW_PARAM;
   const availableVariables = useMemo(() => {
     const base = !publicLayerCatalog
       ? ATLAS_VARIABLES.filter((item) => item.key === "rainfall")
       : getAtlasAvailableLayerConfigs(publicLayerKeys).map((configItem) => ({
           key: configItem.key,
           label: configItem.selectorLabel,
-          // elevation/flood_occurrence use dedicated load functions — not loadRemoteStats.
+          // elevation/flood_occurrence/annual_lulc use dedicated load functions — not loadRemoteStats.
           source: (configItem.key === "elevation" || configItem.key === "flood_occurrence")
             ? "public_static"
+            : configItem.key === "annual_lulc"
+            ? "lulc"
             : "remote_sensing",
           sourceLayers: configItem.backendLayerKeys,
           unit: configItem.unit,
           dataSource: configItem.dataSource,
           coverageNote: configItem.coverageNote,
         }));
-    const withLulc = !INTERNAL_LULC_PREVIEW_PARAM ? base : [
+    // Only inject internal LULC config if the preview param is set AND LULC is not
+    // already present in the public catalogue (which would cause a duplicate entry).
+    const withLulc = (
+      !INTERNAL_LULC_PREVIEW_PARAM ||
+      base.some((item) => item.key === "annual_lulc")
+    ) ? base : [
       ...base,
       {
         key: ANNUAL_LULC_INTERNAL_CONFIG.key,
@@ -1174,11 +1185,14 @@ export default function PublicClimateAtlasPage() {
       const n = lulcData?.results?.length || 0;
       const ds = lulcData?.dataset;
       const qs = lulcData?.quality_summary;
+      const lulcStatusLine = isLulcPublic
+        ? "Observed land-cover classification, published Dynamic World v1 baseline."
+        : "Internal preview only — not published, not yet validated.";
       setBriefingAnswer(
-        `Annual Land Use / Land Cover (internal preview): ${n} LGA${n !== 1 ? "s" : ""} loaded for ${ds?.year || config.year}. ` +
+        `Annual Land Use / Land Cover${isLulcPublic ? "" : " (internal preview)"}: ${n} LGA${n !== 1 ? "s" : ""} loaded for ${ds?.year || config.year}. ` +
         `Method: Dynamic World v1 ${ds?.composite_window || "late_wet_season"} (Sep–Oct composite). ` +
         (qs ? `Quality: ${qs.high} high / ${qs.medium} medium / ${qs.low} low. ` : "") +
-        `Internal preview only — not published, not yet validated.`
+        lulcStatusLine
       );
       return;
     }
@@ -1299,13 +1313,14 @@ export default function PublicClimateAtlasPage() {
           `mean occurrence across ${floodOccurrenceData.results.length} Kaduna LGAs is ` +
           `${mean !== null ? `${mean.toFixed(1)}%` : "N/A"} of the observation period. ` +
           `This is a static archive indicator — not a real-time alert or flood forecast. ` +
-          `Internal preview only — not published.`
+          (isFloodPublic ? "" : "Internal preview only — not published.")
         );
       } else if (variable.key === "flood_occurrence") {
         setBriefingAnswer(
           "Historical Surface Water Occurrence (JRC GSW v1.4) shows the percentage of the 1984–2021 " +
           "Landsat observation period that open surface water was detected for each LGA. " +
-          "Static archive — not a real-time alert or flood forecast. Internal preview only."
+          "Static archive — not a real-time alert or flood forecast." +
+          (isFloodPublic ? "" : " Internal preview only.")
         );
       } else {
         setBriefingAnswer(
@@ -1426,7 +1441,7 @@ export default function PublicClimateAtlasPage() {
   }
 
   async function loadLulcDataAndTile() {
-    if (!INTERNAL_LULC_PREVIEW_PARAM) return;
+    if (!INTERNAL_LULC_PREVIEW_PARAM && !isLulcPublic) return;
 
     // Step 1: Fetch LGA class stats and dataset metadata.
     let resolvedYear = null;
@@ -1569,14 +1584,14 @@ export default function PublicClimateAtlasPage() {
   }, [config.variableKey, config.year, config.season, config.admin_level, config.period, publicLayerCatalog, selectedVariableAvailable]);
 
   useEffect(() => {
-    if (variable.key !== "annual_lulc" || !INTERNAL_LULC_PREVIEW_PARAM) {
+    if (variable.key !== "annual_lulc" || (!INTERNAL_LULC_PREVIEW_PARAM && !isLulcPublic)) {
       if (lulcData !== null) setLulcData(null);
       if (lulcTileUrl !== null) setLulcTileUrl(null);
       if (lulcAvailableYears !== null) setLulcAvailableYears(null);
       return;
     }
     loadLulcDataAndTile();
-  }, [config.variableKey, config.year, config.period, lulcDisplayMode]);
+  }, [config.variableKey, config.year, config.period, lulcDisplayMode, publicLayerCatalog]);
 
   useEffect(() => {
     const isPublic = publicLayerKeys.has("flood_occurrence");
@@ -1953,23 +1968,43 @@ export default function PublicClimateAtlasPage() {
 
                 <div className="border-b border-[#E6EAEC] px-5 pb-3 pt-1">
                   {variable.key === "annual_lulc" ? (
-                    <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5">
-                      <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Internal Preview</p>
-                      <p className="mt-1 text-[10px] leading-4 text-amber-700">
-                        Not Published · Not Yet Validated
-                      </p>
-                      <p className="mt-1.5 text-[10px] leading-4 text-amber-600">
-                        {ANNUAL_LULC_INTERNAL_CONFIG.scientificCaution}
-                      </p>
-                      {lulcData?.dataset && (
-                        <p className="mt-1.5 text-[10px] leading-4 text-amber-600">
-                          Dataset: {lulcData.dataset.year} · {lulcData.dataset.method_version} · {lulcData.dataset.snapshot_count ?? lulcData.results?.length ?? 0} LGAs
-                          {lulcData.quality_summary && (
-                            <> · {lulcData.quality_summary.high}H / {lulcData.quality_summary.medium}M / {lulcData.quality_summary.low}L</>
-                          )}
+                    isLulcPublic ? (
+                      <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-slate-600">Annual Land Use / Land Cover</p>
+                        <p className="mt-1 text-[10px] leading-4 text-slate-600">
+                          Dynamic World v1 · 2018–2025 late wet season composites
                         </p>
-                      )}
-                    </div>
+                        <p className="mt-1.5 text-[10px] leading-4 text-slate-500">
+                          Observed land-cover classification per LGA. Not a change-detection or trend product.
+                        </p>
+                        {lulcData?.dataset && (
+                          <p className="mt-1.5 text-[10px] leading-4 text-slate-400">
+                            Dataset: {lulcData.dataset.year} · {lulcData.dataset.method_version} · {lulcData.dataset.snapshot_count ?? lulcData.results?.length ?? 0} LGAs
+                            {lulcData.quality_summary && (
+                              <> · {lulcData.quality_summary.high}H / {lulcData.quality_summary.medium}M / {lulcData.quality_summary.low}L</>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="rounded-md border border-amber-300 bg-amber-50 p-2.5">
+                        <p className="text-[10px] font-black uppercase tracking-wide text-amber-700">Internal Preview</p>
+                        <p className="mt-1 text-[10px] leading-4 text-amber-700">
+                          Not Published · Not Yet Validated
+                        </p>
+                        <p className="mt-1.5 text-[10px] leading-4 text-amber-600">
+                          {ANNUAL_LULC_INTERNAL_CONFIG.scientificCaution}
+                        </p>
+                        {lulcData?.dataset && (
+                          <p className="mt-1.5 text-[10px] leading-4 text-amber-600">
+                            Dataset: {lulcData.dataset.year} · {lulcData.dataset.method_version} · {lulcData.dataset.snapshot_count ?? lulcData.results?.length ?? 0} LGAs
+                            {lulcData.quality_summary && (
+                              <> · {lulcData.quality_summary.high}H / {lulcData.quality_summary.medium}M / {lulcData.quality_summary.low}L</>
+                            )}
+                          </p>
+                        )}
+                      </div>
+                    )
                   ) : variable.key === "flood_occurrence" ? (
                     isFloodPublic ? (
                       <div className="rounded-md border border-slate-200 bg-slate-50 p-2.5">
@@ -2048,7 +2083,6 @@ export default function PublicClimateAtlasPage() {
                     (() => {
                       const planned = [
                         ...(!INTERNAL_FLOOD_PREVIEW_PARAM ? ["flood hazard"] : []),
-                        ...(!INTERNAL_LULC_PREVIEW_PARAM ? ["annual land use / land cover (2018-present)"] : []),
                       ];
                       return planned.length > 0 ? (
                         <p className="text-[10px] leading-5 text-slate-400">
@@ -2145,7 +2179,7 @@ export default function PublicClimateAtlasPage() {
                   </div>
                 )}
 
-                {variable.key === "annual_lulc" && INTERNAL_LULC_PREVIEW_PARAM && (
+                {variable.key === "annual_lulc" && isLulcAvailable && (
                   <div className="border-b border-[#E6EAEC] px-5 py-4">
                     <p className="mb-2 text-xs font-bold text-slate-600">Map style</p>
                     <div className="flex gap-2">
@@ -2271,7 +2305,7 @@ export default function PublicClimateAtlasPage() {
                       <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Climate indicators</p>
                       <span className="text-[8px] font-bold text-slate-300">Rule-based</span>
                     </div>
-                    <CICardBody ciItem={selectedLgaCiItem} ciLoading={ciLoading} showLulc={INTERNAL_LULC_PREVIEW_PARAM} />
+                    <CICardBody ciItem={selectedLgaCiItem} ciLoading={ciLoading} showLulc={isLulcAvailable} />
                   </div>
                   {/* Profile details toggle */}
                   <div className="mt-2 border-t border-[#E6EAEC] pt-2">
@@ -2289,7 +2323,8 @@ export default function PublicClimateAtlasPage() {
                           profile={ciProfile}
                           loading={ciProfileLoading}
                           error={ciProfileError}
-                          showLulc={INTERNAL_LULC_PREVIEW_PARAM}
+                          showLulc={isLulcAvailable}
+                          lulcPublic={isLulcPublic}
                         />
                       </div>
                     )}
@@ -2312,8 +2347,9 @@ export default function PublicClimateAtlasPage() {
                 Composite window: <strong>Late Wet Season (Sep–Oct)</strong>
                 <span className="mx-2 text-slate-400">|</span>
                 Zoom: <strong>{currentZoom}</strong>
-                <span className="mx-2 text-slate-400">|</span>
-                <span className="text-amber-600 font-bold">INTERNAL PREVIEW</span>
+                {!isLulcPublic && (
+                  <><span className="mx-2 text-slate-400">|</span><span className="text-amber-600 font-bold">INTERNAL PREVIEW</span></>
+                )}
               </>
             ) : variable.key === "flood_occurrence" ? (
               <>
@@ -2539,8 +2575,8 @@ export default function PublicClimateAtlasPage() {
                         </div>
                       ))}
                     </div>
-                    <p className="mt-2 text-[10px] text-amber-600">
-                      Internal preview · Sep–Oct composite · Dynamic World v1
+                    <p className={`mt-2 text-[10px] ${isLulcPublic ? "text-slate-400" : "text-amber-600"}`}>
+                      {isLulcPublic ? "Dynamic World v1 · 2018–2025 late wet season composite" : "Internal preview · Sep–Oct composite · Dynamic World v1"}
                       {lulcDisplayMode === "cartographic"
                         ? " · Atlas view (generalized)"
                         : " · Raw Dynamic World (unfiltered)"}
@@ -2587,7 +2623,7 @@ export default function PublicClimateAtlasPage() {
                 </div>
               )}
 
-              {!isExportMode && variable.key === "annual_lulc" && INTERNAL_LULC_PREVIEW_PARAM && lulcData !== null && !lulcTileUrl && (
+              {!isExportMode && variable.key === "annual_lulc" && isLulcAvailable && lulcData !== null && !lulcTileUrl && (
                 <div className="absolute inset-x-16 top-20 z-[901] rounded-xl border border-amber-300 bg-amber-50 px-5 py-4 text-center shadow-xl">
                   <p className="text-sm font-black text-amber-900">Dynamic World raster unavailable in this environment.</p>
                   <p className="mt-1.5 text-xs leading-5 text-amber-800">
@@ -2639,14 +2675,16 @@ export default function PublicClimateAtlasPage() {
             ) : null
           )}
 
-          {!isExportMode && variable.key === "annual_lulc" && INTERNAL_LULC_PREVIEW_PARAM && (
+          {!isExportMode && variable.key === "annual_lulc" && isLulcAvailable && (
             lulcData?.results?.length > 0 ? (
               <div role="status" className="flex shrink-0 items-center gap-2 border-t border-amber-200 bg-amber-50 px-5 py-2.5 text-xs font-bold text-amber-800">
-                LULC internal preview — {lulcData.results.length} LGAs · {lulcData.dataset?.year} · Not published · Not validated
+                {INTERNAL_LULC_PREVIEW_PARAM && !isLulcPublic
+                  ? `LULC internal preview — ${lulcData.results.length} LGAs · ${lulcData.dataset?.year} · Not published · Not validated`
+                  : `Dynamic World LULC · ${lulcData.results.length} LGAs · ${lulcData.dataset?.year}`}
               </div>
             ) : lulcData !== null ? (
               <div role="status" className="flex shrink-0 items-center gap-2 border-t border-amber-200 bg-amber-50 px-5 py-2.5 text-xs font-bold text-amber-800">
-                No LULC data found for {config.year}. Try year 2024.
+                No LULC data found for {config.year}.
               </div>
             ) : null
           )}
@@ -2815,8 +2853,10 @@ export default function PublicClimateAtlasPage() {
                               })}
                           </div>
                         </div>
-                        <div className="col-span-2 rounded-md border border-amber-200 bg-amber-50 p-2.5 text-[10px] text-amber-700">
-                          Caution: Internal preview only. Not published, not validated. Do not use for public reporting.
+                        <div className={`col-span-2 rounded-md border p-2.5 text-[10px] ${isLulcPublic ? "border-slate-200 bg-slate-50 text-slate-500" : "border-amber-200 bg-amber-50 text-amber-700"}`}>
+                          {isLulcPublic
+                            ? "Observed land-cover classification for a single composite period. Not a change-detection or trend product."
+                            : "Caution: Internal preview only. Not published, not validated. Do not use for public reporting."}
                         </div>
                       </>
                     ) : (
@@ -3025,7 +3065,7 @@ export default function PublicClimateAtlasPage() {
                       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#173B91]">Climate Intelligence Summary</p>
                       <span className="rounded-full bg-[#F7F9FA] px-2 py-0.5 text-[9px] font-bold text-slate-500">Rule-based</span>
                     </div>
-                    <CICardBody ciItem={selectedLgaCiItem} ciLoading={ciLoading} showLulc={INTERNAL_LULC_PREVIEW_PARAM} />
+                    <CICardBody ciItem={selectedLgaCiItem} ciLoading={ciLoading} showLulc={isLulcAvailable} />
                     {selectedLgaCiItem && ciProfile && !ciProfileLoading && (
                       <button
                         type="button"
@@ -3050,7 +3090,8 @@ export default function PublicClimateAtlasPage() {
                   ciProfile={ciProfile}
                   elevSnap={selectedLga.elevSnap}
                   floodSnap={selectedLga.floodSnap}
-                  showLulc={INTERNAL_LULC_PREVIEW_PARAM}
+                  showLulc={isLulcAvailable}
+                  lulcPublic={isLulcPublic}
                   isFloodAvailable={isFloodPublic || INTERNAL_FLOOD_PREVIEW_PARAM}
                   isElevationAvailable={isElevationPublic || INTERNAL_ELEVATION_PREVIEW_PARAM}
                 />
@@ -3089,7 +3130,9 @@ export default function PublicClimateAtlasPage() {
             <p className="text-sm text-[#173B91]">
               Annual LULC dataset year:{" "}
               <strong>{lulcData?.dataset?.year ?? (config.year > 0 ? config.year : "resolving...")}</strong>
-              <span className="ml-2 text-[10px] font-normal text-amber-600">Internal preview · Sep–Oct composite</span>
+              <span className={`ml-2 text-[10px] font-normal ${isLulcPublic ? "text-slate-400" : "text-amber-600"}`}>
+                {isLulcPublic ? "Dynamic World v1 · late wet season composite" : "Internal preview · Sep–Oct composite"}
+              </span>
             </p>
           ) : variable.key === "flood_occurrence" ? (
             <p className="text-sm text-[#173B91]">

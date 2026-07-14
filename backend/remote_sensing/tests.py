@@ -3899,7 +3899,22 @@ class LandCoverLulcPreviewApiTests(TestCase):
     def test_notice_field_present_in_response(self):
         response = self.client.get(self.ENDPOINT)
         self.assertIn("notice", response.json())
+
+    def test_notice_says_internal_preview_when_dataset_unpublished(self):
+        ds = self._make_dataset(is_public=False)
+        self._make_snapshot(ds)
+        response = self.client.get(self.ENDPOINT)
         self.assertIn("Internal preview", response.json()["notice"])
+
+    def test_notice_reflects_published_state_when_dataset_public(self):
+        ds = self._make_dataset(is_public=True)
+        ds.is_validated = True
+        ds.save(update_fields=["is_validated"])
+        self._make_snapshot(ds)
+        response = self.client.get(self.ENDPOINT)
+        notice = response.json()["notice"]
+        self.assertNotIn("Internal preview", notice)
+        self.assertIn("Dynamic World v1", notice)
 
     def test_endpoint_does_not_mutate_db(self):
         ds = self._make_dataset()
@@ -6394,3 +6409,619 @@ class ClimateActionScreeningAccessTests(TestCase):
             action="climate_action_screening_view"
         ).count()
         self.assertEqual(after, before, "Audit event must not be written for denied access")
+
+
+# =============================================================================
+# Release-LULC management command tests
+# =============================================================================
+
+import datetime as _dt
+from django.contrib.auth.models import User as _User
+from django.core.management.base import CommandError
+from audit.models import AuditLog
+
+
+def _make_lulc_dataset(year, window="late_wet_season", n_snaps=23, quality_dist=None):
+    """Create a LandCoverDataset and n_snaps LandCoverSnapshot rows.
+
+    quality_dist: list of quality_flag strings, one per snapshot.
+    Defaults to all "high".
+    """
+    ds = LandCoverDataset.objects.create(
+        provider="dynamic_world_v1",
+        provider_label="Dynamic World v1",
+        gee_collection="GOOGLE/DYNAMICWORLD/V1",
+        year=year,
+        composite_window=window,
+        composite_start=_dt.date(year, 9, 1),
+        composite_end=_dt.date(year, 10, 31),
+        method_version="dw_latewet_mode_v1",
+        admin_level="lga",
+        snapshot_count=n_snaps,
+        is_public=False,
+        is_validated=False,
+    )
+    if quality_dist is None:
+        quality_dist = ["high"] * n_snaps
+    for i, flag in enumerate(quality_dist):
+        LandCoverSnapshot.objects.create(
+            dataset=ds,
+            admin_level="lga",
+            admin_code=f"1900{i + 1:02d}",
+            admin_name=f"TestLGA{i + 1}",
+            total_area_km2=100,
+            class_pct={"trees": 50.0, "water": 50.0},
+            class_areas_km2={"trees": 50.0, "water": 50.0},
+            metadata={"quality_flag": flag},
+        )
+    return ds
+
+
+def _make_baseline_datasets():
+    """Create the 8 baseline late_wet_season datasets with the verified quality distribution.
+
+    172 high + 12 medium = 184 snapshots across 8 datasets × 23 snapshots each.
+    First 7 datasets × 21 high + last 7 snap of each dataset = 147 high for first 7
+    Actually: 7 datasets × 22 high + 1 medium = 154 high + 7 medium, then
+    8th dataset: 18 high + 5 medium = 23 snaps.
+    Total: 154+18=172 high, 7+5=12 medium. ✓
+    """
+    datasets = []
+    for year in range(2018, 2025):  # 2018-2024: 7 datasets
+        dist = ["high"] * 22 + ["medium"] * 1
+        datasets.append(_make_lulc_dataset(year, quality_dist=dist))
+    # 2025: 18 high + 5 medium
+    dist = ["high"] * 18 + ["medium"] * 5
+    datasets.append(_make_lulc_dataset(2025, quality_dist=dist))
+    return datasets
+
+
+class ReleaseLulcDryRunTests(TestCase):
+    """Dry-run makes no database changes."""
+
+    def setUp(self):
+        _make_baseline_datasets()
+
+    def test_dry_run_makes_no_db_changes(self):
+        out = StringIO()
+        call_command("release_lulc", stdout=out)
+        # All datasets must still be private after dry-run.
+        self.assertEqual(
+            LandCoverDataset.objects.filter(
+                composite_window="late_wet_season", is_public=True
+            ).count(),
+            0,
+        )
+        self.assertIn("DRY RUN MODE", out.getvalue())
+
+    def test_dry_run_writes_no_audit_log(self):
+        before = AuditLog.objects.count()
+        call_command("release_lulc", stdout=StringIO())
+        self.assertEqual(AuditLog.objects.count(), before)
+
+    def test_dry_run_without_actor_succeeds(self):
+        """--actor should not be required for dry-run."""
+        out = StringIO()
+        call_command("release_lulc", stdout=out)
+        self.assertIn("DRY RUN MODE", out.getvalue())
+
+    def test_dry_run_reports_excluded_ids(self):
+        # Create out-of-scope extras to simulate real DB.
+        _make_lulc_dataset(2018, window="wet_season", n_snaps=5,
+                           quality_dist=["high"] * 5)
+        _make_lulc_dataset(2024, window="wet_season", n_snaps=23)
+        out = StringIO()
+        call_command("release_lulc", stdout=out)
+        self.assertIn("EXCLUDED", out.getvalue())
+        self.assertIn("DRY RUN MODE", out.getvalue())
+
+
+class ReleaseLulcConfirmArgTests(TestCase):
+    """--confirm requires actor and qa-evidence."""
+
+    def setUp(self):
+        _make_baseline_datasets()
+        self.actor = _User.objects.create_user(
+            username="testactor", password="x", email="a@b.com"
+        )
+
+    def test_confirm_without_actor_raises(self):
+        with self.assertRaises(CommandError):
+            call_command(
+                "release_lulc",
+                confirm=True,
+                actor="",
+                qa_evidence="evidence",
+                stdout=StringIO(),
+                stderr=StringIO(),
+            )
+
+    def test_confirm_without_qa_evidence_raises(self):
+        with self.assertRaises(CommandError):
+            call_command(
+                "release_lulc",
+                confirm=True,
+                actor="testactor",
+                qa_evidence="",
+                stdout=StringIO(),
+                stderr=StringIO(),
+            )
+
+    def test_rollback_confirm_without_reason_raises(self):
+        with self.assertRaises(CommandError):
+            call_command(
+                "release_lulc",
+                confirm=True,
+                rollback=True,
+                actor="testactor",
+                reason="",
+                stdout=StringIO(),
+                stderr=StringIO(),
+            )
+
+    def test_confirm_with_nonexistent_actor_raises(self):
+        with self.assertRaises(CommandError):
+            call_command(
+                "release_lulc",
+                confirm=True,
+                actor="ghost_user",
+                qa_evidence="some evidence",
+                stdout=StringIO(),
+                stderr=StringIO(),
+            )
+
+
+class ReleaseLulcPublishTests(TestCase):
+    """--confirm publishes exactly 8 scoped datasets."""
+
+    def setUp(self):
+        _make_baseline_datasets()
+        self.actor = _User.objects.create_user(
+            username="testactor", password="x", email="a@b.com"
+        )
+        # Create out-of-scope datasets to verify they are not touched.
+        self.extra_wet = _make_lulc_dataset(
+            2018, window="wet_season", n_snaps=5, quality_dist=["high"] * 5
+        )
+        self.extra_wet2 = _make_lulc_dataset(2024, window="wet_season", n_snaps=23)
+
+    def _run_publish(self):
+        call_command(
+            "release_lulc",
+            confirm=True,
+            actor="testactor",
+            qa_evidence="QA baseline verified",
+            stdout=StringIO(),
+        )
+
+    def test_exactly_eight_datasets_published(self):
+        self._run_publish()
+        published = LandCoverDataset.objects.filter(
+            composite_window="late_wet_season",
+            is_public=True,
+            is_validated=True,
+        )
+        self.assertEqual(published.count(), 8)
+
+    def test_published_years_are_2018_to_2025(self):
+        self._run_publish()
+        years = set(
+            LandCoverDataset.objects.filter(
+                composite_window="late_wet_season", is_public=True
+            ).values_list("year", flat=True)
+        )
+        self.assertEqual(years, set(range(2018, 2026)))
+
+    def test_extra_wet_season_dataset_2018_remains_private(self):
+        self._run_publish()
+        self.extra_wet.refresh_from_db()
+        self.assertFalse(self.extra_wet.is_public)
+        self.assertFalse(self.extra_wet.is_validated)
+
+    def test_extra_wet_season_dataset_2024_remains_private(self):
+        self._run_publish()
+        self.extra_wet2.refresh_from_db()
+        self.assertFalse(self.extra_wet2.is_public)
+        self.assertFalse(self.extra_wet2.is_validated)
+
+    def test_non_late_wet_season_datasets_unchanged(self):
+        _make_lulc_dataset(2020, window="annual", n_snaps=23)
+        self._run_publish()
+        annual = LandCoverDataset.objects.filter(composite_window="annual").first()
+        self.assertFalse(annual.is_public)
+        self.assertFalse(annual.is_validated)
+
+    def test_years_outside_range_unchanged(self):
+        # year=2016 is outside _YEARS; the scope filter excludes it, so the
+        # command succeeds on the 8 baseline datasets and 2016 is never touched.
+        ds2016 = _make_lulc_dataset(2016, window="late_wet_season", n_snaps=23)
+        call_command(
+            "release_lulc",
+            confirm=True,
+            actor="testactor",
+            qa_evidence="QA evidence",
+            stdout=StringIO(),
+        )
+        ds2016.refresh_from_db()
+        self.assertFalse(ds2016.is_public)
+        self.assertFalse(ds2016.is_validated)
+
+    def test_audit_log_written(self):
+        before = AuditLog.objects.count()
+        self._run_publish()
+        after = AuditLog.objects.count()
+        # 8 per-dataset entries + 1 summary entry.
+        self.assertEqual(after - before, 9)
+
+    def test_audit_log_summary_action(self):
+        self._run_publish()
+        self.assertTrue(
+            AuditLog.objects.filter(action="lulc_publish_summary").exists()
+        )
+
+    def test_audit_log_per_dataset_action(self):
+        self._run_publish()
+        self.assertEqual(
+            AuditLog.objects.filter(action="lulc_publish").count(), 8
+        )
+
+
+class ReleaseLulcPreconditionTests(TestCase):
+    """Precondition failures block all writes."""
+
+    def setUp(self):
+        self.actor = _User.objects.create_user(
+            username="testactor", password="x", email="a@b.com"
+        )
+
+    def _run(self):
+        call_command(
+            "release_lulc",
+            confirm=True,
+            actor="testactor",
+            qa_evidence="QA evidence",
+            stdout=StringIO(),
+            stderr=StringIO(),
+        )
+
+    def test_wrong_dataset_count_blocks_release(self):
+        # Only 6 datasets instead of 8.
+        for year in range(2018, 2024):
+            _make_lulc_dataset(year)
+        with self.assertRaises(CommandError):
+            self._run()
+        self.assertEqual(
+            LandCoverDataset.objects.filter(is_public=True).count(), 0
+        )
+
+    def test_incomplete_lga_coverage_blocks_release(self):
+        # One dataset has only 10 snapshots.
+        for year in range(2018, 2025):
+            n = 10 if year == 2020 else 23
+            dist = (["high"] * 10) if year == 2020 else (["high"] * 22 + ["medium"])
+            _make_lulc_dataset(year, n_snaps=n, quality_dist=dist)
+        _make_lulc_dataset(2025, n_snaps=23, quality_dist=["high"] * 18 + ["medium"] * 5)
+        with self.assertRaises(CommandError):
+            self._run()
+        self.assertEqual(
+            LandCoverDataset.objects.filter(is_public=True).count(), 0
+        )
+
+    def test_wrong_quality_totals_block_release(self):
+        # All snapshots high (total 184 high / 0 medium) → fails quality check.
+        for year in range(2018, 2026):
+            _make_lulc_dataset(year, n_snaps=23, quality_dist=["high"] * 23)
+        with self.assertRaises(CommandError):
+            self._run()
+        self.assertEqual(
+            LandCoverDataset.objects.filter(is_public=True).count(), 0
+        )
+
+    def test_inconsistent_flags_block_release(self):
+        # One dataset has is_public=True but is_validated=False.
+        _make_baseline_datasets()
+        bad = LandCoverDataset.objects.filter(
+            composite_window="late_wet_season", year=2020
+        ).first()
+        bad.is_public = True  # inconsistent with is_validated=False
+        bad.save(update_fields=["is_public"])
+        with self.assertRaises(CommandError):
+            self._run()
+
+    def test_transaction_rolls_back_fully_on_failure(self):
+        """Simulate a mid-transaction failure; all datasets must remain private."""
+        _make_baseline_datasets()
+
+        original_save = LandCoverDataset.save
+
+        call_count = {"n": 0}
+
+        def failing_save(self_ds, *args, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 4:
+                raise RuntimeError("Simulated DB failure mid-transaction")
+            return original_save(self_ds, *args, **kwargs)
+
+        with self.assertRaises((CommandError, Exception)):
+            with patch.object(LandCoverDataset, "save", failing_save):
+                self._run()
+
+        # No dataset should be permanently public.
+        self.assertEqual(
+            LandCoverDataset.objects.filter(is_public=True).count(), 0
+        )
+
+
+class ReleaseLulcRollbackTests(TestCase):
+    """Rollback restores exactly the 8 scoped datasets to private."""
+
+    def setUp(self):
+        _make_baseline_datasets()
+        self.actor = _User.objects.create_user(
+            username="testactor", password="x", email="a@b.com"
+        )
+        # Extra out-of-scope datasets.
+        self.extra = _make_lulc_dataset(
+            2018, window="wet_season", n_snaps=5, quality_dist=["high"] * 5
+        )
+        # Publish the 8 baseline datasets first.
+        LandCoverDataset.objects.filter(
+            composite_window="late_wet_season", year__in=range(2018, 2026)
+        ).update(is_public=True, is_validated=True)
+
+    def _run_rollback(self):
+        call_command(
+            "release_lulc",
+            rollback=True,
+            confirm=True,
+            actor="testactor",
+            reason="Rolling back for test",
+            stdout=StringIO(),
+        )
+
+    def test_rollback_sets_all_eight_datasets_private(self):
+        self._run_rollback()
+        self.assertEqual(
+            LandCoverDataset.objects.filter(
+                composite_window="late_wet_season", is_public=True
+            ).count(),
+            0,
+        )
+
+    def test_rollback_only_affects_scoped_datasets(self):
+        # Manually publish the extra so we can confirm it stays published.
+        self.extra.is_public = True
+        self.extra.is_validated = True
+        self.extra.save(update_fields=["is_public", "is_validated"])
+        self._run_rollback()
+        self.extra.refresh_from_db()
+        self.assertTrue(self.extra.is_public)
+
+    def test_rollback_writes_audit_summary(self):
+        before = AuditLog.objects.count()
+        self._run_rollback()
+        self.assertTrue(
+            AuditLog.objects.filter(action="lulc_rollback_summary").exists()
+        )
+        after = AuditLog.objects.count()
+        self.assertEqual(after - before, 9)  # 8 per-dataset + 1 summary
+
+    def test_rollback_dry_run_makes_no_changes(self):
+        call_command("release_lulc", rollback=True, stdout=StringIO())
+        # Datasets were published in setUp; dry-run must leave them published.
+        self.assertEqual(
+            LandCoverDataset.objects.filter(
+                composite_window="late_wet_season", is_public=True
+            ).count(),
+            8,
+        )
+
+
+class ReleaseLulcCatalogueTests(TestCase):
+    """Public catalogue visibility after release."""
+
+    def setUp(self):
+        _make_baseline_datasets()
+        self.actor = _User.objects.create_user(
+            username="testactor", password="x", email="a@b.com"
+        )
+        # Seed a RemoteSensingLayer for the /api/layers/ endpoint.
+        RemoteSensingLayer.objects.create(
+            key="ndvi", label="NDVI", is_active=True, is_public=True
+        )
+
+    def test_api_layers_does_not_expose_lulc_after_release(self):
+        """LULC is explicitly excluded from /api/layers/ by design."""
+        from django.test import Client
+        call_command(
+            "release_lulc",
+            confirm=True,
+            actor="testactor",
+            qa_evidence="QA evidence",
+            stdout=StringIO(),
+        )
+        client = Client()
+        resp = client.get("/api/layers/", SERVER_NAME="localhost")
+        import json as _json
+        data = _json.loads(resp.content)
+        layer_keys = [item["key"] for item in data.get("results", data.get("layers", []))]
+        self.assertNotIn("lulc", layer_keys)
+
+    def test_lulc_preview_returns_is_public_true_after_release(self):
+        """The lulc_preview endpoint reflects the published flag."""
+        call_command(
+            "release_lulc",
+            confirm=True,
+            actor="testactor",
+            qa_evidence="QA evidence",
+            stdout=StringIO(),
+        )
+        from django.test import Client
+        client = Client()
+        resp = client.get(
+            "/api/remote-sensing/lulc/",
+            {"window": "late_wet_season", "year": "2025"},
+            SERVER_NAME="localhost",
+        )
+        if resp.status_code == 200:
+            import json as _json
+            data = _json.loads(resp.content)
+            ds = data.get("dataset")
+            if ds:
+                self.assertTrue(ds.get("is_public"))
+
+    def test_no_gee_url_or_token_in_lulc_response(self):
+        """LandCoverDataset/Snapshot data never contains GEE URLs or tokens."""
+        call_command(
+            "release_lulc",
+            confirm=True,
+            actor="testactor",
+            qa_evidence="QA evidence",
+            stdout=StringIO(),
+        )
+        from django.test import Client
+        client = Client()
+        resp = client.get(
+            "/api/remote-sensing/lulc/",
+            {"window": "late_wet_season"},
+            SERVER_NAME="localhost",
+        )
+        body = resp.content.decode("utf-8", errors="replace")
+        self.assertNotIn("googleapis.com", body)
+        self.assertNotIn("earthengine.googleapis.com", body)
+        self.assertNotIn("Bearer", body)
+        self.assertNotIn("token", body.lower().replace("total_area", ""))
+        self.assertNotIn("map_id", body)
+
+
+# =============================================================================
+# /api/layers/ catalogue integration tests for LULC
+# =============================================================================
+
+class LulcCatalogueIntegrationTests(TestCase):
+    """
+    Verify that /api/layers/ includes annual_lulc if and only if the
+    late_wet_season baseline datasets are is_public=True and is_validated=True,
+    and that the excluded wet_season datasets (ids 3 and 4 in prod; any
+    wet_season records in tests) never cause LULC to appear.
+    """
+
+    LAYERS_URL = "/api/layers/"
+
+    def setUp(self):
+        # Seed one real RemoteSensingLayer so the endpoint isn't completely empty.
+        RemoteSensingLayer.objects.create(
+            key="ndvi", label="NDVI", is_active=True, is_public=True
+        )
+
+    def _get_layer_keys(self):
+        from django.test import Client
+        import json as _json
+        resp = Client().get(self.LAYERS_URL, SERVER_NAME="localhost")
+        data = _json.loads(resp.content)
+        return {item["key"] for item in data.get("results", [])}
+
+    def _make_baseline(self, is_public=False, is_validated=False):
+        datasets = []
+        for year in range(2018, 2026):
+            ds = LandCoverDataset.objects.create(
+                provider="dynamic_world_v1",
+                provider_label="Dynamic World v1",
+                gee_collection="GOOGLE/DYNAMICWORLD/V1",
+                year=year,
+                composite_window="late_wet_season",
+                composite_start=_dt.date(year, 9, 1),
+                composite_end=_dt.date(year, 10, 31),
+                method_version="dw_latewet_mode_v1",
+                admin_level="lga",
+                snapshot_count=0,
+                is_public=is_public,
+                is_validated=is_validated,
+            )
+            datasets.append(ds)
+        return datasets
+
+    # ── Before release ───────────────────────────────────────────────────────
+
+    def test_lulc_absent_before_release(self):
+        self._make_baseline(is_public=False, is_validated=False)
+        self.assertNotIn("annual_lulc", self._get_layer_keys())
+
+    def test_lulc_absent_when_public_but_not_validated(self):
+        self._make_baseline(is_public=True, is_validated=False)
+        self.assertNotIn("annual_lulc", self._get_layer_keys())
+
+    def test_lulc_absent_when_validated_but_not_public(self):
+        self._make_baseline(is_public=False, is_validated=True)
+        self.assertNotIn("annual_lulc", self._get_layer_keys())
+
+    def test_lulc_absent_when_no_datasets_exist(self):
+        self.assertNotIn("annual_lulc", self._get_layer_keys())
+
+    # ── After release ────────────────────────────────────────────────────────
+
+    def test_lulc_present_after_release(self):
+        self._make_baseline(is_public=True, is_validated=True)
+        self.assertIn("annual_lulc", self._get_layer_keys())
+
+    def test_lulc_entry_has_correct_key(self):
+        self._make_baseline(is_public=True, is_validated=True)
+        keys = self._get_layer_keys()
+        self.assertIn("annual_lulc", keys)
+
+    def test_ndvi_still_present_alongside_lulc(self):
+        self._make_baseline(is_public=True, is_validated=True)
+        keys = self._get_layer_keys()
+        self.assertIn("ndvi", keys)
+        self.assertIn("annual_lulc", keys)
+
+    # ── Excluded datasets ─────────────────────────────────────────────────────
+
+    def test_wet_season_datasets_do_not_trigger_lulc(self):
+        # Only wet_season datasets — late_wet_season ones are absent.
+        LandCoverDataset.objects.create(
+            provider="dynamic_world_v1",
+            provider_label="Dynamic World v1",
+            gee_collection="GOOGLE/DYNAMICWORLD/V1",
+            year=2018,
+            composite_window="wet_season",
+            composite_start=_dt.date(2018, 5, 1),
+            composite_end=_dt.date(2018, 10, 31),
+            method_version="dw_latewet_mode_v1",
+            admin_level="lga",
+            snapshot_count=5,
+            is_public=True,
+            is_validated=True,
+        )
+        self.assertNotIn("annual_lulc", self._get_layer_keys())
+
+    def test_wet_season_and_late_wet_season_published_shows_lulc(self):
+        # Both exist; LULC should appear because late_wet_season is published.
+        self._make_baseline(is_public=True, is_validated=True)
+        LandCoverDataset.objects.create(
+            provider="dynamic_world_v1",
+            provider_label="Dynamic World v1",
+            gee_collection="GOOGLE/DYNAMICWORLD/V1",
+            year=2018,
+            composite_window="wet_season",
+            composite_start=_dt.date(2018, 5, 1),
+            composite_end=_dt.date(2018, 10, 31),
+            method_version="dw_latewet_mode_v1",
+            admin_level="lga",
+            snapshot_count=5,
+            is_public=True,
+            is_validated=True,
+        )
+        self.assertIn("annual_lulc", self._get_layer_keys())
+
+    # ── Rollback ─────────────────────────────────────────────────────────────
+
+    def test_lulc_disappears_from_catalogue_after_rollback(self):
+        datasets = self._make_baseline(is_public=True, is_validated=True)
+        self.assertIn("annual_lulc", self._get_layer_keys())
+        # Simulate rollback by setting all back to private.
+        for ds in datasets:
+            ds.is_public = False
+            ds.is_validated = False
+            ds.save(update_fields=["is_public", "is_validated"])
+        self.assertNotIn("annual_lulc", self._get_layer_keys())

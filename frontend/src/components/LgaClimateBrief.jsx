@@ -56,6 +56,7 @@ export default function LgaClimateBrief({
   elevSnap,
   floodSnap,
   showLulc,
+  lulcPublic,
   isFloodAvailable,
   isElevationAvailable,
 }) {
@@ -156,7 +157,7 @@ export default function LgaClimateBrief({
     });
   }
 
-  // LULC — internal preview only
+  // LULC — published Dynamic World v1 baseline, or internal preview when not public
   if (showLulc && land_cover) {
     evidenceRows.push({
       key: "lulc",
@@ -167,7 +168,7 @@ export default function LgaClimateBrief({
           : null,
       condition: null,
       note: `DW v1 · ${land_cover.year ?? year} composite`,
-      isPreview: true,
+      isPreview: !lulcPublic,
     });
   }
 
