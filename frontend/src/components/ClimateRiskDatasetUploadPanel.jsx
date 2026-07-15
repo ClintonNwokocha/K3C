@@ -4,10 +4,343 @@ import {
   uploadClimateRiskDataset,
 } from "../services/api";
 
-/*
-  Keep your existing datasetTypeOptions array here exactly as it is.
-  Do not remove any of the templateRows.
-*/
+const datasetTypeOptions = [
+  {
+    value: "flood_scores",
+    label: "Flood Scores CSV",
+    requiredColumns:
+      "one of lga_id/lga_name/lganame/lga_code/lgacode, year, flood_score",
+    example:
+      "lganame,year,flood_score,flood_occurrence_count,flood_prone_area_km2,population_exposed,data_source,notes",
+    templateRows: [
+      [
+        "lganame",
+        "year",
+        "flood_score",
+        "flood_occurrence_count",
+        "flood_prone_area_km2",
+        "population_exposed",
+        "data_source",
+        "notes",
+      ],
+      [
+        "Birnin Gwari",
+        "2025",
+        "82",
+        "4",
+        "125.5",
+        "84000",
+        "Development test",
+        "Replace with processed flood evidence",
+      ],
+      [
+        "Chikun",
+        "2025",
+        "68",
+        "2",
+        "88.2",
+        "52000",
+        "Development test",
+        "Replace with processed flood evidence",
+      ],
+    ],
+  },
+  {
+    value: "drought_scores",
+    label: "Drought Scores CSV",
+    requiredColumns:
+      "one of lga_id/lga_name/lganame/lga_code/lgacode, year, drought_score",
+    example:
+      "lganame,year,drought_score,rainfall_anomaly,consecutive_dry_days,vegetation_stress_index,data_source,notes",
+    templateRows: [
+      [
+        "lganame",
+        "year",
+        "drought_score",
+        "rainfall_anomaly",
+        "consecutive_dry_days",
+        "vegetation_stress_index",
+        "data_source",
+        "notes",
+      ],
+      [
+        "Birnin Gwari",
+        "2025",
+        "70",
+        "-18.5",
+        "26",
+        "0.42",
+        "CHIRPS/MODIS development test",
+        "Replace with processed drought evidence",
+      ],
+      [
+        "Chikun",
+        "2025",
+        "62",
+        "-12.1",
+        "18",
+        "0.55",
+        "CHIRPS/MODIS development test",
+        "Replace with processed drought evidence",
+      ],
+    ],
+  },
+  {
+    value: "heat_scores",
+    label: "Heat Scores CSV",
+    requiredColumns:
+      "one of lga_id/lga_name/lganame/lga_code/lgacode, year, heat_score",
+    example:
+      "lganame,year,heat_score,mean_lst,temperature_anomaly,urban_heat_exposure,data_source,notes",
+    templateRows: [
+      [
+        "lganame",
+        "year",
+        "heat_score",
+        "mean_lst",
+        "temperature_anomaly",
+        "urban_heat_exposure",
+        "data_source",
+        "notes",
+      ],
+      [
+        "Kaduna North",
+        "2025",
+        "78",
+        "38.2",
+        "2.4",
+        "0.81",
+        "MODIS/ERA5 development test",
+        "Replace with processed heat evidence",
+      ],
+      [
+        "Kaduna South",
+        "2025",
+        "80",
+        "39.1",
+        "2.7",
+        "0.86",
+        "MODIS/ERA5 development test",
+        "Replace with processed heat evidence",
+      ],
+    ],
+  },
+  {
+    value: "erosion_scores",
+    label: "Erosion Scores CSV",
+    requiredColumns:
+      "one of lga_id/lga_name/lganame/lga_code/lgacode, year, erosion_score",
+    example:
+      "lganame,year,erosion_score,slope_index,soil_erodibility,rainfall_erosivity,data_source,notes",
+    templateRows: [
+      [
+        "lganame",
+        "year",
+        "erosion_score",
+        "slope_index",
+        "soil_erodibility",
+        "rainfall_erosivity",
+        "data_source",
+        "notes",
+      ],
+      [
+        "Kachia",
+        "2025",
+        "70",
+        "0.68",
+        "0.55",
+        "0.72",
+        "DEM/SoilGrids development test",
+        "Replace with processed erosion evidence",
+      ],
+      [
+        "Zangon Kataf",
+        "2025",
+        "75",
+        "0.73",
+        "0.61",
+        "0.78",
+        "DEM/SoilGrids development test",
+        "Replace with processed erosion evidence",
+      ],
+    ],
+  },
+  {
+    value: "exposure_scores",
+    label: "Exposure Scores CSV",
+    requiredColumns:
+      "one of lga_id/lga_name/lganame/lga_code/lgacode, year, exposure_score",
+    example:
+      "lganame,year,exposure_score,population_exposed,schools_exposed,hospitals_exposed,roads_exposed_km,data_source,notes",
+    templateRows: [
+      [
+        "lganame",
+        "year",
+        "exposure_score",
+        "population_exposed",
+        "schools_exposed",
+        "hospitals_exposed",
+        "roads_exposed_km",
+        "data_source",
+        "notes",
+      ],
+      [
+        "Kaduna North",
+        "2025",
+        "75",
+        "120000",
+        "42",
+        "8",
+        "64.3",
+        "OSM/KADGIS development test",
+        "Replace with processed exposure evidence",
+      ],
+      [
+        "Chikun",
+        "2025",
+        "70",
+        "98000",
+        "35",
+        "5",
+        "52.1",
+        "OSM/KADGIS development test",
+        "Replace with processed exposure evidence",
+      ],
+    ],
+  },
+  {
+    value: "vulnerability_scores",
+    label: "Vulnerability Scores CSV",
+    requiredColumns:
+      "one of lga_id/lga_name/lganame/lga_code/lgacode, year, vulnerability_score",
+    example:
+      "lganame,year,vulnerability_score,poverty_index,population_density,agric_livelihood_dependency,access_to_services_index,data_source,notes",
+    templateRows: [
+      [
+        "lganame",
+        "year",
+        "vulnerability_score",
+        "poverty_index",
+        "population_density",
+        "agric_livelihood_dependency",
+        "access_to_services_index",
+        "data_source",
+        "notes",
+      ],
+      [
+        "Birnin Gwari",
+        "2025",
+        "80",
+        "0.74",
+        "185",
+        "0.69",
+        "0.31",
+        "NBS/KADGIS development test",
+        "Replace with processed vulnerability evidence",
+      ],
+      [
+        "Kachia",
+        "2025",
+        "67",
+        "0.61",
+        "142",
+        "0.58",
+        "0.45",
+        "NBS/KADGIS development test",
+        "Replace with processed vulnerability evidence",
+      ],
+    ],
+  },
+  {
+    value: "adaptive_capacity_scores",
+    label: "Adaptive Capacity Scores CSV",
+    requiredColumns:
+      "one of lga_id/lga_name/lganame/lga_code/lgacode, year, adaptive_capacity_score",
+    example:
+      "lganame,year,adaptive_capacity_score,health_facility_access,early_warning_access,drainage_capacity,response_capacity,data_source,notes",
+    templateRows: [
+      [
+        "lganame",
+        "year",
+        "adaptive_capacity_score",
+        "health_facility_access",
+        "early_warning_access",
+        "drainage_capacity",
+        "response_capacity",
+        "data_source",
+        "notes",
+      ],
+      [
+        "Birnin Gwari",
+        "2025",
+        "38",
+        "0.35",
+        "0.28",
+        "0.31",
+        "0.41",
+        "KADGIS/field survey development test",
+        "Higher adaptive capacity is better",
+      ],
+      [
+        "Kaduna North",
+        "2025",
+        "60",
+        "0.72",
+        "0.64",
+        "0.58",
+        "0.66",
+        "KADGIS/field survey development test",
+        "Higher adaptive capacity is better",
+      ],
+    ],
+  },
+  {
+    value: "parameter_records",
+    label: "Generic Parameter Records CSV",
+    requiredColumns:
+      "one of lga_id/lga_name/lganame/lga_code/lgacode, year, category, parameter_key, parameter_label, raw_value",
+    example:
+      "lganame,year,category,parameter_key,parameter_label,raw_value,unit,normalized_score,data_source,notes",
+    templateRows: [
+      [
+        "lganame",
+        "year",
+        "category",
+        "parameter_key",
+        "parameter_label",
+        "raw_value",
+        "unit",
+        "normalized_score",
+        "data_source",
+        "notes",
+      ],
+      [
+        "Birnin Gwari",
+        "2025",
+        "flood",
+        "flood_prone_area_km2",
+        "Flood-prone area",
+        "125.5",
+        "km2",
+        "78",
+        "Development test",
+        "Raw value is measured data; normalized score is /100",
+      ],
+      [
+        "Birnin Gwari",
+        "2025",
+        "drought",
+        "rainfall_anomaly",
+        "Rainfall anomaly",
+        "-18.5",
+        "%",
+        "70",
+        "Development test",
+        "Raw value is measured data; normalized score is /100",
+      ],
+    ],
+  },
+];
 
 const inputClass =
   "w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10";
@@ -101,7 +434,7 @@ export default function ClimateRiskDatasetUploadPanel({
   const [error, setError] = useState("");
 
   const selectedDataset = useMemo(() => {
-    return datasetTypeOptions.find((item) => item.value === datasetType);
+    return (datasetTypeOptions || []).find((item) => item.value === datasetType);
   }, [datasetType]);
 
   async function loadUploads() {
@@ -229,7 +562,7 @@ export default function ClimateRiskDatasetUploadPanel({
                   onChange={(event) => setDatasetType(event.target.value)}
                   className={inputClass}
                 >
-                  {datasetTypeOptions.map((item) => (
+                  {(datasetTypeOptions || []).map((item) => (
                     <option key={item.value} value={item.value}>
                       {item.label}
                     </option>
