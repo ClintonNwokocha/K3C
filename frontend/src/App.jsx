@@ -22,6 +22,7 @@ import {
   getHealthCheck,
   loginUser,
   logoutUser,
+  SESSION_EXPIRED_EVENT,
 } from "./services/api";
 import "./App.css";
 
@@ -103,6 +104,24 @@ function App() {
     }
 
     restoreSession();
+  }, []);
+
+  useEffect(() => {
+    function handleSessionExpired() {
+      logoutUser();
+      setCurrentUser(null);
+      setHealth(null);
+      setGhgSummary(null);
+      setFoundation(null);
+      setActivePage("dashboard");
+      setError("");
+      setAuthError("Your session has expired. Please sign in again.");
+    }
+
+    window.addEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
+
+    return () =>
+      window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
   }, []);
 
   async function handleLogin(username, password) {

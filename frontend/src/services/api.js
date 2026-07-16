@@ -1,6 +1,8 @@
 import axios from "axios";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "/api";
+const LOGIN_ENDPOINT = "/accounts/token/";
+export const SESSION_EXPIRED_EVENT = "ksccc:session-expired";
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -17,14 +19,50 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Single-flight guard so a burst of concurrent 401s (several widgets failing
+// at once) only triggers one logout/redirect cycle, not one per request.
+let sessionExpiredHandled = false;
+
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error.response?.status;
+    const requestUrl = error.config?.url || "";
+
+    // A 401 from the login endpoint itself is a normal "wrong credentials"
+    // response, not a session expiry — let the caller's own catch handle it.
+    const isLoginRequest = requestUrl.includes(LOGIN_ENDPOINT);
+
+    // Public pages are unauthenticated by design; never force a redirect there.
+    const onPublicRoute = window.location.pathname.startsWith("/public");
+
+    if (status === 401 && !isLoginRequest && !onPublicRoute) {
+      if (!sessionExpiredHandled) {
+        sessionExpiredHandled = true;
+
+        localStorage.removeItem("ksccc_access_token");
+        localStorage.removeItem("ksccc_refresh_token");
+
+        window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export async function loginUser(username, password) {
-  const response = await api.post("/accounts/token/", {
+  const response = await api.post(LOGIN_ENDPOINT, {
     username,
     password,
   });
 
   localStorage.setItem("ksccc_access_token", response.data.access);
   localStorage.setItem("ksccc_refresh_token", response.data.refresh);
+
+  // A fresh successful login starts a new session — re-arm the guard so a
+  // future expiry (after this login) can be detected and handled again.
+  sessionExpiredHandled = false;
 
   return response.data;
 }
