@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   CloudSun,
   ExternalLink,
@@ -7,7 +8,9 @@ import {
   Home,
   Leaf,
   LogOut,
+  Menu,
   Settings,
+  X,
 } from "lucide-react";
 import OfficialLogo from "../components/OfficialLogo";
 import { canAccessAdministration } from "../utils/permissions";
@@ -110,6 +113,7 @@ export default function AppShell({
   onPageChange,
 }) {
   const role = currentUser?.profile?.role || "public";
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const visibleNavItems = navItems.filter((item) =>
     canSeeNavItem(item, currentUser)
@@ -117,22 +121,65 @@ export default function AppShell({
 
   const activeNavItem = navItems.find((item) => item.key === activePage);
 
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        setMobileNavOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileNavOpen]);
+
+  function handleNavigate(pageKey) {
+    onPageChange(pageKey);
+    setMobileNavOpen(false);
+  }
+
   return (
-    <div className="min-h-screen bg-slate-100 font-['DM_Sans'] text-[#030454]">
-      <aside className="fixed inset-y-0 left-0 z-30 flex w-80 flex-col bg-[#030454] text-white shadow-2xl">
+    <div className="min-h-screen overflow-x-hidden bg-slate-100 font-['DM_Sans'] text-[#030454]">
+      {mobileNavOpen && (
+        <button
+          type="button"
+          aria-label="Close navigation menu"
+          onClick={() => setMobileNavOpen(false)}
+          className="fixed inset-0 z-30 bg-slate-950/60 lg:hidden"
+        />
+      )}
+
+      <aside
+        id="app-shell-nav"
+        className={`fixed inset-y-0 left-0 z-40 flex w-80 flex-col bg-[#030454] text-white shadow-2xl transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
         <div className="border-b border-white/10 px-5 py-6">
-          <button
-            type="button"
-            onClick={() => onPageChange("dashboard")}
-            className="flex w-full items-center"
-            aria-label="Go to dashboard"
-          >
-            <OfficialLogo
-              variant="light"
-              className="max-w-[245px]"
-              compact
-            />
-          </button>
+          <div className="flex items-start justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => handleNavigate("dashboard")}
+              className="flex min-w-0 flex-1 items-center"
+              aria-label="Go to dashboard"
+            >
+              <OfficialLogo
+                variant="light"
+                className="max-w-[245px]"
+                compact
+              />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(false)}
+              className="shrink-0 rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white lg:hidden"
+              aria-label="Close navigation menu"
+            >
+              <X size={20} />
+            </button>
+          </div>
 
           <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F3F74B]">
@@ -155,7 +202,7 @@ export default function AppShell({
               <button
                 key={item.key}
                 type="button"
-                onClick={() => onPageChange(item.key)}
+                onClick={() => handleNavigate(item.key)}
                 className={`group flex w-full items-start gap-3 rounded-xl px-4 py-3 text-left transition ${
                   isActive
                     ? "bg-[#F3F74B] text-[#030454]"
@@ -214,16 +261,29 @@ export default function AppShell({
         </div>
       </aside>
 
-      <div className="pl-80">
-        <header className="sticky top-0 z-20 flex h-20 items-center justify-between border-b border-slate-200 bg-white/95 px-8 backdrop-blur">
-          <div>
-            <h2 className="text-xl font-black text-[#030454]">
-              {activeNavItem?.name || "Climate Command Centre"}
-            </h2>
+      <div className="lg:pl-80" inert={mobileNavOpen ? true : undefined}>
+        <header className="sticky top-0 z-20 flex h-20 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className="shrink-0 rounded-lg border border-slate-200 p-2 text-[#030454] hover:border-[#009B35] hover:text-[#009B35] lg:hidden"
+              aria-label="Open navigation menu"
+              aria-expanded={mobileNavOpen}
+              aria-controls="app-shell-nav"
+            >
+              <Menu size={20} />
+            </button>
 
-            <p className="mt-1 text-sm text-slate-500">
-              {activeNavItem?.description || "Kaduna climate intelligence"}
-            </p>
+            <div className="min-w-0">
+              <h2 className="truncate text-xl font-black text-[#030454]">
+                {activeNavItem?.name || "Climate Command Centre"}
+              </h2>
+
+              <p className="mt-1 truncate text-sm text-slate-500">
+                {activeNavItem?.description || "Kaduna climate intelligence"}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-4">
@@ -246,7 +306,7 @@ export default function AppShell({
           </div>
         </header>
 
-        <main className="p-8">{children}</main>
+        <main className="overflow-x-hidden p-4 lg:p-8">{children}</main>
       </div>
     </div>
   );
