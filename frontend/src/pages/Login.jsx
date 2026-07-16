@@ -3,7 +3,7 @@ import { ArrowRight, Globe2, Lock, User } from "lucide-react";
 import OfficialLogo from "../components/OfficialLogo";
 
 export default function Login({ onLogin, error }) {
-  const [username, setUsername] = useState("admin");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
