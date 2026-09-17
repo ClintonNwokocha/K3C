@@ -100,43 +100,55 @@ export function CommandStatCard({
   );
 }
 
+// Shared interaction language for every admin action button: subtle lift +
+// shadow on hover, settle on press, visible focus-visible ring, motion-safe
+// so prefers-reduced-motion keeps the colour/shadow cue but drops the
+// transform. Mirrors the public-portal CTA system in PublicPortalChrome.jsx.
+const commandCtaTransition =
+  "transition-all duration-200 ease-out motion-safe:hover:-translate-y-0.5 motion-safe:active:translate-y-0";
+const commandCtaFocus =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
+const commandCtaDisabled =
+  "disabled:cursor-not-allowed disabled:pointer-events-none disabled:shadow-none disabled:translate-y-0";
+
 export function CommandButton({
   children,
   onClick,
   type = "button",
   variant = "primary",
   disabled = false,
+  className = "",
 }) {
   const variantClasses = {
     primary:
-      "bg-[#009B35] text-white hover:bg-[#00842e] disabled:bg-[#009B35]/50",
+      "bg-[#009B35] text-white shadow-[0_8px_18px_rgba(0,155,53,0.22)] hover:bg-[#00842e] hover:shadow-[0_14px_26px_rgba(0,132,46,0.32)] active:bg-[#00722a] disabled:bg-[#009B35]/50 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-white",
 
     green:
-      "bg-[#009B35] text-white hover:bg-[#00842e] disabled:bg-[#009B35]/50",
+      "bg-[#009B35] text-white shadow-[0_8px_18px_rgba(0,155,53,0.22)] hover:bg-[#00842e] hover:shadow-[0_14px_26px_rgba(0,132,46,0.32)] active:bg-[#00722a] disabled:bg-[#009B35]/50 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-white",
 
     blue:
-      "bg-[#030454] text-white hover:bg-[#02033d] disabled:bg-[#030454]/50",
+      "bg-[#030454] text-white shadow-[0_8px_18px_rgba(3,4,84,0.2)] hover:bg-[#0B1A78] hover:shadow-[0_14px_26px_rgba(3,4,84,0.3)] active:bg-[#030454] disabled:bg-[#030454]/50 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-white",
 
     navy:
-      "bg-[#030454] text-white hover:bg-[#02033d] disabled:bg-[#030454]/50",
+      "bg-[#030454] text-white shadow-[0_8px_18px_rgba(3,4,84,0.2)] hover:bg-[#0B1A78] hover:shadow-[0_14px_26px_rgba(3,4,84,0.3)] active:bg-[#030454] disabled:bg-[#030454]/50 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-white",
 
     yellow:
-      "bg-[#F3F74B] text-[#030454] hover:bg-[#e7eb42] disabled:bg-[#F3F74B]/50",
+      "bg-[#F3F74B] text-[#030454] shadow-[0_8px_18px_rgba(243,247,75,0.28)] hover:bg-[#E3E730] hover:shadow-[0_14px_26px_rgba(227,231,48,0.36)] active:bg-[#D9DC22] disabled:bg-[#F3F74B]/50 focus-visible:ring-[#030454] focus-visible:ring-offset-white",
 
     gold:
-      "bg-[#F3F74B] text-[#030454] hover:bg-[#e7eb42] disabled:bg-[#F3F74B]/50",
+      "bg-[#F3F74B] text-[#030454] shadow-[0_8px_18px_rgba(243,247,75,0.28)] hover:bg-[#E3E730] hover:shadow-[0_14px_26px_rgba(227,231,48,0.36)] active:bg-[#D9DC22] disabled:bg-[#F3F74B]/50 focus-visible:ring-[#030454] focus-visible:ring-offset-white",
 
     outline:
-      "border border-slate-200 bg-white text-[#030454] hover:border-[#009B35] hover:text-[#009B35]",
+      "border border-slate-200 bg-white text-[#030454] hover:border-[#009B35] hover:bg-[#009B35]/5 hover:text-[#009B35] focus-visible:ring-[#009B35] focus-visible:ring-offset-white",
 
     outlineGreen:
-      "border border-[#009B35] bg-white text-[#009B35] hover:bg-[#009B35] hover:text-white",
+      "border border-[#009B35] bg-white text-[#009B35] hover:bg-[#009B35]/8 focus-visible:ring-[#009B35] focus-visible:ring-offset-white",
 
     outlineBlue:
-      "border border-[#030454] bg-white text-[#030454] hover:bg-[#030454] hover:text-white",
+      "border border-[#030454] bg-white text-[#030454] hover:bg-[#030454]/6 focus-visible:ring-[#009B35] focus-visible:ring-offset-white",
 
     danger:
-      "bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300",
+      "bg-red-600 text-white shadow-[0_8px_18px_rgba(220,38,38,0.22)] hover:bg-red-700 hover:shadow-[0_14px_26px_rgba(185,28,28,0.32)] active:bg-red-800 disabled:bg-red-300 focus-visible:ring-red-600 focus-visible:ring-offset-white",
   };
 
   return (
@@ -144,9 +156,9 @@ export function CommandButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-md px-5 py-3 text-xs font-black uppercase tracking-[0.08em] transition disabled:cursor-not-allowed ${
+      className={`rounded-md px-5 py-3 text-xs font-black uppercase tracking-[0.08em] ${commandCtaTransition} ${commandCtaFocus} ${commandCtaDisabled} ${
         variantClasses[variant] || variantClasses.primary
-      }`}
+      } ${className}`}
     >
       {children}
     </button>
@@ -191,7 +203,7 @@ export function CommandTabs({ tabs, activeTab, onChange }) {
             key={tab.key}
             type="button"
             onClick={() => onChange(tab.key)}
-            className={`rounded-lg px-4 py-2 text-xs font-black uppercase tracking-[0.08em] transition ${
+            className={`rounded-lg px-4 py-2 text-xs font-black uppercase tracking-[0.08em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35] focus-visible:ring-offset-2 ${
               isActive
                 ? "bg-[#030454] text-white shadow-sm"
                 : "text-slate-500 hover:bg-[#009B35]/8 hover:text-[#009B35]"

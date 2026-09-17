@@ -178,7 +178,15 @@ def lga_stats(request):
         mean_value__isnull=False,
     )
 
-    # Resolve the year: use the explicit request or find the latest stored year.
+    if season:
+        metrics = metrics.filter(season=season)
+
+    requested_month = int(month) if month else None
+    if requested_month:
+        metrics = metrics.filter(month=requested_month)
+
+    # Resolve the year after all dimensional filters so "Latest" means the
+    # latest record available for the requested layer/season/month/admin scope.
     requested_year = int(year) if year else None
     if requested_year:
         resolved_year = requested_year
@@ -187,12 +195,6 @@ def lga_stats(request):
         resolved_year = metrics.aggregate(value=Max("year")).get("value")
         if resolved_year:
             metrics = metrics.filter(year=resolved_year)
-
-    if season:
-        metrics = metrics.filter(season=season)
-
-    if month:
-        metrics = metrics.filter(month=month)
 
     summary = metrics.aggregate(
         mean_value=Avg("mean_value"),
@@ -210,7 +212,7 @@ def lga_stats(request):
             "requested_year": requested_year,
             "year": resolved_year,
             "season": season or None,
-            "month": int(month) if month else None,
+            "month": requested_month,
         },
         "summary": {
             "count": metrics.count(),

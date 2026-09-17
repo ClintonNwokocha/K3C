@@ -1704,6 +1704,107 @@ class LgaStatsNdviLandsatAccessTests(TestCase):
             self.ndvi_landsat_layer.save()
 
 
+class LgaStatsLatestResolutionTests(TestCase):
+    """Latest-year resolution must respect the requested data dimensions."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.lga = LGARegistry.objects.create(lga_id=410, lga_name="Latest Test LGA")
+        cls.rainfall_layer = RemoteSensingLayer.objects.create(
+            key="rainfall",
+            label="Rainfall Total",
+            is_active=True,
+            is_public=True,
+        )
+        cls.lst_layer = RemoteSensingLayer.objects.create(
+            key="lst",
+            label="Land Surface Temperature",
+            is_active=True,
+            is_public=True,
+        )
+
+        cls._metric(cls.rainfall_layer, 2024, "annual", Decimal("900.0"), "mm")
+        cls._metric(cls.rainfall_layer, 2025, "wet_season", Decimal("700.0"), "mm")
+        cls._metric(cls.lst_layer, 2023, "annual", Decimal("34.5"), "deg C")
+        cls._metric(cls.lst_layer, 2025, "wet_season", Decimal("31.2"), "deg C")
+
+    @classmethod
+    def _metric(cls, layer, year, season, value, unit):
+        return RemoteSensingLGAMetric.objects.create(
+            layer=layer,
+            lga=cls.lga,
+            admin_level="lga",
+            admin_code="LATEST001",
+            admin_name="Latest Test LGA",
+            year=year,
+            season=season,
+            mean_value=value,
+            unit=unit,
+        )
+
+    def test_latest_year_is_resolved_after_season_filtering(self):
+        response = self.client.get(
+            reverse("remote-sensing-lga-stats"),
+            {"layer": "rainfall", "season": "annual", "admin_level": "lga"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["filters"]["year"], 2024)
+        self.assertEqual(data["summary"]["count"], 1)
+        self.assertEqual(data["results"][0]["season"], "annual")
+
+    def test_different_seasons_can_resolve_to_different_latest_years(self):
+        annual = self.client.get(
+            reverse("remote-sensing-lga-stats"),
+            {"layer": "rainfall", "season": "annual", "admin_level": "lga"},
+        ).json()
+        wet = self.client.get(
+            reverse("remote-sensing-lga-stats"),
+            {"layer": "rainfall", "season": "wet_season", "admin_level": "lga"},
+        ).json()
+
+        self.assertEqual(annual["filters"]["year"], 2024)
+        self.assertEqual(wet["filters"]["year"], 2025)
+
+    def test_explicit_year_remains_unchanged_even_when_empty(self):
+        response = self.client.get(
+            reverse("remote-sensing-lga-stats"),
+            {"layer": "rainfall", "year": "2025", "season": "annual", "admin_level": "lga"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["filters"]["requested_year"], 2025)
+        self.assertEqual(data["filters"]["year"], 2025)
+        self.assertEqual(data["summary"]["count"], 0)
+        self.assertEqual(data["results"], [])
+
+    def test_empty_valid_selection_returns_empty_results_safely(self):
+        response = self.client.get(
+            reverse("remote-sensing-lga-stats"),
+            {"layer": "rainfall", "season": "dry_season", "admin_level": "lga"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIsNone(data["filters"]["year"])
+        self.assertEqual(data["summary"]["count"], 0)
+        self.assertEqual(data["results"], [])
+
+    def test_multiple_layer_types_use_same_latest_resolution_logic(self):
+        response = self.client.get(
+            reverse("remote-sensing-lga-stats"),
+            {"layer": "lst", "season": "annual", "admin_level": "lga"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["filters"]["year"], 2023)
+        self.assertEqual(data["summary"]["count"], 1)
+        self.assertEqual(data["results"][0]["layer_key"], "lst")
+
+
 class PublicRemoteSensingLayerCatalogTests(TestCase):
     """Public layer catalog must expose only active, public layers."""
 

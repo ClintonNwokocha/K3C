@@ -1,5 +1,5 @@
 ﻿import L from "leaflet";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
   ChevronDown,
@@ -62,6 +62,17 @@ import {
   getAtlasVariableStatistic,
 } from "../config/climateAtlasLayers";
 import LgaClimateBrief from "../components/LgaClimateBrief";
+import {
+  computeClimateActionSignal,
+  METHODOLOGY_NOTE as CLIMATE_ACTION_METHODOLOGY_NOTE,
+  rankSignals,
+  SIGNAL_LEVEL,
+  SIGNAL_LABEL,
+  SIGNAL_VISUAL,
+} from "../decision-support/climateActionSignal";
+import { ClimateActionHotspotStyles, ClimateActionSignalOverlay } from "../components/ClimateActionHotspot";
+import { isMilestoneOneDemo } from "../config/demoMode";
+import { PUBLIC_EVENT_NAMES, trackPublicEvent } from "../config/analytics";
 
 const KADUNA_CENTER = [10.45, 7.75];
 const KADUNA_ZOOM = 7;
@@ -83,6 +94,17 @@ const ATLAS_VARIABLES = CLIMATE_ATLAS_LAYER_ORDER.map((key) => {
     coverageNote: config.coverageNote,
   };
 });
+
+const VARIABLE_KEYS = new Set(CLIMATE_ATLAS_LAYER_ORDER);
+const SEASON_FROM_PARAM = {
+  annual: "Full Year",
+  full_year: "Full Year",
+  latest: "Full Year",
+  wet_season: "Wet Season",
+  wet: "Wet Season",
+  dry_season: "Dry Season",
+  dry: "Dry Season",
+};
 
 const SEASON_PARAM = {
   "Full Year": "annual",
@@ -151,6 +173,23 @@ function formatNumber(value) {
 function getFeatureName(feature) {
   const p = feature?.properties || {};
   return p.lganame || p.LGANAME || p.lga_name || p.LGA_NAME || p.NAME || p.name || "Unnamed LGA";
+}
+
+function getFeatureAdminCode(feature) {
+  const p = feature?.properties || {};
+  return p.lgacode || p.LGACODE || p.admin_code || p.ADMIN_CODE || p.code || "";
+}
+
+// Fires the lga_selected analytics event for a deliberate LGA selection
+// (map polygon click, hotspot marker click, or "Inspect" priority-list
+// click) — never for the URL-param-driven auto-select on initial load.
+// Sends only the LGA name/code, never the full feature/geometry object.
+function trackLgaSelected(feature) {
+  const lgaCode = getFeatureAdminCode(feature);
+  trackPublicEvent(PUBLIC_EVENT_NAMES.LGA_SELECTED, {
+    lga: getFeatureName(feature),
+    ...(lgaCode ? { lga_code: lgaCode } : {}),
+  });
 }
 
 function getWardName(feature) {
@@ -343,6 +382,26 @@ function FitBounds({ geoJson }) {
   return null;
 }
 
+// Pans/zooms to a selected LGA (e.g. from the "Inspect" priority-list action
+// or a hotspot marker click) so the user can see it without manually panning.
+function FlyToSelectedLga({ feature }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!feature) return;
+    try {
+      const bounds = L.geoJSON(feature).getBounds();
+      if (bounds.isValid()) {
+        map.flyToBounds(bounds, { padding: [120, 120], maxZoom: 10, duration: 0.8 });
+      }
+    } catch {
+      // ignore malformed geometry — selection still succeeds, just no pan/zoom
+    }
+  }, [feature, map]);
+
+  return null;
+}
+
 function ZoomWatcher({ onZoomChange }) {
   const map = useMapEvents({
     zoomend: () => onZoomChange(map.getZoom()),
@@ -449,7 +508,7 @@ function IndicatorSelect({ value, onChange, options }) {
   return (
     <div ref={containerRef} className="relative border-b border-[#E6EAEC] px-5 py-4">
       <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-        Climate indicator
+        Environmental Indicator
       </span>
       <button
         type="button"
@@ -820,6 +879,16 @@ export default function PublicClimateAtlasPage() {
   const INTERNAL_LULC_PREVIEW_PARAM = searchParams.get("internal_lulc_preview") === "1";
   const INTERNAL_FLOOD_PREVIEW_PARAM = searchParams.get("internal_flood_preview") === "1";
   const INTERNAL_ELEVATION_PREVIEW_PARAM = searchParams.get("internal_elevation_preview") === "1";
+  const requestedVariable = searchParams.get("indicator") || searchParams.get("variable") || "";
+  const initialVariableKey = VARIABLE_KEYS.has(requestedVariable) ? requestedVariable : "rainfall";
+  const requestedSeason = searchParams.get("season") || "";
+  const initialSeason = SEASON_FROM_PARAM[String(requestedSeason).toLowerCase()] || "Full Year";
+  const requestedYear = Number(searchParams.get("year") || "2025");
+  const initialYear = Number.isFinite(requestedYear) ? requestedYear : 2025;
+  const requestedPeriod = searchParams.get("period") || "";
+  const initialPeriod = requestedPeriod === "latest" || !requestedPeriod ? "Latest" : requestedPeriod;
+  const initialAdminCode = searchParams.get("admin_code") || "";
+  const initialLgaName = searchParams.get("lga") || "";
 
   const captureRef = useRef(null);
   // Always holds the latest styleLgaFeature so Leaflet event handlers never close over stale state.
@@ -836,6 +905,7 @@ export default function PublicClimateAtlasPage() {
   const [wardGeoJson, setWardGeoJson] = useState(null);
 
   const [profiles, setProfiles] = useState([]);
+  const [exposureBreakdown, setExposureBreakdown] = useState({ population: [], buildings: [] });
   const [remoteStats, setRemoteStats] = useState([]);
   const [remoteStatsError, setRemoteStatsError] = useState(false);
   const [publicLayerCatalog, setPublicLayerCatalog] = useState(null);
@@ -877,11 +947,11 @@ export default function PublicClimateAtlasPage() {
   const [ciBriefOpen, setCiBriefOpen] = useState(false);
 
   const [config, setConfig] = useState({
-    variableKey: isExportMode ? (searchParams.get("variable") || "rainfall") : "rainfall",
-    season: "Full Year",
-    period: "Latest",
+    variableKey: initialVariableKey,
+    season: initialSeason,
+    period: initialPeriod,
     opacity: 0.68,
-    year: isExportMode ? Number(searchParams.get("year") || "2025") : 2025,
+    year: initialYear,
     admin_level: "lga",
   });
 
@@ -891,7 +961,7 @@ export default function PublicClimateAtlasPage() {
   );
   const isElevationPublic = publicLayerKeys.has("elevation");
   const isFloodPublic = publicLayerKeys.has("flood_occurrence");
-  const isLulcPublic = publicLayerKeys.has("annual_lulc");
+  const isLulcPublic = publicLayerKeys.has("lulc");
   const isLulcAvailable = isLulcPublic || INTERNAL_LULC_PREVIEW_PARAM;
   const availableVariables = useMemo(() => {
     const base = !publicLayerCatalog
@@ -988,6 +1058,55 @@ export default function PublicClimateAtlasPage() {
   const variableStatistic = getAtlasVariableStatistic(variable.key)?.label || "Spatial mean";
   const variableStatisticDetail = getAtlasVariableStatistic(variable.key)?.detail || "";
   const profilesByName = useMemo(() => buildLookup(profiles), [profiles]);
+  const exposureByName = useMemo(() => {
+    const lookup = {};
+    for (const item of exposureBreakdown.population || []) {
+      const key = normalizeName(item.lga_name);
+      lookup[key] = { ...(lookup[key] || {}), estimated_people: item.estimated_people };
+    }
+    for (const item of exposureBreakdown.buildings || []) {
+      const key = normalizeName(item.lga_name);
+      lookup[key] = { ...(lookup[key] || {}), mapped_buildings: item.mapped_buildings };
+    }
+    return lookup;
+  }, [exposureBreakdown]);
+  // Urgent Climate Action Signal — computed once per LGA from already-loaded
+  // public data (risk profiles, climate intelligence indicators, exposure
+  // breakdown). See frontend/src/decision-support/climateActionSignal.js.
+  const signalLookup = useMemo(() => {
+    const lookup = {};
+    for (const profile of profiles) {
+      if (!profile.lga_name) continue;
+      const key = normalizeName(profile.lga_name);
+      const ciItem = ciLookup[key] || null;
+      lookup[key] = computeClimateActionSignal({
+        admin_code: profile.lga,
+        admin_name: profile.lga_name,
+        riskProfile: profile,
+        indicators: ciItem?.indicators || null,
+        exposure: exposureByName[key] || null,
+      });
+    }
+    return lookup;
+  }, [profiles, ciLookup, exposureByName]);
+  const getSignalForFeature = useCallback(
+    (feature) => signalLookup[normalizeName(getFeatureName(feature))] || null,
+    [signalLookup],
+  );
+  const signalCounts = useMemo(() => {
+    const counts = { urgent: 0, elevated: 0, monitor: 0, insufficient: 0 };
+    for (const signal of Object.values(signalLookup)) {
+      if (signal.signal_level === SIGNAL_LEVEL.URGENT_ACTION) counts.urgent += 1;
+      else if (signal.signal_level === SIGNAL_LEVEL.ELEVATED_ATTENTION) counts.elevated += 1;
+      else if (signal.signal_level === SIGNAL_LEVEL.MONITOR) counts.monitor += 1;
+      else counts.insufficient += 1;
+    }
+    return counts;
+  }, [signalLookup]);
+  const topFlaggedSignals = useMemo(
+    () => rankSignals(Object.values(signalLookup).filter((s) => s.signal_level !== SIGNAL_LEVEL.NO_CURRENT_SIGNAL)).slice(0, 5),
+    [signalLookup],
+  );
   const metricsByName = useMemo(() => buildLookup(remoteStats), [remoteStats]);
   const lulcLookup = useMemo(() => {
     if (!lulcData?.results) return {};
@@ -1038,7 +1157,7 @@ export default function PublicClimateAtlasPage() {
   // remoteStats / profiles update (year, season, or variable change).
   const selectedLga = useMemo(
     () => (selectedLgaFeature ? resolveFeature(selectedLgaFeature) : null),
-    [selectedLgaFeature, metricsByName, profilesByName, variable, lulcLookup, floodOccurrenceLookup, elevationLookup],
+    [selectedLgaFeature, metricsByName, profilesByName, variable, lulcLookup, floodOccurrenceLookup, elevationLookup, signalLookup],
   );
 
   // Mean NDVI across all returned LGAs â€" drives the briefing panel.
@@ -1143,6 +1262,7 @@ export default function PublicClimateAtlasPage() {
       ? lulcPeriods
       : (VARIABLE_PERIOD_CONFIGS[newKey] || ATLAS_PERIODS);
     const currentPeriodValid = periods.some((p) => p.label === config.period);
+    trackPublicEvent(PUBLIC_EVENT_NAMES.INDICATOR_SELECTED, { indicator: newKey });
     setSelectedLgaFeature(null);
     setConfig((prev) => ({
       ...prev,
@@ -1366,7 +1486,14 @@ export default function PublicClimateAtlasPage() {
         getRemoteSensingLayers(),
       ]);
 
-      if (results[0].status === "fulfilled") setProfiles(results[0].value.results || []);
+      if (results[0].status === "fulfilled") {
+        setProfiles(results[0].value.results || []);
+        const summary = results[0].value.summary || {};
+        setExposureBreakdown({
+          population: summary.high_risk_lga_population_breakdown || [],
+          buildings: summary.high_risk_lga_building_breakdown || [],
+        });
+      }
       if (results[2].status === "fulfilled") setGeeStatus(results[2].value || null);
       if (results[3].status === "fulfilled") {
         setPublicLayerCatalog(results[3].value.results || []);
@@ -1376,7 +1503,7 @@ export default function PublicClimateAtlasPage() {
     } catch (err) {
       console.error(err);
       setPublicLayerCatalog([]);
-      setError(err.message || "Could not load Kaduna Climate Atlas.");
+      setError(err.message || "Could not load Kaduna Climate Change Intelligence System.");
     }
   }
 
@@ -1562,9 +1689,24 @@ export default function PublicClimateAtlasPage() {
   }, []);
 
   useEffect(() => {
+    if (!lgaGeoJson?.features?.length || selectedLgaFeature) return;
+    if (!initialAdminCode && !initialLgaName) return;
+    const requestedName = normalizeName(initialLgaName);
+    const feature = lgaGeoJson.features.find((item) => {
+      const adminCode = String(getFeatureAdminCode(item));
+      return (initialAdminCode && adminCode === String(initialAdminCode)) ||
+        (requestedName && normalizeName(getFeatureName(item)) === requestedName);
+    });
+    if (feature) {
+      setSelectedLgaFeature(feature);
+      setSelectedWard(null);
+    }
+  }, [lgaGeoJson, selectedLgaFeature, initialAdminCode, initialLgaName]);
+
+  useEffect(() => {
     if (!publicLayerCatalog) return;
     if (selectedVariableAvailable) return;
-    const fallback = availableVariables.find((item) => item.key === "rainfall") || availableVariables[0] || VARIABLES[0];
+    const fallback = availableVariables.find((item) => item.key === "rainfall") || availableVariables[0] || ATLAS_VARIABLES[0];
     setConfig((current) => ({
       ...current,
       variableKey: fallback.key,
@@ -1700,6 +1842,7 @@ export default function PublicClimateAtlasPage() {
       elevSnap,
       value,
       color: getColor(value),
+      signal: signalLookup[key] || null,
     };
   }
 
@@ -1761,6 +1904,10 @@ export default function PublicClimateAtlasPage() {
                 ? getLstColor(info.value)
                 : getNdviColor(info.value);
     const hasFill = hasValue(info.value);
+    // Urgent Climate Action Signal accents (outline/fill/hotspots) are drawn by
+    // the separate ClimateActionSignalOverlay layer on top of this one — the
+    // base environmental choropleth always stays fully data-driven and
+    // unobscured (see AGENTS.md / Section 11 of the signal visual spec).
     // Selection: changes border only — fillColor is always data-driven and never altered.
     return {
       color: isSelected ? "#009B35" : "#ffffff",
@@ -1832,8 +1979,12 @@ export default function PublicClimateAtlasPage() {
         const ciLine = overallStatus
           ? `<br/><span style="font-weight:400;font-size:10px;color:#94a3b8">${overallStatus}</span>`
           : "";
+        const signal = resolved.signal;
+        const signalLine = signal && signal.signal_level !== SIGNAL_LEVEL.NO_CURRENT_SIGNAL
+          ? `<br/><span style="font-weight:700;font-size:10px;color:${SIGNAL_VISUAL[signal.signal_level].color}">${SIGNAL_LABEL[signal.signal_level]}</span>`
+          : "";
         layer.setTooltipContent(
-          `<strong>${resolved.name}</strong><br/><span style="font-weight:400;font-size:11px">${valStr}</span>${ciLine}`
+          `<strong>${resolved.name}</strong><br/><span style="font-weight:400;font-size:11px">${valStr}</span>${ciLine}${signalLine}`
         );
       },
       // Read from ref so this always uses the current style function, never a stale closure.
@@ -1843,9 +1994,24 @@ export default function PublicClimateAtlasPage() {
       click: (event) => {
         setSelectedWard(null);
         setSelectedLgaFeature(feature);
+        trackLgaSelected(feature);
         event.target.bringToFront?.();
       },
     });
+  }
+
+  // Used by hotspot marker clicks and the "Inspect" priority-list action —
+  // selects the same feature a polygon click would, without adding a second map.
+  function selectLgaFeature(feature) {
+    setSelectedWard(null);
+    setSelectedLgaFeature(feature);
+    trackLgaSelected(feature);
+  }
+
+  function selectLgaByName(adminName) {
+    const key = normalizeName(adminName);
+    const feature = lgaGeoJson?.features?.find((item) => normalizeName(getFeatureName(item)) === key);
+    if (feature) selectLgaFeature(feature);
   }
 
   function onEachWardFeature(feature, layer) {
@@ -1872,6 +2038,7 @@ export default function PublicClimateAtlasPage() {
 
   return (
     <main className="flex h-screen flex-col overflow-hidden bg-white font-['DM_Sans'] text-[#030454]">
+      <ClimateActionHotspotStyles />
       <style>{`
         .kccc-atlas-lga-tooltip {
           background: rgba(3, 4, 84, 0.92);
@@ -1910,12 +2077,32 @@ export default function PublicClimateAtlasPage() {
           text-shadow: 0 1px 3px white, 0 1px 8px white;
           white-space: nowrap;
         }
+        /* Legend mini-samples — mirror the actual hotspot/beacon CSS in
+           ClimateActionHotspot.jsx so the legend visually matches the map. */
+        .kccc-legend-sample { position: relative; display: inline-flex; width: 16px; height: 16px; align-items: center; justify-content: center; }
+        .kccc-legend-dot { position: absolute; width: 9px; height: 9px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.9); }
+        .kccc-legend-ring {
+          position: absolute; width: 14px; height: 14px; border-radius: 50%;
+          border: 2px solid #dc2626; opacity: 0.7;
+          animation: kccc-legend-ring-pulse 2s ease-out infinite;
+        }
+        @keyframes kccc-legend-ring-pulse {
+          0% { transform: scale(0.55); opacity: 0.7; }
+          100% { transform: scale(1.5); opacity: 0; }
+        }
+        .kccc-legend-halo {
+          position: absolute; width: 13px; height: 13px; border-radius: 50%;
+          background: rgba(234,179,8,0.28); border: 1px solid rgba(234,179,8,0.6);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .kccc-legend-ring { animation: none; transform: scale(1); opacity: 0.55; }
+        }
       `}</style>
 
       <header className={`flex h-12 shrink-0 items-center justify-between border-b border-[#E6EAEC] bg-white px-5${isExportMode ? " hidden" : ""}`}>
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-[#030454] text-xs font-black text-white">KS</div>
-          <h1 className="text-sm font-black">Kaduna Interactive Climate Atlas - KCCC</h1>
+          <h1 className="text-sm font-black">Kaduna Climate Change Intelligence System - KCCC</h1>
         </div>
 
         <div className="text-center text-sm font-black text-[#030454]">
@@ -1932,8 +2119,12 @@ export default function PublicClimateAtlasPage() {
 
         <div className="flex items-center gap-2">
           <a href="/public/climate-risk" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">&lt; Back to Climate Intelligence</a>
-          <a href="/public/reports" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">Reports</a>
-          <a href="/public/projects" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">Projects</a>
+          {!isMilestoneOneDemo && (
+            <>
+              <a href="/public/reports" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">Reports</a>
+              <a href="/public/projects" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">Projects</a>
+            </>
+          )}
           <span className="rounded-full bg-[#009B35]/10 px-3 py-1 text-xs font-black text-[#009B35]">
             Database-backed climate data
           </span>
@@ -1955,7 +2146,7 @@ export default function PublicClimateAtlasPage() {
           {sidebarOpen && (
             <>
               <div className="shrink-0 border-b border-[#E6EAEC] px-5 py-5">
-                <h2 className="text-lg font-black text-[#8A0028]">KCCC Climate Atlas</h2>
+                <h2 className="text-lg font-black text-[#8A0028]">KCCC Climate Change Intelligence System</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-600">Select climate variables and view Kaduna LGA-level map intelligence.</p>
               </div>
 
@@ -2079,18 +2270,7 @@ export default function PublicClimateAtlasPage() {
                         )}
                       </div>
                     )
-                  ) : (
-                    (() => {
-                      const planned = [
-                        ...(!INTERNAL_FLOOD_PREVIEW_PARAM ? ["flood hazard"] : []),
-                      ];
-                      return planned.length > 0 ? (
-                        <p className="text-[10px] leading-5 text-slate-400">
-                          Planned indicators: {planned.join(" and ")}.
-                        </p>
-                      ) : null;
-                    })()
-                  )}
+                  ) : null}
                   {variable.key !== "annual_lulc" && variableConfig?.scientificCaution && (
                     <p className="mt-2 text-[10px] leading-4 text-slate-400">
                       {variableConfig.scientificCaution}
@@ -2230,6 +2410,63 @@ export default function PublicClimateAtlasPage() {
                     className="w-full accent-[#1d9e75]"
                   />
                 </div>
+
+                <div className="border-t-2 border-[#173B91]/10 bg-[#F7F9FA] px-5 py-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#173B91]">Urgent Climate Action Signal</p>
+                    <span className="rounded-full border border-[#173B91]/20 bg-white px-2 py-0.5 text-[8px] font-bold text-[#173B91]">IPCC-aligned</span>
+                  </div>
+                  <p className="mt-1.5 text-[10px] leading-4 text-slate-500">
+                    LGAs highlighted by the convergence of climate hazard evidence, exposure and vulnerability/risk context.
+                  </p>
+                  <div className="mt-3 grid grid-cols-3 gap-1.5 text-center">
+                    <div className="rounded-md border border-red-200 bg-red-50 py-1.5">
+                      <p className="text-sm font-black text-red-700">{signalCounts.urgent}</p>
+                      <p className="text-[8px] font-bold uppercase tracking-[0.05em] text-red-700">Urgent</p>
+                    </div>
+                    <div className="rounded-md border border-orange-200 bg-orange-50 py-1.5">
+                      <p className="text-sm font-black text-orange-700">{signalCounts.elevated}</p>
+                      <p className="text-[8px] font-bold uppercase tracking-[0.05em] text-orange-700">Elevated</p>
+                    </div>
+                    <div className="rounded-md border border-yellow-200 bg-yellow-50 py-1.5">
+                      <p className="text-sm font-black text-yellow-700">{signalCounts.monitor}</p>
+                      <p className="text-[8px] font-bold uppercase tracking-[0.05em] text-yellow-700">Monitor</p>
+                    </div>
+                  </div>
+
+                  {topFlaggedSignals.length > 0 && (
+                    <div className="mt-3 space-y-1.5 border-t border-[#E6EAEC] pt-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">Areas Requiring Attention</p>
+                      {topFlaggedSignals.map((signal) => (
+                        <div
+                          key={signal.admin_code || signal.admin_name}
+                          className="flex items-center justify-between gap-2 rounded-md border border-[#E6EAEC] bg-white px-2.5 py-1.5"
+                        >
+                          <div className="min-w-0">
+                            <p className="truncate text-[11px] font-black text-[#030454]">{signal.admin_name}</p>
+                            <p className="truncate text-[9px] text-slate-500">
+                              {signal.dominant_concern || "Environmental stress evidence"}
+                            </p>
+                          </div>
+                          <span className={`shrink-0 rounded-full border px-1.5 py-0.5 text-[8px] font-black uppercase ${SIGNAL_VISUAL[signal.signal_level].badgeClass}`}>
+                            {SIGNAL_LABEL[signal.signal_level]}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => selectLgaByName(signal.admin_name)}
+                            className="shrink-0 text-[9px] font-black uppercase text-[#009B35] hover:underline"
+                          >
+                            Inspect
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <p className="mt-3 text-[9px] leading-3 text-slate-400" title={CLIMATE_ACTION_METHODOLOGY_NOTE}>
+                    {CLIMATE_ACTION_METHODOLOGY_NOTE}
+                  </p>
+                </div>
               </div>
 
               {variable.key === "elevation" && elevationDisplayMode === "terrain_detail" && (
@@ -2299,10 +2536,10 @@ export default function PublicClimateAtlasPage() {
                       ×
                     </button>
                   </div>
-                  {/* Climate indicators summary */}
+                  {/* Environmental indicators summary */}
                   <div className="border-t border-[#E6EAEC] pt-2">
                     <div className="mb-1.5 flex items-center justify-between">
-                      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Climate indicators</p>
+                      <p className="text-[9px] font-black uppercase tracking-[0.14em] text-slate-400">Environmental indicators</p>
                       <span className="text-[8px] font-bold text-slate-300">Rule-based</span>
                     </div>
                     <CICardBody ciItem={selectedLgaCiItem} ciLoading={ciLoading} showLulc={isLulcAvailable} />
@@ -2458,6 +2695,7 @@ export default function PublicClimateAtlasPage() {
                 )}
 
                 <FitBounds geoJson={stateGeoJson || lgaGeoJson} />
+                <FlyToSelectedLga feature={selectedLgaFeature} />
 
                 <GeoJSON
                   key={`lga-${config.variableKey}-${config.year}-${config.season}-${config.opacity}-${profiles.length}-${remoteStats.length}-${lulcData?.results?.length ?? 0}-${lulcTileUrl ? "tile" : "no-tile"}-${lulcDisplayMode}-${floodOccurrenceData?.results?.length ?? 0}-${elevationData?.results?.length ?? 0}-${elevationDisplayMode}`}
@@ -2465,6 +2703,20 @@ export default function PublicClimateAtlasPage() {
                   style={styleLgaFeature}
                   onEachFeature={onEachLgaFeature}
                 />
+
+                {/* Urgent Climate Action Signal overlay — drawn above the
+                    environmental choropleth, never replacing it. Suppressed in
+                    raster-overlay modes (LULC / terrain detail) where the base
+                    layer itself goes transparent for the GEE raster. */}
+                {!(variable.key === "annual_lulc" || (variable.key === "elevation" && elevationDisplayMode === "terrain_detail")) && (
+                  <ClimateActionSignalOverlay
+                    lgaGeoJson={lgaGeoJson}
+                    getSignalForFeature={getSignalForFeature}
+                    onSelectFeature={selectLgaFeature}
+                    dataVersion={profiles.length + Object.keys(ciLookup).length}
+                    selectedAdminName={selectedLga?.signal?.admin_name || null}
+                  />
+                )}
 
                 {stateGeoJson && (
                   <GeoJSON key="state-boundary" data={stateGeoJson} style={styleStateBoundary} />
@@ -2615,6 +2867,54 @@ export default function PublicClimateAtlasPage() {
                     </div>
                   </>
                 )}
+              </div>
+
+              <div className="absolute bottom-24 right-20 z-[900] hidden w-[228px] rounded-md border border-[#D8DDE2] bg-white p-3 shadow-lg sm:block">
+                <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#173B91]">Urgent Climate Action Signal</p>
+                <div className="mt-2 space-y-2 text-[11px]">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 text-slate-600">
+                      <span className="kccc-legend-sample kccc-legend-sample-urgent" aria-hidden="true">
+                        <span className="kccc-legend-ring" />
+                        <span className="kccc-legend-dot" style={{ backgroundColor: "#dc2626" }} />
+                      </span>
+                      Urgent Action
+                    </span>
+                    <strong className="text-[#030454]">{signalCounts.urgent} LGAs</strong>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 text-slate-600">
+                      <span className="kccc-legend-sample kccc-legend-sample-elevated" aria-hidden="true">
+                        <span className="kccc-legend-ring" style={{ borderColor: "#f97316" }} />
+                        <span className="kccc-legend-dot" style={{ backgroundColor: "#f97316", width: 7, height: 7 }} />
+                      </span>
+                      Elevated Attention
+                    </span>
+                    <strong className="text-[#030454]">{signalCounts.elevated} LGAs</strong>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 text-slate-600">
+                      <span className="kccc-legend-sample" aria-hidden="true">
+                        <span className="kccc-legend-halo" />
+                        <span className="kccc-legend-dot" style={{ backgroundColor: "#eab308", width: 5, height: 5 }} />
+                      </span>
+                      Monitor
+                    </span>
+                    <strong className="text-[#030454]">{signalCounts.monitor} LGAs</strong>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 text-slate-600">
+                      <span className="kccc-legend-sample" aria-hidden="true">
+                        <span className="kccc-legend-dot" style={{ backgroundColor: "#94a3b8", width: 5, height: 5 }} />
+                      </span>
+                      Insufficient Data
+                    </span>
+                    <strong className="text-[#030454]">{signalCounts.insufficient} LGAs</strong>
+                  </div>
+                </div>
+                <p className="mt-2 border-t border-[#E6EAEC] pt-2 text-[9px] leading-3 text-slate-400">
+                  Animated signals indicate areas requiring priority review.
+                </p>
               </div>
 
               {!isExportMode && (
@@ -3059,6 +3359,84 @@ export default function PublicClimateAtlasPage() {
                     </>
                   )}
                 </div>
+                {selectedLga.signal && (
+                  <div className="mt-3 border-t border-[#E6EAEC] pt-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#173B91]">Urgent Climate Action Signal</p>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] ${SIGNAL_VISUAL[selectedLga.signal.signal_level].badgeClass}`}
+                      >
+                        {selectedLga.signal.signal_label}
+                      </span>
+                    </div>
+                    <p className="text-[10px] font-bold text-slate-500">{selectedLga.signal.explanation.risk_context}</p>
+
+                    {selectedLga.signal.explanation.hazard_lines.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">Hazard evidence</p>
+                        {selectedLga.signal.explanation.hazard_lines.map((line) => (
+                          <p key={line} className="text-[10px] text-slate-600">{line}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedLga.signal.explanation.stress_lines.length > 0 && (
+                      <div className="mt-2">
+                        <p className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">Environmental stress evidence</p>
+                        {selectedLga.signal.explanation.stress_lines.map((line) => (
+                          <p key={line} className="text-[10px] text-slate-600">{line}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    <div className="mt-2">
+                      <p className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">Exposure</p>
+                      {selectedLga.signal.explanation.exposure_lines.map((line) => (
+                        <p key={line} className="text-[10px] text-slate-600">{line}</p>
+                      ))}
+                    </div>
+
+                    <div className="mt-2">
+                      <p className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">Vulnerability / existing risk context</p>
+                      {selectedLga.signal.explanation.vulnerability_lines.map((line) => (
+                        <p key={line} className="text-[10px] text-slate-600">{line}</p>
+                      ))}
+                    </div>
+
+                    {(() => {
+                      const driverLabels = { spi: "Meteorological drought", lst: "High land-surface temperature", rainfall_anomaly: "Rainfall deficit", ndvi: "Vegetation stress" };
+                      const drivers = selectedLga.signal.hazard_evidence
+                        .filter((e) => e.adverse)
+                        .map((e) => driverLabels[e.key])
+                        .filter(Boolean);
+                      if (selectedLga.signal.exposure_evidence.length > 0) drivers.push("Population exposure");
+                      if (!drivers.length) return null;
+                      return (
+                        <div className="mt-2">
+                          <p className="text-[9px] font-black uppercase tracking-[0.1em] text-slate-400">Current Drivers</p>
+                          <ul className="mt-1 list-disc pl-4 text-[10px] text-slate-600">
+                            {drivers.map((driver) => <li key={driver}>{driver}</li>)}
+                          </ul>
+                        </div>
+                      );
+                    })()}
+
+                    <p className="mt-2 text-[9px] font-bold text-slate-400">Evidence completeness: {selectedLga.signal.evidence_completeness}</p>
+                    <p className="mt-2 text-[10px] italic leading-4 text-slate-500">{selectedLga.signal.explanation.interpretation}</p>
+
+                    <button
+                      type="button"
+                      onClick={() => setCiBriefOpen(true)}
+                      className="mt-2 w-full rounded-md border border-[#D8DDE2] bg-white px-3 py-1.5 text-[10px] font-bold text-[#173B91] hover:border-[#173B91] hover:bg-[#EEF1FD]"
+                    >
+                      Explore Environmental Layers
+                    </button>
+
+                    <p className="mt-2 text-[8px] leading-3 text-slate-400" title={CLIMATE_ACTION_METHODOLOGY_NOTE}>
+                      {CLIMATE_ACTION_METHODOLOGY_NOTE}
+                    </p>
+                  </div>
+                )}
                 {(selectedLgaCiItem || ciLoading) && (
                   <div className="mt-3 border-t border-[#E6EAEC] pt-3">
                     <div className="mb-2 flex items-center justify-between">
@@ -3208,5 +3586,3 @@ export default function PublicClimateAtlasPage() {
     </main>
   );
 }
-
-

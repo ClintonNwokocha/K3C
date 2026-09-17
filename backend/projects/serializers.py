@@ -54,6 +54,7 @@ class ClimateProjectSerializer(serializers.ModelSerializer):
             "expected_beneficiaries",
             "start_date",
             "end_date",
+            "external_link",
             "climate_risk_relevance",
             "location_notes",
             "created_by",
@@ -109,6 +110,7 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
             "expected_beneficiaries",
             "start_date",
             "end_date",
+            "external_link",
             "climate_risk_relevance",
             "location_notes",
             "is_active",
@@ -170,6 +172,11 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
             )
 
         return value
+
+    def validate_external_link(self, value):
+        value = str(value or "").strip()
+
+        return value or None
 
     def validate_public_summary(self, value):
         value = str(value or "").strip()

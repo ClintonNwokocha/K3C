@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Activity,
   ArrowRight,
@@ -131,10 +132,49 @@ function FocusItem({ icon: Icon, title, description, tone = "blue" }) {
   );
 }
 
+const EXECUTIVE_TABS = [
+  { key: "overview", label: "Overview" },
+  { key: "climate", label: "Climate Intelligence" },
+  { key: "ghg", label: "GHG Inventory" },
+  { key: "projectsReports", label: "Projects & Reports" },
+];
+
+function ExecutiveTabBar({ activeTab, onSelect }) {
+  return (
+    <div
+      role="tablist"
+      aria-label="Executive Dashboard sections"
+      className="flex flex-wrap gap-2 rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm sm:flex-nowrap sm:overflow-x-auto"
+    >
+      {EXECUTIVE_TABS.map((tab) => {
+        const isActive = activeTab === tab.key;
+
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onSelect(tab.key)}
+            className={`shrink-0 rounded-lg px-4 py-2.5 text-xs font-black uppercase tracking-[0.08em] transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35] focus-visible:ring-offset-2 ${
+              isActive
+                ? "bg-[#030454] text-white shadow-sm"
+                : "bg-transparent text-[#030454] hover:bg-[#030454]/6"
+            }`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function Dashboard({ foundation, ghgSummary, currentUser, onPageChange }) {
   const role = currentUser?.profile?.role || "viewer";
   const { data: dashboardData, loading: dashboardLoading, errors: dashboardErrors } =
     useExecutiveDashboardData();
+  const [activeExecutiveTab, setActiveExecutiveTab] = useState("overview");
 
   function navigateTo(pageKey) {
     if (typeof onPageChange === "function") {
@@ -178,124 +218,17 @@ export default function Dashboard({ foundation, ghgSummary, currentUser, onPageC
             </p>
 
             <p className="mt-1 text-sm text-slate-500">
-              {currentUser?.username || "Current user"}
+              Username: {currentUser?.username || "Current user"}
             </p>
-
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <button
-                type="button"
-                onClick={() => {
-                  window.location.href = "/public";
-                }}
-                className="rounded-md border border-[#030454] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:bg-[#030454] hover:text-white"
-              >
-                Public Portal
-              </button>
-
-              <button
-                type="button"
-                onClick={() => navigateTo("reports")}
-                className="rounded-md bg-[#009B35] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
-              >
-                Reports Centre
-              </button>
-            </div>
           </div>
         </div>
       </section>
 
-      <DashboardCommandMetricsRow
-        risk={dashboardData.risk}
-        projects={dashboardData.projects}
-        reports={dashboardData.reports}
-        ghgSummary={ghgSummary}
-        loading={dashboardLoading}
-        errors={dashboardErrors}
-      />
+      <ExecutiveTabBar activeTab={activeExecutiveTab} onSelect={setActiveExecutiveTab} />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <SectionHeader
-          title="Move quickly into the active work areas"
-          description="Use these module cards to move from overview to operational work."
-        />
-
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-          <ModuleCard
-            icon={CloudSun}
-            title="Climate Intelligence"
-            description="Review LGA Climate Intelligence scores, maps, raw parameter records and scoring outputs."
-            actionLabel="Open risk module"
-            tone="green"
-            onClick={() => navigateTo("risk")}
-          />
-
-          <ModuleCard
-            icon={Leaf}
-            title="GHG Inventory"
-            description="Manage emissions activity data and sector inventory workflows for reporting."
-            actionLabel="Open GHG module"
-            tone="blue"
-            onClick={() => navigateTo("ghg")}
-          />
-
-          <ModuleCard
-            icon={FolderKanban}
-            title="Project Portfolio"
-            description="Track climate projects, budgets, beneficiaries, GHG reduction and status."
-            actionLabel="Open projects"
-            tone="yellow"
-            onClick={() => navigateTo("projects")}
-          />
-
-          <ModuleCard
-            icon={FileText}
-            title="Reports Centre"
-            description="Store, review, publish and export climate reports and public-facing documents."
-            actionLabel="Open reports"
-            tone="blue"
-            onClick={() => navigateTo("reports")}
-          />
-        </div>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <SectionHeader
-            title="What leadership should answer quickly"
-            description="A command dashboard should immediately connect risk, action, evidence and accountability."
-          />
-
-          <div className="space-y-4">
-            <FocusItem
-              icon={Globe2}
-              title="Where are the highest Climate Intelligences?"
-              description="Use LGA risk maps and scores to identify priority locations and risk drivers."
-              tone="green"
-            />
-
-            <FocusItem
-              icon={Activity}
-              title="What actions are responding to those risks?"
-              description="Track climate projects by LGA, sector, budget, beneficiaries and mitigation outcome."
-              tone="yellow"
-            />
-
-            <FocusItem
-              icon={Database}
-              title="What evidence supports decisions?"
-              description="Maintain reports, imports, audit logs and data provenance for accountability."
-              tone="blue"
-            />
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <SectionHeader
-            title="Recent climate intelligence and action"
-            description="Signals decision-makers should see first — highest-risk LGAs, the latest emissions position, and the newest projects and reports."
-          />
-
-          <DashboardRecentInsights
+      {activeExecutiveTab === "overview" && (
+        <>
+          <DashboardCommandMetricsRow
             risk={dashboardData.risk}
             projects={dashboardData.projects}
             reports={dashboardData.reports}
@@ -303,50 +236,151 @@ export default function Dashboard({ foundation, ghgSummary, currentUser, onPageC
             loading={dashboardLoading}
             errors={dashboardErrors}
           />
-        </div>
-      </section>
 
-      <DashboardClimateAtlasDatasets
-        layers={dashboardData.layers}
-        loading={dashboardLoading}
-        error={dashboardErrors.layers}
-      />
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <SectionHeader
+              title="Move quickly into the active work areas"
+              description="Use these module cards to move from overview to operational work."
+            />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <SectionHeader
-          title="Executive Climate Intelligence summary"
-          description="Leadership-level view of LGA Climate Intelligence scores, highest-risk LGAs and adaptation signals."
-        />
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+              <ModuleCard
+                icon={CloudSun}
+                title="Climate Intelligence"
+                description="Review LGA Climate Intelligence scores, maps, raw parameter records and scoring outputs."
+                actionLabel="Open risk module"
+                tone="green"
+                onClick={() => navigateTo("risk")}
+              />
 
-        <ExecutiveClimateRiskSummary />
-      </section>
+              <ModuleCard
+                icon={Leaf}
+                title="GHG Inventory"
+                description="Manage emissions activity data and sector inventory workflows for reporting."
+                actionLabel="Open GHG module"
+                tone="blue"
+                onClick={() => navigateTo("ghg")}
+              />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <SectionHeader
-          title="GHG inventory executive summary"
-          description="Cross-sector emissions totals, review-queue status and NDC implemented-progress preview."
-        />
+              <ModuleCard
+                icon={FolderKanban}
+                title="Project Portfolio"
+                description="Track climate projects, budgets, beneficiaries, GHG reduction and status."
+                actionLabel="Open projects"
+                tone="yellow"
+                onClick={() => navigateTo("projects")}
+              />
 
-        <ExecutiveGHGInventorySummary ghgSummary={ghgSummary} />
-      </section>
+              <ModuleCard
+                icon={FileText}
+                title="Reports Centre"
+                description="Store, review, publish and export climate reports and public-facing documents."
+                actionLabel="Open reports"
+                tone="blue"
+                onClick={() => navigateTo("reports")}
+              />
+            </div>
+          </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <SectionHeader
-          title="Climate action and investment summary"
-          description="Track project counts, budgets, expected beneficiaries, mitigation outcomes and implementation gaps."
-        />
+          <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <SectionHeader
+                title="What leadership should answer quickly"
+                description="A command dashboard should immediately connect risk, action, evidence and accountability."
+              />
 
-        <ExecutiveProjectPortfolioSummary />
-      </section>
+              <div className="space-y-4">
+                <FocusItem
+                  icon={Globe2}
+                  title="Where are the highest Climate Intelligences?"
+                  description="Use LGA risk maps and scores to identify priority locations and risk drivers."
+                  tone="green"
+                />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <SectionHeader
-          title="Reports centre executive summary"
-          description="Review publication status, report queue and recent documents from the Reports Centre."
-        />
+                <FocusItem
+                  icon={Activity}
+                  title="What actions are responding to those risks?"
+                  description="Track climate projects by LGA, sector, budget, beneficiaries and mitigation outcome."
+                  tone="yellow"
+                />
 
-        <ExecutiveReportsSummary />
-      </section>
+                <FocusItem
+                  icon={Database}
+                  title="What evidence supports decisions?"
+                  description="Maintain reports, imports, audit logs and data provenance for accountability."
+                  tone="blue"
+                />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <SectionHeader
+                title="Recent climate intelligence and action"
+                description="Signals decision-makers should see first — highest-risk LGAs, the latest emissions position, and the newest projects and reports."
+              />
+
+              <DashboardRecentInsights
+                risk={dashboardData.risk}
+                projects={dashboardData.projects}
+                reports={dashboardData.reports}
+                ghgSummary={ghgSummary}
+                loading={dashboardLoading}
+                errors={dashboardErrors}
+              />
+            </div>
+          </section>
+
+          <DashboardClimateAtlasDatasets
+            layers={dashboardData.layers}
+            loading={dashboardLoading}
+            error={dashboardErrors.layers}
+          />
+        </>
+      )}
+
+      {activeExecutiveTab === "climate" && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <SectionHeader
+            title="Executive Climate Intelligence summary"
+            description="Leadership-level view of LGA Climate Intelligence scores, highest-risk LGAs and adaptation signals."
+          />
+
+          <ExecutiveClimateRiskSummary />
+        </section>
+      )}
+
+      {activeExecutiveTab === "ghg" && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <SectionHeader
+            title="GHG inventory executive summary"
+            description="Cross-sector emissions totals, review-queue status and NDC implemented-progress preview."
+          />
+
+          <ExecutiveGHGInventorySummary ghgSummary={ghgSummary} />
+        </section>
+      )}
+
+      {activeExecutiveTab === "projectsReports" && (
+        <>
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <SectionHeader
+              title="Climate action and investment summary"
+              description="Track project counts, budgets, expected beneficiaries, mitigation outcomes and implementation gaps."
+            />
+
+            <ExecutiveProjectPortfolioSummary />
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <SectionHeader
+              title="Reports centre executive summary"
+              description="Review publication status, report queue and recent documents from the Reports Centre."
+            />
+
+            <ExecutiveReportsSummary />
+          </section>
+        </>
+      )}
     </div>
   );
 }

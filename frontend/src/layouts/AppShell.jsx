@@ -31,7 +31,7 @@ const navItems = [
   },
   {
     key: "risk",
-    name: "Climate Intelligence Map",
+    name: "Climate Intelligence",
     description: "LGA risk intelligence",
     icon: CloudSun,
     allowedRoles: [
@@ -156,7 +156,7 @@ export default function AppShell({
           mobileNavOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        <div className="border-b border-white/10 px-5 py-6">
+        <div className="border-b border-white/10 px-5 py-4">
           <div className="flex items-start justify-between gap-3">
             <button
               type="button"
@@ -174,26 +174,26 @@ export default function AppShell({
             <button
               type="button"
               onClick={() => setMobileNavOpen(false)}
-              className="shrink-0 rounded-lg p-1.5 text-white/60 hover:bg-white/10 hover:text-white lg:hidden"
+              className="shrink-0 rounded-lg p-1.5 text-white/60 transition-colors duration-200 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#030454] lg:hidden"
               aria-label="Close navigation menu"
             >
               <X size={20} />
             </button>
           </div>
 
-          <div className="mt-5 rounded-xl border border-white/10 bg-white/5 p-4">
+          <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F3F74B]">
               Internal Command System
             </p>
 
-            <p className="mt-2 text-sm leading-6 text-white/65">
+            <p className="mt-1.5 text-xs leading-5 text-white/65">
               Climate Intelligence, GHG inventory, project tracking, reports and
               audit-ready evidence.
             </p>
           </div>
         </div>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto px-4 py-5">
+        <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-3">
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = activePage === item.key;
@@ -203,20 +203,21 @@ export default function AppShell({
                 key={item.key}
                 type="button"
                 onClick={() => handleNavigate(item.key)}
-                className={`group flex w-full items-start gap-3 rounded-xl px-4 py-3 text-left transition ${
+                aria-current={isActive ? "page" : undefined}
+                className={`group flex w-full items-start gap-3 rounded-xl px-4 py-2 text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#030454] ${
                   isActive
                     ? "bg-[#F3F74B] text-[#030454]"
                     : "text-white/65 hover:bg-white/10 hover:text-white"
                 }`}
               >
                 <span
-                  className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition ${
+                  className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${
                     isActive
                       ? "bg-[#009B35] text-white"
                       : "bg-white/5 text-white/50 group-hover:bg-white/10 group-hover:text-white"
                   }`}
                 >
-                  <Icon size={18} />
+                  <Icon size={16} />
                 </span>
 
                 <span>
@@ -235,8 +236,8 @@ export default function AppShell({
           })}
         </nav>
 
-        <div className="border-t border-white/10 p-4">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="border-t border-white/10 p-3">
+          <div className="rounded-xl border border-white/10 bg-white/5 p-3">
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">
               Current Role
             </p>
@@ -253,7 +254,7 @@ export default function AppShell({
             onClick={() => {
               window.location.href = "/public";
             }}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-white/70 transition hover:border-[#F3F74B]/70 hover:text-white"
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-white/70 transition-colors duration-200 hover:border-[#F3F74B]/70 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#030454]"
           >
             <ExternalLink size={14} />
             Public Portal
@@ -267,7 +268,7 @@ export default function AppShell({
             <button
               type="button"
               onClick={() => setMobileNavOpen(true)}
-              className="shrink-0 rounded-lg border border-slate-200 p-2 text-[#030454] hover:border-[#009B35] hover:text-[#009B35] lg:hidden"
+              className="shrink-0 rounded-lg border border-slate-200 p-2 text-[#030454] transition-colors duration-200 hover:border-[#009B35] hover:text-[#009B35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35] focus-visible:ring-offset-2 lg:hidden"
               aria-label="Open navigation menu"
               aria-expanded={mobileNavOpen}
               aria-controls="app-shell-nav"
@@ -298,7 +299,7 @@ export default function AppShell({
             <button
               type="button"
               onClick={onLogout}
-              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
+              className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-[#030454] transition-colors duration-200 hover:border-[#009B35] hover:bg-[#009B35]/5 hover:text-[#009B35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35] focus-visible:ring-offset-2"
             >
               <LogOut size={16} />
               Logout

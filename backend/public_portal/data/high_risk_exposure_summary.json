@@ -1,0 +1,136 @@
+{
+  "method_version": "gee_high_risk_lga_context_v1",
+  "methodology_version": "1.0",
+  "generated_at": "2026-07-20",
+  "computation_date": "2026-07-20",
+  "cache_ttl_days": 90,
+  "risk_year": 2025,
+  "risk_lgas": [
+    "Birnin Gwari",
+    "Kachia",
+    "Kaduna North",
+    "Kauru",
+    "Zangon Kataf",
+    "Zaria"
+  ],
+  "risk_profile_year": 2025,
+  "boundary_source": "frontend/public/data/kaduna_lga.geojson",
+  "population": {
+    "label": "Estimated People in High-Risk LGAs",
+    "dataset_id": "WorldPop/GP/100m/pop",
+    "dataset_version": "WorldPop GP 100m Nigeria annual population",
+    "source_year": 2020,
+    "scale_m": 100,
+    "reducer": "ee.Reducer.sum via reduceRegions",
+    "tile_scale": 8,
+    "total": 2452399,
+    "breakdown": [
+      {
+        "lga_name": "Kachia",
+        "lgacode": "19008",
+        "estimated_people": 339156
+      },
+      {
+        "lga_name": "Zangon Kataf",
+        "lgacode": "19022",
+        "estimated_people": 320785
+      },
+      {
+        "lga_name": "Kaduna North",
+        "lgacode": "19009",
+        "estimated_people": 488268
+      },
+      {
+        "lga_name": "Kauru",
+        "lgacode": "19014",
+        "estimated_people": 338889
+      },
+      {
+        "lga_name": "Birnin Gwari",
+        "lgacode": "19001",
+        "estimated_people": 355348
+      },
+      {
+        "lga_name": "Zaria",
+        "lgacode": "19023",
+        "estimated_people": 609953
+      }
+    ],
+    "note": "Administrative-area estimate based on gridded population within LGAs currently classified High or Very High. It is not a hazard-footprint exposure estimate."
+  },
+  "buildings": {
+    "label": "Mapped Buildings in High-Risk LGAs",
+    "dataset_id": "GOOGLE/Research/open-buildings/v3/polygons",
+    "dataset_version": "Open Buildings v3 polygons",
+    "confidence_threshold": 0.75,
+    "filter": "confidence >= 0.75 and filterBounds(LGA geometry)",
+    "area_field": "area_in_meters",
+    "total": 526125,
+    "total_footprint_area_m2": 47519607.61473088,
+    "breakdown": [
+      {
+        "lga_name": "Kachia",
+        "lgacode": "19008",
+        "mapped_buildings": 76581,
+        "building_footprint_area_m2": 5562873.725534328
+      },
+      {
+        "lga_name": "Zangon Kataf",
+        "lgacode": "19022",
+        "mapped_buildings": 75324,
+        "building_footprint_area_m2": 6108416.3273554575
+      },
+      {
+        "lga_name": "Kaduna North",
+        "lgacode": "19009",
+        "mapped_buildings": 92401,
+        "building_footprint_area_m2": 13299751.606120339
+      },
+      {
+        "lga_name": "Kauru",
+        "lgacode": "19014",
+        "mapped_buildings": 71113,
+        "building_footprint_area_m2": 4966029.9726169
+      },
+      {
+        "lga_name": "Birnin Gwari",
+        "lgacode": "19001",
+        "mapped_buildings": 75339,
+        "building_footprint_area_m2": 4744949.051230669
+      },
+      {
+        "lga_name": "Zaria",
+        "lgacode": "19023",
+        "mapped_buildings": 135367,
+        "building_footprint_area_m2": 12837586.931873191
+      }
+    ],
+    "note": "Open Buildings identifies building footprints but does not classify facility function. Hospitals, schools, water, power and emergency assets require a classified infrastructure inventory."
+  },
+  "flood": {
+    "label": "Flood Exposure",
+    "generated_at": "2026-07-21",
+    "computation_date": "2026-07-21",
+    "source": "JRC Global Surface Water v1.4 occurrence band",
+    "dataset_id": "JRC/GSW1_4/GlobalSurfaceWater",
+    "dataset_version": "JRC GSW v1.4",
+    "band": "occurrence",
+    "observation_period": "1984-2021",
+    "risk_year": 2021,
+    "flood_occurrence_threshold_pct": 10,
+    "mask_definition": "JRC occurrence > 10%",
+    "population_dataset_id": "WorldPop/GP/100m/pop",
+    "population_source_year": 2020,
+    "population_scale_m": 100,
+    "population_reducer": "ee.Reducer.sum over WorldPop masked by JRC occurrence > 10%",
+    "building_dataset_id": "GOOGLE/Research/open-buildings/v3/polygons",
+    "building_confidence_threshold": 0.75,
+    "building_method": "Pending cached aggregate generation. Attempted Open Buildings centroid and footprint-mask aggregation timed out in the local GEE session.",
+    "population_exposed": 37805,
+    "mapped_structures_exposed": null,
+    "building_area_exposed_m2": null,
+    "status": "partial",
+    "note": "Historical surface-water occurrence footprint exposure. This is not a real-time flood alert or a formal flood hazard score."
+  },
+  "missing_lgas": []
+}

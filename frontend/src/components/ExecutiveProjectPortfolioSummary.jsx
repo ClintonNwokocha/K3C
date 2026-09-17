@@ -53,7 +53,7 @@ function StatCard({ label, value, helper, tone = "blue" }) {
         {label}
       </p>
 
-      <h3 className="mt-3 text-3xl font-black text-[#030454]">{value}</h3>
+      <h3 className="kccc-kpi-value mt-3 text-3xl font-black text-[#030454]">{value}</h3>
 
       <p className="mt-2 text-sm leading-6 text-slate-500">{helper}</p>
     </div>

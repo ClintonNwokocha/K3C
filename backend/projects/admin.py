@@ -63,6 +63,7 @@ class ClimateProjectAdmin(admin.ModelAdmin):
                     "latitude",
                     "longitude",
                     "project_image",
+                    "external_link",
                     "public_summary",
                     "public_description",
                 ),

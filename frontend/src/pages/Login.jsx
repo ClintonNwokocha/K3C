@@ -1,6 +1,11 @@
 import { useState } from "react";
 import { ArrowRight, Globe2, Lock, User } from "lucide-react";
 import OfficialLogo from "../components/OfficialLogo";
+import { isMilestoneOneDemo } from "../config/demoMode";
+import {
+  PublicNavyButton,
+  PublicSecondaryButton,
+} from "../components/PublicPortalChrome";
 
 export default function Login({ onLogin, error }) {
   const [username, setUsername] = useState("");
@@ -168,29 +173,33 @@ export default function Login({ onLogin, error }) {
 
               <div className="mt-6 rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <p className="text-xs leading-6 text-slate-600">
-                  The public transparency portal does not require login.
+                  {isMilestoneOneDemo
+                    ? "The public climate portal does not require login."
+                    : "The public transparency portal does not require login."}
                 </p>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <button
-                    type="button"
+                <div
+                  className={`mt-4 grid gap-3 ${isMilestoneOneDemo ? "" : "sm:grid-cols-2"}`}
+                >
+                  <PublicSecondaryButton
                     onClick={() => {
                       window.location.href = "/public";
                     }}
-                    className="rounded-md border border-[#030454] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:bg-[#030454] hover:text-white"
+                    className="border-[#030454] px-4 py-3 text-xs"
                   >
                     Public Home
-                  </button>
+                  </PublicSecondaryButton>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      window.location.href = "/public/reports";
-                    }}
-                    className="rounded-md bg-[#030454] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#02033d]"
-                  >
-                    Public Reports
-                  </button>
+                  {!isMilestoneOneDemo && (
+                    <PublicNavyButton
+                      onClick={() => {
+                        window.location.href = "/public/reports";
+                      }}
+                      className="px-4 py-3 text-xs"
+                    >
+                      Public Reports
+                    </PublicNavyButton>
+                  )}
                 </div>
               </div>
             </form>

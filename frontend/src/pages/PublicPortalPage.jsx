@@ -2,8 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   PublicDataNotice,
   PublicPortalFooter,
+  PublicGreenButton,
+  PublicNavyButton,
+  PublicPrimaryButton,
 } from "../components/PublicPortalChrome";
-import { getPublicPortalSummary, getRemoteSensingLgaStats } from "../services/api";
+import { getPublicPortalSummary } from "../services/api";
+import { isMilestoneOneDemo } from "../config/demoMode";
 
 const partnerLogos = [
   {
@@ -102,13 +106,18 @@ function navigateTo(href) {
 }
 
 function HomeTopNav() {
-  const navItems = [
+  const fullNavItems = [
     { label: "Home", href: "/public", active: true },
     { label: "Climate Intelligence", href: "/public/climate-risk" },
     { label: "GHG Inventory", href: "/public/ghg-inventory" },
     { label: "Projects", href: "/public/projects" },
     { label: "Reports", href: "/public/reports" },
   ];
+  // Milestone 1 demo hides GHG/Projects/Reports from nav only — routes and
+  // components stay intact, see frontend/src/config/demoMode.js.
+  const navItems = isMilestoneOneDemo
+    ? fullNavItems.filter((item) => item.label === "Home" || item.label === "Climate Intelligence")
+    : fullNavItems;
 
   return (
     <header className="border-b border-white/10 bg-[#030454] px-4 py-5 text-white sm:px-8 lg:px-10">
@@ -150,13 +159,12 @@ function HomeTopNav() {
             </button>
           ))}
 
-          <button
-            type="button"
+          <PublicGreenButton
             onClick={() => navigateTo("/login")}
-            className="rounded-md bg-[#009B35] px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] text-white transition hover:bg-[#007d2b]"
+            className="px-4 py-2.5 text-xs focus-visible:ring-offset-[#030454]"
           >
             Staff Login
-          </button>
+          </PublicGreenButton>
         </nav>
       </div>
     </header>
@@ -176,31 +184,106 @@ function HomeHero() {
           </p>
 
           <h1 className="mt-5 max-w-5xl font-['Playfair_Display'] text-[2.65rem] font-bold leading-[0.98] tracking-[-0.05em] text-white sm:text-[3.6rem] lg:text-[4.9rem]">
-            Climate intelligence for public decision support
+            Climate intelligence for decision support
           </h1>
 
           <p className="mt-5 max-w-3xl text-base leading-7 text-white/78 sm:text-lg sm:leading-8">
-            Explore Kaduna State Climate Intelligence, emissions insights, project
-            implementation and approved evidence reports in one public portal.
+            {isMilestoneOneDemo
+             ? "KCCC brings climate and environmental evidence together for Kaduna State, integrating satellite-derived indicators, LGA-level risk context, and climate-action signals covering all 23 LGAs."
+    : "KCCC brings satellite-derived climate data, Climate Intelligence, greenhouse gas information, climate projects, and public evidence for Kaduna State into one portal covering all 23 LGAs."}
           </p>
 
-          <div className="mt-7 flex flex-col gap-4 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => navigateTo("/public/climate-risk")}
-              className="rounded-md bg-[#F3F74B] px-7 py-3.5 text-sm font-black uppercase tracking-[0.13em] text-[#030454] shadow-[0_18px_40px_rgba(243,247,75,0.18)] transition hover:-translate-y-0.5 hover:bg-white"
-            >
-              Explore Climate Intelligence
-            </button>
-
-            <button
-              type="button"
+          <div className="mt-8 flex">
+            <PublicPrimaryButton
               onClick={() => navigateTo("/public/climate-atlas")}
-              className="rounded-md border border-white/25 bg-white/5 px-7 py-3.5 text-sm font-black uppercase tracking-[0.13em] text-white transition hover:-translate-y-0.5 hover:border-white hover:bg-white hover:text-[#030454]"
+              showArrow
+              className="px-7 py-3.5 text-sm tracking-[0.13em] focus-visible:ring-offset-[#030454]"
             >
-              Open Climate Atlas
-            </button>
+              Climate Change Intelligence System
+            </PublicPrimaryButton>
           </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function MilestoneFramingSection() {
+  return (
+    <section className="border-b border-[#D8DDE2] bg-[#F7F9FA] px-4 py-6 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-[1536px]">
+        {/*<p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
+          Milestone 1 — Framework &amp; Architecture Demonstration
+        </p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          Demonstrating the application framework, frontend–backend integration and the
+          first operational climate intelligence module.
+        </p>*/}
+      </div>
+    </section>
+  );
+}
+
+const architecturePreviewCards = [
+  { title: "Climate Intelligence", status: "Operational", href: "/public/climate-risk", tone: "blue" },
+  { title: "GHG Inventory", status: "In development", href: null, tone: "green" },
+  { title: "Projects", status: "In development", href: null, tone: "yellow" },
+  { title: "Reports", status: "In development", href: null, tone: "yellow" },
+];
+
+function ArchitecturePreviewCard({ item }) {
+  const isOperational = item.status === "Operational";
+  const statusToneClass = isOperational
+    ? "border-[#009B35]/30 bg-[#009B35]/10 text-[#007a29]"
+    : "border-[#CAD2D7] bg-[#F7F9FA] text-slate-500";
+
+  return (
+    <article
+      className={`flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-6 shadow-sm ${
+        isOperational ? "" : "opacity-80"
+      }`}
+    >
+      <h3 className="font-['Playfair_Display'] text-xl font-bold text-[#030454]">{item.title}</h3>
+
+      <span
+        className={`mt-3 inline-flex w-fit items-center rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${statusToneClass}`}
+      >
+        {item.status}
+      </span>
+
+      {isOperational && item.href ? (
+        <PublicNavyButton
+          onClick={() => navigateTo(item.href)}
+          showArrow
+          className="mt-6 w-fit px-4 py-2.5"
+        >
+          Explore Climate Intelligence
+        </PublicNavyButton>
+      ) : (
+        <p className="mt-6 text-xs leading-5 text-slate-400">Not yet part of the Milestone 1 demonstration.</p>
+      )}
+    </article>
+  );
+}
+
+function ArchitecturePreviewSection() {
+  return (
+    <section className="bg-white px-4 py-14 sm:px-8 lg:px-10 lg:py-16">
+      <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
+            Platform architecture
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-500">
+            KCCC is being built as a multi-module climate evidence platform. This preview shows
+            the planned modules and their current status.
+          </p>
+        </div>
+
+        <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {architecturePreviewCards.map((item) => (
+            <ArchitecturePreviewCard key={item.title} item={item} />
+          ))}
         </div>
       </div>
     </section>
@@ -226,38 +309,46 @@ function MovingIntelligenceSummary({ summaryData }) {
 
   const summaryItems = [
     {
-      label: "Latest risk year",
+      label: "Latest Assessment Year",
       value: climateRisk.latest_year || "Latest approved",
+      description: "Latest approved Climate Intelligence assessment",
     },
     {
-      label: "LGAs assessed",
+      label: "Assessed LGAs",
       value: formatNumber(climateRisk.total_lgas || 0, 0),
+      description: "Kaduna LGAs with published assessment records",
     },
     {
-      label: "High concern LGAs",
+      label: "High / Very High Risk LGAs",
       value: formatNumber(climateRisk.high_or_very_high_lgas || 0, 0),
+      description: "LGAs requiring closer adaptation attention",
     },
     {
-      label: "Public projects",
+      label: "Public Climate Projects",
       value: formatNumber(projects.total_projects || 0, 0),
+      description: "Approved projects visible on the public portal",
     },
     {
-      label: "Expected beneficiaries",
+      label: "Expected Project Beneficiaries",
       value: formatCompactNumber(projects.total_expected_beneficiaries),
+      description: "Planned beneficiaries reported for public projects",
     },
     {
-      label: "Estimated GHG reduction",
+      label: "Estimated GHG Reduction",
       value: `${formatCompactNumber(
         projects.total_expected_ghg_reduction_tco2e
       )} tCO₂e`,
+      description: "Expected reductions from public project records",
     },
     {
-      label: "Public reports",
+      label: "Public Evidence Reports",
       value: formatNumber(reports.total_public_reports || 0, 0),
+      description: "Approved reports and evidence documents",
     },
     {
-      label: "NDVI monitoring",
+      label: "Satellite Vegetation Coverage",
       value: "Annual · Wet · Dry seasons",
+      description: "Sentinel-2 NDVI summaries for Kaduna LGAs",
     },
   ];
 
@@ -301,9 +392,9 @@ function MovingIntelligenceSummary({ summaryData }) {
         {movingItems.map((item, index) => (
           <div
             key={`${item.label}-${item.value}-${index}`}
-            className="flex min-w-[310px] items-center gap-4 border-r border-[#E6EAEC] px-8 py-6"
+            className="flex min-w-[330px] items-start gap-4 border-r border-[#E6EAEC] px-7 py-5"
           >
-            <span className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#009B35]" />
+            <span className="mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full bg-[#009B35]" />
 
             <span>
               <span className="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
@@ -313,6 +404,10 @@ function MovingIntelligenceSummary({ summaryData }) {
               <strong className="mt-1 block text-xl font-black tracking-tight text-[#030454]">
                 {item.value}
               </strong>
+
+              <span className="mt-1 block max-w-[260px] text-xs leading-5 text-slate-500">
+                {item.description}
+              </span>
             </span>
           </div>
         ))}
@@ -344,20 +439,20 @@ function GatewayCard({ item }) {
         {item.description}
       </p>
 
-      <button
-        type="button"
+      <PublicNavyButton
         onClick={() => navigateTo(item.href)}
-        className="mt-8 w-fit rounded-md bg-[#030454] px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:bg-[#009B35]"
+        showArrow
+        className="mt-8 w-fit"
       >
         {item.buttonLabel}
-      </button>
+      </PublicNavyButton>
     </article>
   );
 }
 
 function ExploreSection() {
   return (
-    <section className="bg-white px-4 py-16 sm:px-8 lg:px-10 lg:py-24">
+    <section className="bg-white px-4 py-14 sm:px-8 lg:px-10 lg:py-20">
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
@@ -365,7 +460,7 @@ function ExploreSection() {
           </h2>
         </div>
 
-        <div className="mt-12 grid gap-6 lg:grid-cols-3">
+        <div className="mt-10 grid gap-6 lg:grid-cols-3">
           {gatewayCards.map((item) => (
             <GatewayCard key={item.title} item={item} />
           ))}
@@ -409,7 +504,7 @@ function NewsCard({ item }) {
 
 function NewsPolicySection() {
   return (
-    <section className="bg-[#F7F9FA] px-4 py-14 sm:px-8 lg:px-10 lg:py-20">
+    <section className="bg-[#F7F9FA] px-4 py-12 sm:px-8 lg:px-10 lg:py-16">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <h2 className="font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
@@ -440,7 +535,7 @@ function PartnerLogoCard({ partner, duplicate = false }) {
     <article
       aria-hidden={duplicate}
       title={partner.name}
-      className="flex h-[180px] w-[360px] min-w-[360px] items-center justify-center rounded-md border border-[#D8DDE2] bg-white p-10 shadow-[0_14px_35px_rgba(3,4,84,0.08)] grayscale transition duration-300 hover:-translate-y-1 hover:grayscale-0 hover:shadow-[0_20px_45px_rgba(3,4,84,0.12)] max-sm:h-[160px] max-sm:w-[280px] max-sm:min-w-[280px] max-sm:p-6"
+      className="flex h-[180px] w-[360px] min-w-[360px] items-center justify-center rounded-md border border-[#D8DDE2] bg-white p-10 shadow-[0_14px_35px_rgba(3,4,84,0.08)] transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_45px_rgba(3,4,84,0.12)] max-sm:h-[160px] max-sm:w-[280px] max-sm:min-w-[280px] max-sm:p-6"
     >
       {partner.src ? (
         <img
@@ -476,7 +571,7 @@ function PartnersSection() {
   const scrollingPartners = [...partnerLogos, ...partnerLogos];
 
   return (
-    <section className="overflow-hidden border-y border-[#D8DDE2] bg-white px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
+    <section className="overflow-hidden border-y border-[#D8DDE2] bg-white px-4 py-14 sm:px-8 lg:px-10 lg:py-16">
       <style>
         {`
           @keyframes partners-marquee {
@@ -517,7 +612,7 @@ function PartnersSection() {
       </style>
 
       <div className="mx-auto max-w-7xl">
-        <div className="mb-12 text-center">
+        <div className="mb-10 text-center">
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#009B35]">
             Institutional collaboration
           </p>
@@ -547,8 +642,8 @@ function PartnersSection() {
 
 function ReportsCallout() {
   return (
-    <section className="bg-[#030454] px-4 py-16 text-white sm:px-8 lg:px-10">
-      <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1fr_auto] md:items-center">
+    <section className="bg-[#030454] px-4 py-12 text-white sm:px-8 lg:px-10 lg:py-14">
+      <div className="mx-auto max-w-7xl">
         <div>
           <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F3F74B]">
             Stay informed
@@ -563,216 +658,6 @@ function ReportsCallout() {
             public access where they have been approved for publication.
           </p>
         </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row md:flex-col">
-          <button
-            type="button"
-            onClick={() => navigateTo("/public/reports")}
-            className="rounded-md bg-[#F3F74B] px-6 py-4 text-sm font-black uppercase tracking-[0.1em] text-[#030454] transition hover:bg-white"
-          >
-            Go to Reports
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigateTo("/public/climate-risk")}
-            className="rounded-md border border-white/25 px-6 py-4 text-sm font-black uppercase tracking-[0.1em] text-white transition hover:bg-white hover:text-[#030454]"
-          >
-            Explore Risk
-          </button>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function WhatIsChangingSection({ ndviStats, isLoading }) {
-  const results = useMemo(() => {
-    if (!ndviStats?.results) return [];
-    return [...ndviStats.results]
-      .filter((item) => item.mean_value != null && !isNaN(parseFloat(item.mean_value)))
-      .sort((a, b) => Number(b.mean_value) - Number(a.mean_value));
-  }, [ndviStats]);
-
-  return (
-    <section className="bg-white px-4 py-14 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-7xl">
-        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#009B35]">
-          What the data shows
-        </p>
-        <h2 className="font-['Playfair_Display'] text-4xl font-bold leading-tight text-[#030454]">
-          Vegetation condition across Kaduna, 2025
-        </h2>
-        <p className="mt-4 max-w-2xl text-sm font-light leading-7 text-slate-600">
-          NDVI (Normalized Difference Vegetation Index) measures vegetation greenness from
-          Sentinel-2 satellite imagery. Higher values indicate denser, healthier vegetation cover.
-          NDVI monitoring is currently available for 2025 across 23 Kaduna LGAs.
-        </p>
-
-        <div className="mt-8">
-          {isLoading ? (
-            <div className="rounded-md border border-[#CAD2D7] bg-[#F7F9FA] p-6 text-sm text-slate-500">
-              Loading vegetation data...
-            </div>
-          ) : results.length === 0 ? (
-            <div className="rounded-md border border-[#CAD2D7] bg-[#F7F9FA] p-6 text-sm text-slate-500">
-              Vegetation data for 2025 is being processed. Check back soon.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-y-2 md:grid-cols-2 md:gap-x-10">
-              {results.map((item) => {
-                const val = parseFloat(item.mean_value);
-                const barPct = Math.max(0, Math.min(100, val * 100)).toFixed(1);
-                return (
-                  <div
-                    key={item.admin_code || item.admin_name}
-                    className="flex items-center gap-3"
-                  >
-                    <span className="w-28 shrink-0 text-right text-xs font-bold text-[#030454]">
-                      {item.admin_name}
-                    </span>
-                    <div className="flex-1 overflow-hidden rounded-full bg-[#E6EAEC] h-3.5">
-                      <div
-                        style={{ width: `${barPct}%` }}
-                        className="h-3.5 rounded-full bg-[#009B35] transition-all"
-                      />
-                    </div>
-                    <span className="w-12 shrink-0 text-right font-mono text-xs text-slate-500">
-                      {val.toFixed(3)}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        <p className="mt-6 text-[11px] text-slate-400">
-          Source: Sentinel-2 Surface Reflectance Harmonized via Google Earth Engine · 2025 annual composite.
-        </p>
-
-        <button
-          type="button"
-          onClick={() => navigateTo("/public/climate-atlas")}
-          className="mt-5 rounded-md border border-[#030454]/20 px-5 py-2.5 text-xs font-black uppercase tracking-[0.12em] text-[#030454] transition hover:bg-[#030454] hover:text-white"
-        >
-          Explore full NDVI data in the Climate Atlas
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function DataSourcesSection() {
-  const sources = [
-    {
-      key: "eo",
-      label: "Earth Observation",
-      description:
-        "Vegetation (NDVI) monitoring is available for 2025 across 23 Kaduna LGAs using Sentinel-2 Surface Reflectance from Google Earth Engine.",
-      available: [{ label: "Vegetation / NDVI", detail: "2025 · 23 LGAs · Annual, Wet & Dry seasons" }],
-      upcoming: [
-        { label: "Rainfall", status: "In development" },
-        { label: "Land Surface Temperature", status: "Planned" },
-        { label: "Flood Hazard", status: "Planned" },
-        { label: "Drought Index", status: "Planned" },
-      ],
-    },
-    {
-      key: "risk",
-      label: "Climate Risk Assessment",
-      description:
-        "Composite risk profiles have been prepared for Kaduna LGAs using a multi-indicator scoring methodology covering flood risk, drought, heat exposure, vulnerability, and adaptive capacity.",
-      note: "These are composite assessment records built from indicator scores. They are not derived from real-time satellite data and have not been validated against remote-sensing measurements.",
-      available: [{ label: "LGA risk profiles", detail: "2025 · 23 LGAs · Composite methodology" }],
-      upcoming: [],
-    },
-    {
-      key: "local",
-      label: "Local Observations",
-      description:
-        "Integration of local weather stations, river gauges, and field survey data with the platform is in the design phase.",
-      available: [],
-      upcoming: [{ label: "Local weather & hydrology", status: "Design phase" }],
-    },
-  ];
-
-  const statusColour = {
-    "In development": "text-amber-700 bg-amber-50 border-amber-200",
-    "Planned": "text-slate-600 bg-slate-50 border-slate-200",
-    "Design phase": "text-slate-500 bg-slate-50 border-slate-200",
-  };
-
-  return (
-    <section className="bg-[#F7F9FA] px-4 py-14 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-7xl">
-        <p className="mb-3 text-[11px] font-black uppercase tracking-[0.18em] text-[#009B35]">
-          Data sources &amp; trust
-        </p>
-        <h2 className="font-['Playfair_Display'] text-4xl font-bold leading-tight text-[#030454]">
-          What is behind the numbers
-        </h2>
-        <p className="mt-4 max-w-2xl text-sm font-light leading-7 text-slate-600">
-          All data on this portal is clearly labelled by source, methodology, and operational status.
-        </p>
-
-        <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-3">
-          {sources.map((src) => (
-            <div
-              key={src.key}
-              className="rounded-xl border border-[#CAD2D7] bg-white p-6 shadow-sm"
-            >
-              <p className="text-sm font-black uppercase tracking-[0.1em] text-[#030454]">
-                {src.label}
-              </p>
-              <p className="mt-3 text-xs leading-6 text-slate-600">{src.description}</p>
-
-              {src.available.length > 0 && (
-                <div className="mt-4 space-y-1.5">
-                  {src.available.map((item) => (
-                    <div
-                      key={item.label}
-                      className="flex flex-wrap items-start gap-2"
-                    >
-                      <span className="rounded border border-[#009B35]/30 bg-[#009B35]/8 px-2 py-0.5 text-[10px] font-bold text-[#007a29]">
-                        Available
-                      </span>
-                      <span className="text-xs text-slate-600">
-                        {item.label}
-                        {item.detail && (
-                          <span className="ml-1 text-slate-400">· {item.detail}</span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {src.upcoming.length > 0 && (
-                <div className="mt-3 space-y-1.5">
-                  {src.upcoming.map((item) => (
-                    <div key={item.label} className="flex flex-wrap items-start gap-2">
-                      <span
-                        className={`rounded border px-2 py-0.5 text-[10px] font-bold ${
-                          statusColour[item.status] || "text-slate-500 bg-slate-50 border-slate-200"
-                        }`}
-                      >
-                        {item.status}
-                      </span>
-                      <span className="text-xs text-slate-500">{item.label}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {src.note && (
-                <p className="mt-4 rounded-md border border-amber-100 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-800">
-                  {src.note}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
       </div>
     </section>
   );
@@ -780,39 +665,38 @@ function DataSourcesSection() {
 
 export default function PublicPortalPage() {
   const [summaryData, setSummaryData] = useState(null);
-  const [ndviStats, setNdviStats] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [ndviLoading, setNdviLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(!isMilestoneOneDemo);
   const [error, setError] = useState("");
 
-  async function loadSummary() {
-    setIsLoading(true);
-    setNdviLoading(true);
-    setError("");
-
-    const [summaryResult, ndviResult] = await Promise.allSettled([
-      getPublicPortalSummary(),
-      getRemoteSensingLgaStats({ layer: "ndvi", year: 2025, season: "annual", admin_level: "lga" }),
-    ]);
-
-    if (summaryResult.status === "fulfilled") {
-      setSummaryData(summaryResult.value.summary || {});
-    } else {
-      console.error(summaryResult.reason);
-      setError("Could not load public portal summary.");
-      setSummaryData({});
-    }
-
-    if (ndviResult.status === "fulfilled") {
-      setNdviStats(ndviResult.value);
-    }
-
-    setIsLoading(false);
-    setNdviLoading(false);
-  }
-
   useEffect(() => {
-    loadSummary();
+    if (isMilestoneOneDemo) {
+      return;
+    }
+
+    let isMounted = true;
+
+    getPublicPortalSummary()
+      .then((result) => {
+        if (!isMounted) return;
+
+        setSummaryData(result.summary || {});
+      })
+      .catch((reason) => {
+        if (!isMounted) return;
+
+        console.error(reason);
+        setError("Could not load public portal summary.");
+        setSummaryData({});
+      })
+      .finally(() => {
+        if (!isMounted) return;
+
+        setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const safeSummaryData = useMemo(() => summaryData || {}, [summaryData]);
@@ -821,14 +705,21 @@ export default function PublicPortalPage() {
     <main className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#030454]">
       <HomeTopNav />
       <HomeHero />
+      {isMilestoneOneDemo && <MilestoneFramingSection />}
       <ErrorNotice message={error} />
 
       {isLoading ? (
-        <section className="px-4 py-16 sm:px-8 lg:px-10">
+        <section className="px-4 py-14 sm:px-8 lg:px-10">
           <div className="mx-auto max-w-7xl rounded-md border border-[#CAD2D7] bg-white p-8 text-sm text-slate-500 shadow-sm">
             Loading public climate intelligence...
           </div>
         </section>
+      ) : isMilestoneOneDemo ? (
+        <>
+          <ArchitecturePreviewSection />
+          <PartnersSection />
+          <PublicDataNotice />
+        </>
       ) : (
         <>
           <MovingIntelligenceSummary summaryData={safeSummaryData} />

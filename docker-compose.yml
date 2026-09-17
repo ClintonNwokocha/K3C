@@ -3,9 +3,13 @@ services:
     image: postgis/postgis:16-3.5
     container_name: ksccc_postgis
     environment:
-      POSTGRES_DB: ksccc_db
-      POSTGRES_USER: ksccc_user
-      POSTGRES_PASSWORD: REDACTED
+      POSTGRES_DB: ${POSTGRES_DB:-ksccc_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ksccc_user}
+      # No default here on purpose — set POSTGRES_PASSWORD in a root-level
+      # .env file (gitignored, see .env.example) before running
+      # `docker compose up`. Docker Compose auto-loads a .env file placed
+      # next to this docker-compose.yml.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in a local .env file, see .env.example}
     ports:
       - "5432:5432"
     volumes:

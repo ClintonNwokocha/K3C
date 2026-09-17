@@ -129,6 +129,13 @@ class ClimateProject(models.Model):
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
 
+    external_link = models.URLField(
+        max_length=500,
+        null=True,
+        blank=True,
+        help_text="Optional external project resource link (official page, donor page, report).",
+    )
+
     climate_risk_relevance = models.TextField(
         blank=True,
         help_text="Explain how this project responds to flood, drought, heat, erosion, vulnerability or adaptive capacity needs.",

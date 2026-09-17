@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.db.models import Sum
+from django.db.models import Count, Sum
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
@@ -729,6 +729,29 @@ def ghg_dashboard_summary(request):
             ).count(),
         })
 
+    top_sources_qs = (
+        GHGInventoryEntry.objects
+        .filter(
+            sector__in=implemented_sectors,
+            status=GHGInventoryEntry.Status.APPROVED,
+        )
+        .values("sector", "sub_category", "fuel_or_activity")
+        .annotate(total_co2e=Sum("co2e_tonnes"), entry_count=Count("id"))
+        .order_by("-total_co2e")[:5]
+    )
+
+    top_emission_sources = [
+        {
+            "sector": row["sector"],
+            "sector_label": sector_labels.get(row["sector"], row["sector"]),
+            "sub_category": row["sub_category"],
+            "fuel_or_activity": row["fuel_or_activity"],
+            "total_co2e": float(row["total_co2e"] or 0),
+            "entry_count": row["entry_count"],
+        }
+        for row in top_sources_qs
+    ]
+
     ndc_constant = (
         NDCConstant.objects
         .filter(is_active=True)
@@ -786,6 +809,7 @@ def ghg_dashboard_summary(request):
             "sector_breakdown": sector_breakdown,
             "yearly_totals": yearly_totals,
             "pending_by_sector": pending_by_sector,
+            "top_emission_sources": top_emission_sources,
             "cars_equivalent": float(cars_equivalent),
             "homes_equivalent": float(homes_equivalent),
         },

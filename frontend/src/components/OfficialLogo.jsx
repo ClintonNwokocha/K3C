@@ -13,7 +13,7 @@ export default function OfficialLogo({
       src={logoSrc}
       alt="Kaduna Climate Command Centre"
       className={`block w-auto object-contain ${
-        compact ? "h-10" : "h-12 md:h-14"
+        compact ? "h-12" : "h-14 md:h-16"
       } ${className}`}
     />
   );

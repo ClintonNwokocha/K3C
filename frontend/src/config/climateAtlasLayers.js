@@ -17,7 +17,7 @@ export const CLIMATE_ATLAS_LAYER_CONFIGS = {
     backendLayerKeys: ["rainfall"],
     unit: "mm",
     description: "CHIRPS accumulated rainfall totals.",
-    scientificCaution: "Rainfall Total is CHIRPS accumulated rainfall and is not a rainfall anomaly.",
+    scientificCaution: "Rainfall total represents accumulated rainfall from CHIRPS. Rainfall anomaly is assessed separately against the historical baseline.",
     dataSource: "CHIRPS v2.0 Daily",
     coverageNote: "Coverage: Annual/Wet 1981-2025, Dry 1982-2025",
     statistic: {
@@ -227,7 +227,12 @@ export const CLIMATE_ATLAS_LAYER_CONFIGS = {
     key: "annual_lulc",
     selectorLabel: "Annual Land Use / Land Cover",
     displayLabel: "Annual Land Use / Land Cover",
-    backendLayerKeys: [],
+    // "annual_lulc" above is this app's internal variable-key for LULC UI
+    // state (used throughout PublicClimateAtlasPage.jsx). The actual
+    // backend RemoteSensingLayer.key is "lulc" — these two fields must
+    // reference the real backend key so the publish-state check below
+    // matches, or this layer will never appear even once published.
+    backendLayerKeys: ["lulc"],
     unit: "dominant class",
     description:
       "Dynamic World v1 annual land-use / land-cover classification. " +
@@ -235,7 +240,7 @@ export const CLIMATE_ATLAS_LAYER_CONFIGS = {
     dataSource: "Dynamic World v1 (Google Earth Engine · Sentinel-2)",
     coverageNote: "Sep–Oct composite · 2018–2025 · 10 m Sentinel-2",
     availability: {
-      requiredLayerKeys: ["annual_lulc"],
+      requiredLayerKeys: ["lulc"],
     },
   },
   elevation: {

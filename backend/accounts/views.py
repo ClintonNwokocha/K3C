@@ -5,6 +5,8 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
+from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import UserProfile
 from .permissions import IsAdminRole
@@ -14,6 +16,15 @@ from .serializers import (
     ManagedUserSerializer,
     ManagedUserUpdateSerializer,
 )
+
+
+class ThrottledTokenObtainPairView(TokenObtainPairView):
+    """Same login behaviour as SimpleJWT's TokenObtainPairView, with a
+    tighter per-IP rate limit (see REST_FRAMEWORK.DEFAULT_THROTTLE_RATES
+    "login" scope) since this is the highest-value brute-force target."""
+
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "login"
 
 
 @api_view(["GET"])

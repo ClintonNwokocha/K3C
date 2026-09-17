@@ -17,6 +17,7 @@ class EnergyEmissionFactorSerializer(serializers.ModelSerializer):
             "n2o_ef",
             "unit",
             "tier",
+            "ipcc_source",
         ]
 
 

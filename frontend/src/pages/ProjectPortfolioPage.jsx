@@ -70,6 +70,9 @@ const initialForm = {
   expected_beneficiaries: "0",
   start_date: "",
   end_date: "",
+  external_link: "",
+  latitude: "",
+  longitude: "",
   climate_risk_relevance: "",
   location_notes: "",
   is_active: true,
@@ -142,6 +145,9 @@ function buildFormFromProject(project) {
     expected_beneficiaries: String(project.expected_beneficiaries || "0"),
     start_date: normalizeDateForInput(project.start_date),
     end_date: normalizeDateForInput(project.end_date),
+    external_link: project.external_link || "",
+    latitude: project.latitude !== null && project.latitude !== undefined ? String(project.latitude) : "",
+    longitude: project.longitude !== null && project.longitude !== undefined ? String(project.longitude) : "",
     climate_risk_relevance: project.climate_risk_relevance || "",
     location_notes: project.location_notes || "",
     is_active: project.is_active !== false,
@@ -423,6 +429,10 @@ function ProjectFormSection({
         }
       >
         <div className="grid gap-4 md:grid-cols-3">
+          <p className="md:col-span-3 text-[11px] font-black uppercase tracking-[0.14em] text-[#009B35]">
+            Project Identity
+          </p>
+
           <div className="md:col-span-2">
             <label className="mb-2 block text-sm font-bold text-[#030454]">
               Project Title
@@ -469,6 +479,23 @@ function ProjectFormSection({
             </select>
           </div>
 
+          <div className="md:col-span-3">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Description
+            </label>
+            <textarea
+              rows="3"
+              value={form.description}
+              onChange={(event) => updateForm("description", event.target.value)}
+              className={inputClass}
+              placeholder="Describe the project..."
+            />
+          </div>
+
+          <p className="md:col-span-3 mt-2 border-t border-slate-100 pt-4 text-[11px] font-black uppercase tracking-[0.14em] text-[#009B35]">
+            Classification
+          </p>
+
           <div>
             <label className="mb-2 block text-sm font-bold text-[#030454]">
               Sector
@@ -481,24 +508,6 @@ function ProjectFormSection({
               {sectorOptions.map((item) => (
                 <option key={item.value} value={item.value}>
                   {item.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-bold text-[#030454]">
-              LGA
-            </label>
-            <select
-              value={form.lga}
-              onChange={(event) => updateForm("lga", event.target.value)}
-              className={inputClass}
-            >
-              <option value="">Statewide / Not specified</option>
-              {lgaOptions.map((item) => (
-                <option key={item.lga_id} value={item.lga_id}>
-                  {item.lga_name}
                 </option>
               ))}
             </select>
@@ -540,6 +549,56 @@ function ProjectFormSection({
 
           <div>
             <label className="mb-2 block text-sm font-bold text-[#030454]">
+              LGA
+            </label>
+            <select
+              value={form.lga}
+              onChange={(event) => updateForm("lga", event.target.value)}
+              className={inputClass}
+            >
+              <option value="">Statewide / Not specified</option>
+              {lgaOptions.map((item) => (
+                <option key={item.lga_id} value={item.lga_id}>
+                  {item.lga_name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <p className="md:col-span-3 mt-2 border-t border-slate-100 pt-4 text-[11px] font-black uppercase tracking-[0.14em] text-[#009B35]">
+            Implementation
+          </p>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Implementing Agency
+            </label>
+            <input
+              value={form.implementing_agency}
+              onChange={(event) =>
+                updateForm("implementing_agency", event.target.value)
+              }
+              className={inputClass}
+              placeholder="Ministry, agency, NGO, donor..."
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Funding Source
+            </label>
+            <input
+              value={form.funding_source}
+              onChange={(event) =>
+                updateForm("funding_source", event.target.value)
+              }
+              className={inputClass}
+              placeholder="State budget, donor, private sector..."
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
               Estimated Budget ₦
             </label>
             <input
@@ -553,6 +612,34 @@ function ProjectFormSection({
               className={inputClass}
             />
           </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Start Date
+            </label>
+            <input
+              type="date"
+              value={form.start_date}
+              onChange={(event) => updateForm("start_date", event.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              End Date
+            </label>
+            <input
+              type="date"
+              value={form.end_date}
+              onChange={(event) => updateForm("end_date", event.target.value)}
+              className={inputClass}
+            />
+          </div>
+
+          <p className="md:col-span-3 mt-2 border-t border-slate-100 pt-4 text-[11px] font-black uppercase tracking-[0.14em] text-[#009B35]">
+            Impact
+          </p>
 
           <div>
             <label className="mb-2 block text-sm font-bold text-[#030454]">
@@ -585,70 +672,67 @@ function ProjectFormSection({
             />
           </div>
 
-          <div>
-            <label className="mb-2 block text-sm font-bold text-[#030454]">
-              Start Date
-            </label>
-            <input
-              type="date"
-              value={form.start_date}
-              onChange={(event) => updateForm("start_date", event.target.value)}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-bold text-[#030454]">
-              End Date
-            </label>
-            <input
-              type="date"
-              value={form.end_date}
-              onChange={(event) => updateForm("end_date", event.target.value)}
-              className={inputClass}
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-bold text-[#030454]">
-              Implementing Agency
-            </label>
-            <input
-              value={form.implementing_agency}
-              onChange={(event) =>
-                updateForm("implementing_agency", event.target.value)
-              }
-              className={inputClass}
-              placeholder="Ministry, agency, NGO, donor..."
-            />
-          </div>
-
-          <div>
-            <label className="mb-2 block text-sm font-bold text-[#030454]">
-              Funding Source
-            </label>
-            <input
-              value={form.funding_source}
-              onChange={(event) =>
-                updateForm("funding_source", event.target.value)
-              }
-              className={inputClass}
-              placeholder="State budget, donor, private sector..."
-            />
-          </div>
+          <p className="md:col-span-3 mt-2 border-t border-slate-100 pt-4 text-[11px] font-black uppercase tracking-[0.14em] text-[#009B35]">
+            Media / References
+          </p>
 
           <div className="md:col-span-3">
             <label className="mb-2 block text-sm font-bold text-[#030454]">
-              Description
+              External Link
             </label>
-            <textarea
-              rows="3"
-              value={form.description}
-              onChange={(event) => updateForm("description", event.target.value)}
+            <input
+              type="url"
+              value={form.external_link}
+              onChange={(event) =>
+                updateForm("external_link", event.target.value)
+              }
               className={inputClass}
-              placeholder="Describe the project..."
+              placeholder="https://... (optional project resource, donor page or report)"
+            />
+            <p className="mt-2 text-xs text-slate-500">
+              Project pictures are managed in the Django admin project record.
+            </p>
+          </div>
+
+          <p className="md:col-span-3 mt-2 border-t border-slate-100 pt-4 text-[11px] font-black uppercase tracking-[0.14em] text-[#009B35]">
+            Spatial
+          </p>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Latitude
+            </label>
+            <input
+              type="number"
+              step="0.000001"
+              min="-90"
+              max="90"
+              value={form.latitude}
+              onChange={(event) => updateForm("latitude", event.target.value)}
+              className={inputClass}
+              placeholder="e.g. 10.5105"
             />
           </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Longitude
+            </label>
+            <input
+              type="number"
+              step="0.000001"
+              min="-180"
+              max="180"
+              value={form.longitude}
+              onChange={(event) => updateForm("longitude", event.target.value)}
+              className={inputClass}
+              placeholder="e.g. 7.4165"
+            />
+          </div>
+
+          <p className="md:col-span-3 mt-2 border-t border-slate-100 pt-4 text-[11px] font-black uppercase tracking-[0.14em] text-[#009B35]">
+            Additional Context
+          </p>
 
           <div className="md:col-span-3">
             <label className="mb-2 block text-sm font-bold text-[#030454]">
@@ -1158,6 +1242,9 @@ export default function ProjectPortfolioPage({ currentUser }) {
       expected_beneficiaries: Number(form.expected_beneficiaries || 0),
       start_date: form.start_date || null,
       end_date: form.end_date || null,
+      external_link: form.external_link.trim() || null,
+      latitude: form.latitude !== "" ? Number(form.latitude) : null,
+      longitude: form.longitude !== "" ? Number(form.longitude) : null,
       is_active: true,
     };
 

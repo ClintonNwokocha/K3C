@@ -7,7 +7,7 @@ import Login from "./pages/Login";
 import PublicReportsPage from "./pages/PublicReportsPage";
 import PublicPortalPage from "./pages/PublicPortalPage";
 import PublicClimateRiskPage from "./pages/PublicClimateRiskPage";
-import PublicGHGInventoryPage from "./pages/PublicGHGInventoryPage";
+import PublicGHGInventoryPage from "./pages/PublicGHGInventoryExplorerPage";
 import PublicProjectsPage from "./pages/PublicProjectsPage";
 import GHGInventoryPage from "./pages/GHGInventoryPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
@@ -24,6 +24,11 @@ import {
   logoutUser,
   SESSION_EXPIRED_EVENT,
 } from "./services/api";
+import {
+  PUBLIC_ANALYTICS_ROUTES,
+  PUBLIC_LOGIN_PATH,
+  trackPublicPageView,
+} from "./config/analytics";
 import "./App.css";
 
 const pageDetails = {
@@ -60,7 +65,7 @@ const pageDetails = {
 };
 
 function App() {
-  const [health, setHealth] = useState(null);
+  const [, setHealth] = useState(null);
   const [foundation, setFoundation] = useState(null);
   const [ghgSummary, setGhgSummary] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
@@ -123,6 +128,23 @@ function App() {
     return () =>
       window.removeEventListener(SESSION_EXPIRED_EVENT, handleSessionExpired);
   }, []);
+
+  useEffect(() => {
+    // Public-only page-view tracking (Phase 1). Authenticated/admin traffic
+    // is never tracked: "/" only counts as a public view once we know the
+    // Staff Login screen (not the signed-in app shell) is what rendered.
+    if (isLoading) {
+      return;
+    }
+
+    const pathname = window.location.pathname;
+    const isKnownPublicRoute = PUBLIC_ANALYTICS_ROUTES.includes(pathname);
+    const isPublicLoginScreen = pathname === PUBLIC_LOGIN_PATH && !currentUser;
+
+    if (isKnownPublicRoute || isPublicLoginScreen) {
+      trackPublicPageView(pathname);
+    }
+  }, [isLoading, currentUser]);
 
   async function handleLogin(username, password) {
     setAuthError("");

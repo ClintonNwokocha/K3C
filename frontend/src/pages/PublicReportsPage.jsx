@@ -1,11 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  PublicBadge,
+  PublicCard,
   PublicEmptyState,
+  PublicErrorBanner,
+  PublicDisclaimerNote,
+  PublicLoadingState,
   PublicPortalFooter,
   PublicPortalHeader,
-  PublicSectionIntro,
+  PublicPrimaryButton,
+  PublicSecondaryButton,
+  PublicSection,
+  PublicSectionHeading,
 } from "../components/PublicPortalChrome";
 import { getPublicReportDocuments } from "../services/api";
+import { PUBLIC_EVENT_NAMES, trackPublicEvent } from "../config/analytics";
 
 const reportTypeOptions = [
   { value: "climate_risk", label: "Climate Intelligence Report" },
@@ -100,6 +109,16 @@ function getReportFileUrl(report) {
   );
 }
 
+// Fires the report_downloaded analytics event at the moment a user
+// actually opens/downloads a report file — never for merely viewing the
+// Reports page. Sends only a stable report identifier, never the file URL
+// (which may carry a signed/query-string component) or the full report object.
+function trackReportDownloaded(report) {
+  trackPublicEvent(PUBLIC_EVENT_NAMES.REPORT_DOWNLOADED, {
+    report: report.id || report.title,
+  });
+}
+
 function normalizeReportsPayload(data) {
   if (Array.isArray(data)) {
     return {
@@ -182,6 +201,96 @@ function getFeaturedReport(reports) {
   return [...reports].sort((a, b) => getReportSortTime(b) - getReportSortTime(a))[0];
 }
 
+function ReportsExecutiveHero({ reports, summary, years }) {
+  const reportTypes =
+    summary.report_type_count ||
+    new Set(reports.map((report) => report.report_type).filter(Boolean)).size ||
+    0;
+  const totalReports = summary.total_reports || reports.length || 0;
+  const publishedReports = summary.published_reports || reports.length || 0;
+  const latestYear =
+    summary.latest_year ||
+    years[0] ||
+    (reports.length ? "Available" : "Not published");
+
+  return (
+    <PublicSection
+      className="border-b border-[#D8DDE2] bg-white"
+      innerClassName="grid gap-6 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-stretch"
+    >
+      <div className="flex min-h-[300px] flex-col justify-center py-2">
+        <div className="flex flex-wrap items-center gap-3">
+          <PublicBadge active>Public evidence portal</PublicBadge>
+          <PublicBadge active={publishedReports > 0}>
+            {publishedReports} published
+          </PublicBadge>
+          <PublicBadge>{reportTypes} report types</PublicBadge>
+        </div>
+
+        <h1 className="mt-6 max-w-4xl text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-[#030454] sm:text-5xl lg:text-6xl">
+          Public reports and evidence documents
+        </h1>
+
+        <p className="mt-5 max-w-3xl text-pretty text-base leading-8 text-slate-600 sm:text-lg">
+          Access approved climate reports, evidence documents, public briefs
+          and validated outputs published through the Kaduna Climate Command
+          Centre.
+        </p>
+
+        <div className="mt-7 flex flex-wrap gap-3">
+          <PublicPrimaryButton
+            onClick={() => {
+              document
+                .getElementById("public-report-library")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          >
+            Browse Library
+          </PublicPrimaryButton>
+          <PublicSecondaryButton
+            onClick={() => {
+              window.location.href = "/public/climate-risk";
+            }}
+          >
+            Climate Intelligence
+          </PublicSecondaryButton>
+        </div>
+      </div>
+
+      <PublicCard className="flex min-h-[300px] flex-col justify-between border-[#009B35]/25 p-6">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
+            Publication snapshot
+          </p>
+          <p className="mt-5 text-4xl font-black leading-tight text-[#030454] sm:text-5xl">
+            {formatNumber(totalReports)}
+          </p>
+          <p className="mt-2 text-sm font-bold uppercase tracking-[0.08em] text-slate-500">
+            Public reports
+          </p>
+        </div>
+
+        <div className="mt-6 grid gap-3 border-t border-[#D8DDE2] pt-5 text-sm">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-slate-500">Published documents</span>
+            <strong className="text-right text-[#030454]">
+              {formatNumber(publishedReports)}
+            </strong>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-slate-500">Report types</span>
+            <strong className="text-right text-[#030454]">{reportTypes}</strong>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-slate-500">Latest year</span>
+            <strong className="text-right text-[#030454]">{latestYear}</strong>
+          </div>
+        </div>
+      </PublicCard>
+    </PublicSection>
+  );
+}
+
 function EvidenceRibbon({ reports, summary, years }) {
   const reportTypes =
     summary.report_type_count ||
@@ -219,7 +328,7 @@ function EvidenceRibbon({ reports, summary, years }) {
   const scrollingItems = [...items, ...items];
 
   return (
-    <section className="overflow-hidden border-y border-[#D8DDE2] bg-white">
+    <section className="overflow-hidden border-y border-[#D8DDE2] bg-[#F7F9FA]">
       <style>
         {`
           @keyframes reports-evidence-ribbon {
@@ -256,7 +365,7 @@ function EvidenceRibbon({ reports, summary, years }) {
         {scrollingItems.map((item, index) => (
           <div
             key={`${item}-${index}`}
-            className="flex items-center gap-3 border-r border-[#E6EAEC] px-6 py-4 text-xs font-black uppercase tracking-[0.1em] text-[#030454]"
+            className="flex min-w-[260px] items-center gap-3 border-r border-[#D8DDE2] bg-white px-5 py-3.5 text-xs font-black uppercase tracking-[0.08em] text-[#030454]"
           >
             <span className="h-2.5 w-2.5 rounded-full bg-[#009B35]" />
             {item}
@@ -270,14 +379,12 @@ function EvidenceRibbon({ reports, summary, years }) {
 function FeaturedReportPanel({ report }) {
   if (!report) {
     return (
-      <section className="bg-[#F7F9FA] px-4 py-8 sm:px-8 lg:px-10">
-        <div className="mx-auto max-w-[1536px]">
+      <PublicSection className="bg-[#F7F9FA]">
           <PublicEmptyState
             title="No featured report available"
             message="Published public reports will appear here once they are approved and available."
           />
-        </div>
-      </section>
+      </PublicSection>
     );
   }
 
@@ -285,11 +392,13 @@ function FeaturedReportPanel({ report }) {
   const meta = getTypeMeta(report.report_type);
 
   return (
-    <section className="bg-[#F7F9FA] px-4 py-8 sm:px-8 lg:px-10">
-      <div className="mx-auto grid max-w-[1536px] gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <div className="overflow-hidden rounded-md border border-[#CAD2D7] bg-[#030454] text-white shadow-sm">
+    <PublicSection
+      className="bg-[#F7F9FA]"
+      innerClassName="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]"
+    >
+        <div className="overflow-hidden rounded-lg bg-[#030454] text-white shadow-sm">
           <div className="relative p-7">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(0,155,53,0.35),transparent_30%),radial-gradient(circle_at_90%_10%,rgba(243,247,75,0.18),transparent_28%),linear-gradient(135deg,rgba(255,255,255,0.06)_0_1px,transparent_1px_34px)]" />
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(0,155,53,0.2),transparent_48%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent)]" />
 
             <div className="relative">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F3F74B]">
@@ -313,25 +422,27 @@ function FeaturedReportPanel({ report }) {
                 )}
               </div>
 
-              <h2 className="mt-5 font-['Playfair_Display'] text-4xl font-bold leading-tight text-white md:text-5xl">
+              <h2 className="mt-5 text-balance font-['Playfair_Display'] text-4xl font-bold leading-tight text-white md:text-5xl">
                 {report.title}
               </h2>
 
-              <p className="mt-5 max-w-3xl text-sm leading-7 text-white/75">
+              <p className="mt-5 max-w-3xl text-pretty text-sm leading-7 text-white/78">
                 {report.description ||
                   "This public report is available as an approved evidence document."}
               </p>
 
               <div className="mt-7 flex flex-wrap gap-3">
                 {fileUrl ? (
-                  <a
+                  <PublicPrimaryButton
+                    as="a"
                     href={fileUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="rounded-md bg-[#F3F74B] px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-[#030454] transition hover:bg-white"
+                    onClick={() => trackReportDownloaded(report)}
+                    className="px-5 py-3 text-xs focus-visible:ring-white/70"
                   >
                     Open featured report
-                  </a>
+                  </PublicPrimaryButton>
                 ) : (
                   <button
                     type="button"
@@ -342,24 +453,24 @@ function FeaturedReportPanel({ report }) {
                   </button>
                 )}
 
-                <button
-                  type="button"
+                <PublicSecondaryButton
+                  inverse
                   onClick={() => {
                     document
                       .getElementById("public-report-library")
                       ?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
-                  className="rounded-md border border-white/35 px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:bg-white hover:text-[#030454]"
+                  className="px-5 py-3 text-xs"
                 >
                   Browse library
-                </button>
+                </PublicSecondaryButton>
               </div>
             </div>
           </div>
         </div>
 
-        <div
-          className={`rounded-md border p-6 shadow-sm ${getToneClasses(
+        <PublicCard
+          className={`p-6 ${getToneClasses(
             meta.tone
           )}`}
         >
@@ -367,13 +478,13 @@ function FeaturedReportPanel({ report }) {
             What this report supports
           </p>
 
-          <h3 className="mt-3 font-['Playfair_Display'] text-3xl font-bold leading-tight text-[#030454]">
+          <h3 className="mt-3 text-balance font-['Playfair_Display'] text-3xl font-bold leading-tight text-[#030454]">
             {meta.title}
           </h3>
 
           <p className="mt-4 text-sm leading-7 text-slate-600">{meta.body}</p>
 
-          <div className="mt-6 grid gap-3 rounded-md bg-white/70 p-4 text-xs leading-6 text-slate-600">
+          <div className="mt-6 grid gap-3 rounded-lg bg-white/70 p-4 text-xs leading-6 text-slate-600">
             {report.source_module && (
               <p>
                 <span className="font-black text-[#030454]">Source module:</span>{" "}
@@ -394,24 +505,23 @@ function FeaturedReportPanel({ report }) {
             </p>
           </div>
 
-          <div className="mt-6 rounded-md border-l-4 border-[#F3F74B] bg-[#F3F74B]/25 px-5 py-4 text-sm leading-7 text-[#030454]">
+          <PublicDisclaimerNote className="mt-6">
             Use public reports as approved evidence references. For formal
             decisions, consult the full report and its methodology notes.
-          </div>
-        </div>
-      </div>
-    </section>
+          </PublicDisclaimerNote>
+        </PublicCard>
+    </PublicSection>
   );
 }
 
 function EvidenceUseStrip() {
   return (
-    <section className="border-y border-[#D8DDE2] bg-white px-4 py-8 sm:px-8 lg:px-10">
-      <div className="mx-auto grid max-w-[1536px] gap-4 lg:grid-cols-3">
+    <PublicSection className="border-y border-[#D8DDE2] bg-white" innerClassName="grid gap-4 lg:grid-cols-3">
         {audienceGuidance.map((item) => (
-          <article
+          <PublicCard
+            as="article"
             key={item.label}
-            className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] p-5 shadow-sm"
+            className="bg-[#F7F9FA] p-5 transition hover:-translate-y-0.5 hover:border-[#009B35]/45 hover:shadow-md"
           >
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#009B35]">
               {item.label}
@@ -422,53 +532,67 @@ function EvidenceUseStrip() {
             </h3>
 
             <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-          </article>
+          </PublicCard>
         ))}
-      </div>
-    </section>
+    </PublicSection>
   );
 }
 
 function ReportFilterPanel({ filters, updateFilter, years }) {
   return (
-    <div className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] p-4">
-      <div className="grid gap-3 lg:grid-cols-[1fr_220px_220px]">
-        <input
-          value={filters.search}
-          onChange={(event) => updateFilter("search", event.target.value)}
-          placeholder="Search by title, description, report type or source module..."
-          className="h-12 rounded-md border border-[#D8DDE2] bg-white px-4 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
-        />
+    <PublicCard className="p-4">
+      <div className="grid gap-3 lg:grid-cols-[minmax(280px,1fr)_220px_180px]">
+        <label className="block">
+          <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+            Search
+          </span>
+          <input
+            value={filters.search}
+            onChange={(event) => updateFilter("search", event.target.value)}
+            placeholder="Search by title, description, report type or source module..."
+            className="h-10 w-full rounded-md border border-[#D8DDE2] bg-white px-3.5 text-sm text-[#030454] outline-none transition placeholder:text-slate-500 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
+          />
+        </label>
 
-        <select
-          value={filters.report_type}
-          onChange={(event) => updateFilter("report_type", event.target.value)}
-          className="h-12 rounded-md border border-[#D8DDE2] bg-white px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
-        >
-          <option value="all">All report types</option>
-          {reportTypeOptions.map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.label}
-            </option>
-          ))}
-        </select>
+        <label className="block">
+          <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+            Report type
+          </span>
+          <select
+            value={filters.report_type}
+            onChange={(event) => updateFilter("report_type", event.target.value)}
+            className="h-10 w-full rounded-md border border-[#D8DDE2] bg-white px-3.5 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
+          >
+            <option value="all">All report types</option>
+            {reportTypeOptions.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <select
-          value={filters.reporting_year}
-          onChange={(event) =>
-            updateFilter("reporting_year", event.target.value)
-          }
-          className="h-12 rounded-md border border-[#D8DDE2] bg-white px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
-        >
-          <option value="">All years</option>
-          {years.map((year) => (
-            <option key={year} value={year}>
-              {year}
-            </option>
-          ))}
-        </select>
+        <label className="block">
+          <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+            Year
+          </span>
+          <select
+            value={filters.reporting_year}
+            onChange={(event) =>
+              updateFilter("reporting_year", event.target.value)
+            }
+            className="h-10 w-full rounded-md border border-[#D8DDE2] bg-white px-3.5 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
+          >
+            <option value="">All years</option>
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
-    </div>
+    </PublicCard>
   );
 }
 
@@ -484,10 +608,10 @@ function ReportTypeChips({ reports, activeType, onSelect }) {
       <button
         type="button"
         onClick={() => onSelect("all")}
-        className={`rounded-full px-4 py-2 text-xs font-black transition ${
+        className={`rounded-full px-4 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30 ${
           activeType === "all"
             ? "bg-[#030454] text-white"
-            : "bg-white text-slate-600 hover:bg-[#030454] hover:text-white"
+            : "border border-[#D8DDE2] bg-white text-slate-600 hover:border-[#030454]/35 hover:text-[#030454]"
         }`}
       >
         All reports
@@ -498,10 +622,10 @@ function ReportTypeChips({ reports, activeType, onSelect }) {
           key={item.value}
           type="button"
           onClick={() => onSelect(item.value)}
-          className={`rounded-full px-4 py-2 text-xs font-black transition ${
+          className={`rounded-full px-4 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30 ${
             activeType === item.value
               ? "bg-[#030454] text-white"
-              : "bg-white text-slate-600 hover:bg-[#030454] hover:text-white"
+              : "border border-[#D8DDE2] bg-white text-slate-600 hover:border-[#030454]/35 hover:text-[#030454]"
           }`}
         >
           {item.label} · {item.count}
@@ -516,10 +640,13 @@ function ReportCard({ report }) {
   const meta = getTypeMeta(report.report_type);
 
   return (
-    <article className="group flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#009B35]/70 hover:shadow-md">
+    <PublicCard
+      as="article"
+      className="group flex h-full flex-col p-6 transition hover:-translate-y-0.5 hover:border-[#009B35]/55 hover:shadow-md"
+    >
       <div className="mb-4 flex flex-wrap gap-2">
         <span
-          className={`rounded-sm px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${getTypeClass(
+          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${getTypeClass(
             report.report_type
           )}`}
         >
@@ -534,7 +661,7 @@ function ReportCard({ report }) {
         )}
       </div>
 
-      <h3 className="text-xl font-black leading-snug text-[#030454]">
+      <h3 className="text-balance text-xl font-black leading-snug text-[#030454]">
         {report.title}
       </h3>
 
@@ -543,7 +670,7 @@ function ReportCard({ report }) {
       </p>
 
       <div
-        className={`mt-5 rounded-md border p-4 ${getToneClasses(meta.tone)}`}
+        className={`mt-5 rounded-lg border p-4 ${getToneClasses(meta.tone)}`}
       >
         <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#009B35]">
           Supports
@@ -575,14 +702,16 @@ function ReportCard({ report }) {
 
       <div className="mt-auto pt-6">
         {fileUrl ? (
-          <a
+          <PublicPrimaryButton
+            as="a"
             href={fileUrl}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex w-full items-center justify-center rounded-md bg-[#009B35] px-5 py-3 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
+            onClick={() => trackReportDownloaded(report)}
+            className="inline-flex w-full justify-center bg-[#009B35] px-5 py-3 text-sm text-white hover:bg-[#00842e]"
           >
             Open Report →
-          </a>
+          </PublicPrimaryButton>
         ) : (
           <button
             type="button"
@@ -593,7 +722,7 @@ function ReportCard({ report }) {
           </button>
         )}
       </div>
-    </article>
+    </PublicCard>
   );
 }
 
@@ -606,21 +735,20 @@ function ReportLibrary({
   isLoading,
 }) {
   return (
-    <section
+    <PublicSection
       id="public-report-library"
-      className="bg-[#F7F9FA] px-4 py-16 sm:px-8 lg:px-10 lg:py-20"
+      className="bg-[#F7F9FA]"
     >
-      <div className="mx-auto max-w-[1536px]">
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-          <PublicSectionIntro
+          <PublicSectionHeading
             title="Evidence library"
             description="Browse public-facing Climate Intelligence reports, greenhouse gas inventory outputs, project portfolio reports, executive briefs and data exports."
           />
 
-          <div className="rounded-md bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-[#030454] shadow-sm">
+          <PublicBadge className="rounded-lg px-4 py-3 uppercase tracking-[0.1em] text-[#030454]">
             {formatNumber(filteredReports.length)} matching document
             {filteredReports.length === 1 ? "" : "s"}
-          </div>
+          </PublicBadge>
         </div>
 
         <div className="mt-8 space-y-4">
@@ -638,9 +766,11 @@ function ReportLibrary({
         </div>
 
         {isLoading ? (
-          <div className="mt-10 rounded-md border border-slate-200 bg-white p-8 text-sm text-slate-500 shadow-sm">
-            Loading public reports...
-          </div>
+          <PublicLoadingState
+            message="Loading public reports..."
+            className="mt-10"
+            maxWidthClassName="max-w-none"
+          />
         ) : (
           <div className="mt-10">
             {filteredReports.length > 0 ? (
@@ -657,8 +787,7 @@ function ReportLibrary({
             )}
           </div>
         )}
-      </div>
-    </section>
+    </PublicSection>
   );
 }
 
@@ -751,18 +880,13 @@ export default function PublicReportsPage() {
       <PublicPortalHeader
         activePage="reports"
         compact
-        title={<>Public reports and evidence documents</>}
-        description="Access approved climate reports, evidence documents, public briefs and validated outputs published through the Kaduna Climate Command Centre."
+        showHero={false}
         showActions={false}
       />
 
-      {error && (
-        <section className="px-4 py-4 sm:px-8 lg:px-10">
-          <div className="mx-auto max-w-7xl rounded-sm border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        </section>
-      )}
+      <PublicErrorBanner message={error} maxWidthClassName="max-w-7xl" />
+
+      <ReportsExecutiveHero reports={reports} summary={summary} years={years} />
 
       <EvidenceRibbon reports={reports} summary={summary} years={years} />
 
@@ -779,10 +903,12 @@ export default function PublicReportsPage() {
         isLoading={isLoading}
       />
 
-      <section className="border-y border-slate-200 bg-[#030454] px-4 py-12 text-white sm:px-8 lg:px-10">
-        <div className="mx-auto grid max-w-7xl gap-8 md:grid-cols-[1fr_auto] md:items-center">
+      <PublicSection
+        className="border-y border-slate-200 bg-[#030454] text-white"
+        innerClassName="grid gap-8 md:grid-cols-[1fr_auto] md:items-center"
+      >
           <div>
-            <h3 className="font-['Playfair_Display'] text-3xl font-bold">
+            <h3 className="text-balance font-['Playfair_Display'] text-3xl font-bold">
               Return to climate intelligence portal
             </h3>
 
@@ -792,17 +918,15 @@ export default function PublicReportsPage() {
             </p>
           </div>
 
-          <button
-            type="button"
+          <PublicPrimaryButton
             onClick={() => {
               window.location.href = "/public";
             }}
-            className="w-fit rounded-md bg-[#009B35] px-6 py-3 text-sm font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
+            className="w-fit bg-[#009B35] text-white hover:bg-[#00842e]"
           >
             Back to Public Portal
-          </button>
-        </div>
-      </section>
+          </PublicPrimaryButton>
+      </PublicSection>
 
       <PublicPortalFooter />
     </main>

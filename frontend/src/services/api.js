@@ -436,6 +436,11 @@ export async function getPublicPortalSummary() {
   return response.data;
 }
 
+export async function getPublicGHGInventory(params = {}) {
+  const response = await api.get("/public/ghg-inventory/", { params });
+  return response.data;
+}
+
 export async function getPublicClimateRiskProfiles(params = {}) {
   const response = await api.get("/public/climate-risk/", { params });
   return response.data;

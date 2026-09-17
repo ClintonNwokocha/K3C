@@ -12,11 +12,21 @@ import {
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
+  PublicCard,
   PublicEmptyState,
+  PublicErrorBanner,
+  PublicFaqAccordion,
+  PublicDisclaimerNote,
+  PublicLoadingState,
   PublicPortalFooter,
   PublicPortalHeader,
+  PublicPrimaryButton,
+  PublicSecondaryButton,
+  PublicSection,
+  PublicSectionHeading,
 } from "../components/PublicPortalChrome";
 import { getPublicPortalSummary } from "../services/api";
+import { PUBLIC_EVENT_NAMES, trackPublicEvent } from "../config/analytics";
 
 const KADUNA_CENTER = [10.5105, 7.4165];
 const PROJECT_SLIDE_INTERVAL_MS = 6000;
@@ -53,11 +63,11 @@ const kadunaOuterBoundaryStyle = {
 };
 
 const lgaBoundaryStyle = {
-  color: "#ffffff",
-  weight: 1.1,
-  opacity: 0.8,
+  color: "#030454",
+  weight: 1.6,
+  opacity: 0.55,
   fillColor: "#009B35",
-  fillOpacity: 0.04,
+  fillOpacity: 0.05,
   lineCap: "round",
   lineJoin: "round",
 };
@@ -113,7 +123,7 @@ const LGA_LABEL_CONFIG = {
 const aboutDataItems = [
   {
     title: "What project information is shown publicly?",
-    body: "The public project portfolio shows approved summary information such as project title, sector, LGA, implementation status, funding source, expected beneficiaries, estimated GHG removals and public project descriptions.",
+    body: "The public project portfolio shows approved summary information such as project title, sector, LGA, implementation status, funding source, expected beneficiaries, estimated GHG reduction figures and public project descriptions.",
   },
   {
     title: "Why are financial values not shown?",
@@ -124,8 +134,8 @@ const aboutDataItems = [
     body: "Project points are shown using latitude and longitude coordinates recorded for each project. Where coordinates are not yet available, the project remains visible in the showcase but will not appear as a point on the map.",
   },
   {
-    title: "How should estimated GHG removals be interpreted?",
-    body: "Estimated GHG removals or reductions represent expected mitigation outcomes from registered climate action projects. These are planning estimates unless independently verified and published through approved technical reports.",
+    title: "How should the estimated GHG figures be interpreted?",
+    body: "Individual projects show an 'Estimated GHG reduction' figure representing expected mitigation outcomes, which may come from avoided emissions (for example, cleaner energy projects) or direct removals (for example, afforestation and other land-based projects). The portfolio-wide total is shown as 'Estimated GHG impact' because it combines both mechanisms without double-counting. These are planning estimates unless independently verified and published through approved technical reports.",
   },
   {
     title: "Proper use of the data",
@@ -213,6 +223,15 @@ function getProjectFundingSource(project) {
   return project.funding_source || "Not specified";
 }
 
+function getProjectImplementingMda(project) {
+  return project.implementing_agency || "Not specified";
+}
+
+function getProjectExternalLink(project) {
+  const link = String(project.external_link || "").trim();
+  return link || null;
+}
+
 function getProjectReduction(project) {
   return (
     project.expected_ghg_reduction_tco2e ||
@@ -248,6 +267,14 @@ function getProjectDescription(project) {
     project.climate_risk_relevance ||
     "Detailed public description for this project is being prepared."
   );
+}
+
+function getProjectPeriod(project) {
+  const start = project.start_date || project.implementation_start;
+  const end = project.end_date || project.implementation_end;
+  if (!start && !end) return null;
+  if (start && end) return `${start} – ${end}`;
+  return start || end;
 }
 
 function getApiOrigins() {
@@ -404,90 +431,110 @@ function getStatusMeta(statusKey) {
 
 function SummaryChip({ label, value, helper }) {
   return (
-    <div className="rounded-md border border-[#D8DDE2] bg-white px-4 py-4">
+    <PublicCard className="px-4 py-4">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
         {label}
       </p>
       <p className="mt-2 text-xl font-black text-[#030454]">{value}</p>
       {helper && (
-        <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p>
+        <p className="mt-1 text-xs leading-5 text-slate-600">{helper}</p>
       )}
-    </div>
+    </PublicCard>
+  );
+}
+
+function ProjectsExecutiveHero({ projects, summary, onExploreMap }) {
+  const lgaCount = new Set(projects.map((project) => getProjectLga(project))).size;
+  const sectorCount = new Set(projects.map((project) => getProjectSector(project))).size;
+  const totalProjects = summary.total_projects || projects.length || 0;
+  const totalReduction = summary.total_expected_ghg_reduction_tco2e;
+
+  return (
+    <PublicSection
+      className="border-b border-[#D8DDE2] bg-white !py-10 lg:!py-11"
+      innerClassName="grid gap-6 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-stretch"
+    >
+      <div className="flex min-h-[260px] flex-col justify-center py-2">
+        <h1 className="max-w-4xl text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-[#030454] sm:text-5xl lg:text-6xl">
+          Climate action projects
+        </h1>
+
+        <p className="mt-5 max-w-3xl text-pretty text-base leading-8 text-slate-600 sm:text-lg">
+          Explore public climate action projects, where they are happening,
+          who they benefit, and their estimated greenhouse gas removal
+          outcomes across Kaduna State.
+        </p>
+
+        <div className="mt-7 flex flex-wrap gap-3">
+          <PublicPrimaryButton onClick={onExploreMap}>
+            Explore Map
+          </PublicPrimaryButton>
+          <PublicSecondaryButton
+            onClick={() => {
+              window.location.href = "/public/reports";
+            }}
+          >
+            View Reports
+          </PublicSecondaryButton>
+        </div>
+      </div>
+
+      <PublicCard className="flex min-h-[260px] flex-col justify-between border-[#009B35]/25 p-5">
+        <div>
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
+            Portfolio snapshot
+          </p>
+          <p className="mt-4 text-4xl font-black leading-tight text-[#030454] sm:text-5xl">
+            {totalProjects}
+          </p>
+          <p className="mt-2 text-sm font-bold uppercase tracking-[0.08em] text-slate-500">
+            Public projects
+          </p>
+        </div>
+
+        <div className="mt-5 grid gap-3 border-t border-[#D8DDE2] pt-4 text-sm">
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-slate-500">LGAs represented</span>
+            <strong className="text-right text-[#030454]">{lgaCount}</strong>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-slate-500">Sectors represented</span>
+            <strong className="text-right text-[#030454]">{sectorCount}</strong>
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <span className="text-slate-500">Estimated GHG impact</span>
+            <strong className="text-right text-[#030454]">
+              {formatCompactNumber(totalReduction)} tCO₂e
+            </strong>
+          </div>
+        </div>
+      </PublicCard>
+    </PublicSection>
   );
 }
 
 function ProjectMetricRibbon({ projects, summary }) {
-  const mappedProjects = projects.filter((project) =>
-    Boolean(getValidNigeriaProjectCoordinates(project))
-  );
-
-  const fundingSources = Array.from(
-    new Set(
-      projects
-        .map((project) => getProjectFundingSource(project))
-        .filter((source) => source && source !== "Not specified")
-    )
-  );
-
   const lgaCount = new Set(projects.map((project) => getProjectLga(project))).size;
-  const sectorCount = new Set(projects.map((project) => getProjectSector(project))).size;
   const ongoingCount = projects.filter((p) => getProjectStatusKey(p) === "ongoing").length;
-  const completedCount = projects.filter((p) => getProjectStatusKey(p) === "completed").length;
-  const proposedCount = projects.filter((p) => getProjectStatusKey(p) === "proposed").length;
 
   const ribbonItems = [
-    { label: "Public projects", value: summary.total_projects || projects.length || 0 },
-    { label: "Mapped projects", value: mappedProjects.length },
+    { label: "Public climate projects", value: summary.total_projects || projects.length || 0 },
     { label: "LGAs represented", value: lgaCount },
-    { label: "Sectors represented", value: sectorCount },
-    { label: "Ongoing", value: ongoingCount },
-    { label: "Completed", value: completedCount },
-    { label: "Proposed", value: proposedCount },
-    { label: "GHG removals", value: `${formatCompactNumber(summary.total_expected_ghg_reduction_tco2e)} tCO₂e` },
-    { label: "Beneficiaries", value: formatCompactNumber(summary.total_expected_beneficiaries) },
-    { label: "Funding sources", value: fundingSources.length },
-    { label: "Financial display", value: "Excluded" },
+    { label: "Ongoing projects", value: ongoingCount },
+    { label: "Estimated GHG impact", value: `${formatCompactNumber(summary.total_expected_ghg_reduction_tco2e)} tCO₂e` },
   ];
 
-  const scrollingItems = [...ribbonItems, ...ribbonItems];
-
   return (
-    <section className="overflow-hidden border-y border-[#D8DDE2] bg-white">
-      <style>
-        {`
-          @keyframes projects-metric-ribbon {
-            0% { transform: translateX(0); }
-            100% { transform: translateX(-50%); }
-          }
-          .projects-metric-ribbon-track {
-            width: max-content;
-            animation: projects-metric-ribbon 60s linear infinite;
-            will-change: transform;
-          }
-          .projects-metric-ribbon-track:hover {
-            animation-play-state: paused;
-          }
-          @media (prefers-reduced-motion: reduce) {
-            .projects-metric-ribbon-track {
-              animation: none;
-              flex-wrap: wrap;
-              width: 100%;
-            }
-          }
-        `}
-      </style>
-      <div className="projects-metric-ribbon-track flex">
-        {scrollingItems.map((item, index) => (
-          <div
-            key={`${item.label}-${index}`}
-            className="flex min-w-[275px] items-center gap-4 border-r border-[#E6EAEC] px-7 py-5"
-          >
-            <span className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#009B35]" />
+    <section className="border-y border-[#D8DDE2] bg-[#F7F9FA]">
+      <div className="mx-auto grid max-w-[1536px] grid-cols-2 gap-px bg-[#D8DDE2] lg:grid-cols-4">
+        {ribbonItems.map((item) => (
+          <div key={item.label} className="flex items-center gap-3 bg-white px-5 py-3.5">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-[#009B35]" aria-hidden="true" />
             <span>
-              <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-slate-400">
+              <span className="block text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
                 {item.label}
               </span>
-              <strong className="mt-1 block text-xl font-black tracking-tight text-[#030454]">
+              <strong className="mt-1 block text-lg font-black text-[#030454]">
                 {item.value}
               </strong>
             </span>
@@ -511,30 +558,29 @@ function ProjectMapFilters({
   }
 
   return (
-    <section className="bg-[#F7F9FA] px-4 pt-6 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1536px]">
-        <div className="rounded-xl border border-[#CAD2D7] bg-white p-4 shadow-sm">
-          <div className="grid gap-3 xl:grid-cols-[1fr_170px_220px_220px_auto] xl:items-end">
+    <PublicSection className="bg-[#F7F9FA] !py-10 lg:!py-11" innerClassName="">
+      <PublicCard className="border-[#CAD2D7] p-3">
+          <div className="grid gap-2.5 xl:grid-cols-[minmax(280px,1fr)_160px_200px_200px_auto] xl:items-end">
             <label className="block">
-              <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
                 Search
               </span>
               <input
                 value={filters.search}
                 onChange={(event) => updateFilter("search", event.target.value)}
                 placeholder="Search title, LGA, sector, code or funding source..."
-                className="h-11 w-full rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-4 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+                className="h-9 w-full rounded-md border border-[#D8DDE2] bg-white px-3.5 text-sm text-[#030454] outline-none transition placeholder:text-slate-500 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
               />
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
                 Status
               </span>
               <select
                 value={filters.status}
                 onChange={(event) => updateFilter("status", event.target.value)}
-                className="h-11 w-full rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+                className="h-9 w-full rounded-md border border-[#D8DDE2] bg-white px-3.5 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
               >
                 <option value="all">All statuses</option>
                 {statusOptions.map((status) => (
@@ -546,13 +592,13 @@ function ProjectMapFilters({
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
                 Sector
               </span>
               <select
                 value={filters.sector}
                 onChange={(event) => updateFilter("sector", event.target.value)}
-                className="h-11 w-full rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+                className="h-9 w-full rounded-md border border-[#D8DDE2] bg-white px-3.5 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
               >
                 <option value="all">All sectors</option>
                 {sectorOptions.map((sector) => (
@@ -564,13 +610,13 @@ function ProjectMapFilters({
             </label>
 
             <label className="block">
-              <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
+              <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
                 LGA
               </span>
               <select
                 value={filters.lga}
                 onChange={(event) => updateFilter("lga", event.target.value)}
-                className="h-11 w-full rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-4 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
+                className="h-9 w-full rounded-md border border-[#D8DDE2] bg-white px-3.5 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
               >
                 <option value="all">All LGAs</option>
                 {lgaOptions.map((lga) => (
@@ -582,23 +628,22 @@ function ProjectMapFilters({
             </label>
 
             <div className="flex flex-wrap items-center gap-2 xl:justify-end">
-              <span className="rounded-full bg-[#F7F9FA] px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-slate-500">
-                {filteredCount} matching
+              <span className="rounded-full border border-[#D8DDE2] bg-[#F7F9FA] px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-slate-500">
+                {filteredCount === 1 ? "1 project found" : `${filteredCount} projects found`}
               </span>
               <button
                 type="button"
                 onClick={() =>
                   setFilters({ status: "all", sector: "all", lga: "all", search: "" })
                 }
-                className="rounded-md border border-[#D8DDE2] bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35]"
+                className="rounded-md border border-[#D8DDE2] bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
               >
                 Reset
               </button>
             </div>
           </div>
-        </div>
-      </div>
-    </section>
+      </PublicCard>
+    </PublicSection>
   );
 }
 
@@ -632,7 +677,10 @@ function KadunaMapBounds({ boundaryData, lgaData, projects }) {
         const bounds = L.geoJSON(geometryData).getBounds();
         if (bounds.isValid()) {
           map.fitBounds(bounds, { padding: [24, 24], maxZoom: 8 });
-          map.setMaxBounds(bounds.pad(0.35));
+          // Padded generously (not just 0.35) so popups near the state's edge
+          // have enough room to auto-pan fully into view instead of being
+          // clipped against the hard maxBounds wall.
+          map.setMaxBounds(bounds.pad(1));
           return;
         }
       }
@@ -824,23 +872,21 @@ function ProjectLocationMap({ projects, onReadMore }) {
   }, []);
 
   return (
-    <section className="bg-[#F7F9FA] px-4 py-6 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1536px]">
-        <div className="overflow-hidden rounded-xl border border-[#CAD2D7] bg-white shadow-sm">
-          <div className="flex flex-col justify-between gap-4 border-b border-[#E6EAEC] px-5 py-4 md:flex-row md:items-start">
+    <PublicSection className="bg-[#F7F9FA] !py-10 lg:!py-11" innerClassName="">
+      <PublicCard className="overflow-hidden border-[#CAD2D7] p-0">
+        <div id="public-project-map">
+          <div className="flex flex-col justify-between gap-3 border-b border-[#E6EAEC] px-4 py-3 md:flex-row md:items-start">
             <div>
-              <h2 className="font-['Playfair_Display'] text-3xl font-bold text-[#030454]">
-                Project locations across Kaduna State
-              </h2>
-              <p className="mt-2 max-w-5xl text-sm leading-6 text-slate-600">
-                Project points show where public climate action projects are taking place. Kaduna State and LGA boundaries provide geographic context.
-              </p>
+              <PublicSectionHeading
+                title="Project locations across Kaduna State"
+                description="Project points show where public climate action projects are taking place. Kaduna State and LGA boundaries provide geographic context."
+              />
             </div>
             <div className="flex flex-wrap gap-2 text-xs font-bold">
               {["ongoing", "completed", "proposed"].map((key) => {
                 const meta = getStatusMeta(key);
                 return (
-                  <span key={key} className="flex items-center gap-2 rounded-full bg-[#F7F9FA] px-3 py-2 text-slate-600">
+                  <span key={key} className="flex items-center gap-2 rounded-full border border-[#D8DDE2] bg-[#F7F9FA] px-3 py-2 text-slate-600">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: meta.dot }} />
                     {meta.label}
                   </span>
@@ -849,10 +895,10 @@ function ProjectLocationMap({ projects, onReadMore }) {
             </div>
           </div>
 
-          <div className="p-4">
+          <div className="p-3 sm:p-4">
             {mappedProjects.length > 0 || kadunaLgas ? (
               <>
-                <div className="relative overflow-hidden rounded-md border border-[#D8DDE2]">
+                <div className="relative overflow-hidden rounded-lg border border-[#D8DDE2]">
                   <style>
                     {`
                       .kccc-project-tooltip {
@@ -877,20 +923,12 @@ function ProjectLocationMap({ projects, onReadMore }) {
                     maxBounds={NIGERIA_BOUNDS}
                     maxBoundsViscosity={1.0}
                     scrollWheelZoom={false}
-                    className="h-[510px] w-full"
+                    className="h-[560px] w-full"
                   >
                     <MapPanes />
                     <TileLayer
-                      attribution='Imagery &copy; Esri, Maxar, Earthstar Geographics, and the GIS User Community'
-                      url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                    />
-                    <TileLayer
-                      attribution='Roads &copy; Esri, HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap contributors'
-                      url="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}"
-                    />
-                    <TileLayer
-                      attribution="Labels &copy; Esri"
-                      url="https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+                      attribution="CartoDB Positron"
+                      url="https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
                     />
                     <KadunaMapBounds boundaryData={kadunaBoundary} lgaData={kadunaLgas} projects={mappedProjects} />
                     <KadunaLgaBoundaryLayer data={kadunaLgas} />
@@ -905,24 +943,24 @@ function ProjectLocationMap({ projects, onReadMore }) {
                         <CircleMarker
                           key={project.id || project.project_code || `${project.title}-${index}`}
                           center={coordinates}
-                          radius={9}
+                          radius={11}
                           pane="projectPointPane"
                           pathOptions={{
                             color: "#FFFFFF",
-                            weight: 2,
+                            weight: 2.5,
                             fillColor: statusMeta.dot,
                             fillOpacity: 0.95,
                           }}
                           eventHandlers={{
                             mouseover: (event) => {
-                              event.target.setRadius(12);
-                              event.target.setStyle({ weight: 3, fillOpacity: 1 });
+                              event.target.setRadius(14);
+                              event.target.setStyle({ weight: 3.5, fillOpacity: 1 });
                               event.target.bringToFront();
                               event.target.openTooltip();
                             },
                             mouseout: (event) => {
-                              event.target.setRadius(9);
-                              event.target.setStyle({ weight: 2, fillOpacity: 0.95 });
+                              event.target.setRadius(11);
+                              event.target.setStyle({ weight: 2.5, fillOpacity: 0.95 });
                               event.target.closeTooltip();
                             },
                             click: (event) => { event.target.openPopup(); },
@@ -933,7 +971,14 @@ function ProjectLocationMap({ projects, onReadMore }) {
                               {project.title}
                             </span>
                           </Tooltip>
-                          <Popup className="kccc-project-popup">
+                          <Popup
+                            className="kccc-project-popup"
+                            autoPan
+                            autoPanPaddingTopLeft={[20, 40]}
+                            autoPanPaddingBottomRight={[20, 20]}
+                            maxWidth={300}
+                            maxHeight={420}
+                          >
                             <div className="min-w-[260px] font-['DM_Sans']">
                               <p className="text-base font-black leading-snug text-[#030454]">{project.title}</p>
                               <p className="mt-2 text-xs text-slate-500">
@@ -946,16 +991,18 @@ function ProjectLocationMap({ projects, onReadMore }) {
                               </div>
                               <p className="mt-3 text-xs leading-5 text-slate-600">{getProjectSummary(project)}</p>
                               <div className="mt-3 grid gap-1 text-xs leading-5 text-slate-600">
+                                <p>Implementing MDA: <strong>{getProjectImplementingMda(project)}</strong></p>
                                 <p>Funded by: <strong>{getProjectFundingSource(project)}</strong></p>
                                 <p>Beneficiaries: <strong>{formatCompactNumber(getProjectBeneficiaries(project))}</strong></p>
-                                <p>GHG removals: <strong>{formatNumber(getProjectReduction(project), 0)} tCO₂e</strong></p>
+                                <p>Estimated GHG reduction: <strong>{formatNumber(getProjectReduction(project), 0)} tCO₂e</strong></p>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => onReadMore(project)}
+                                aria-label={`View project details for ${project.title}`}
                                 className="mt-3 text-xs font-black uppercase tracking-[0.08em] text-[#009B35]"
                               >
-                                Read more →
+                                View project details →
                               </button>
                             </div>
                           </Popup>
@@ -984,8 +1031,8 @@ function ProjectLocationMap({ projects, onReadMore }) {
             )}
           </div>
         </div>
-      </div>
-    </section>
+      </PublicCard>
+    </PublicSection>
   );
 }
 
@@ -993,50 +1040,55 @@ function RotatingProjectCard({ projects, activeIndex, onReadMore }) {
   const project = projects[activeIndex % projects.length];
   const statusKey = getProjectStatusKey(project);
   const statusMeta = getStatusMeta(statusKey);
+  const beneficiaries = getProjectBeneficiaries(project);
+  const period = getProjectPeriod(project);
 
   return (
-    <article className="grid min-h-[360px] overflow-hidden rounded-md border border-[#D8DDE2] bg-white shadow-sm lg:grid-cols-[1.1fr_0.9fr]">
-      <div className="relative min-h-[260px] bg-[#030454]">
+    <PublicCard
+      as="article"
+      className="grid overflow-hidden p-0 transition hover:-translate-y-0.5 hover:border-[#009B35]/45 hover:shadow-md lg:grid-cols-[1.1fr_0.9fr]"
+    >
+      <div className="relative min-h-[190px] bg-[#030454]">
         <ProjectImage project={project} alt={project.title} label="Climate Action Project" />
-        <div className="absolute left-4 top-4">
-          <span className={`rounded-sm px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] ${statusMeta.badge}`}>
+        <div className="absolute left-3 top-3">
+          <span className={`rounded-full px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] ${statusMeta.badge}`}>
             {getProjectStatus(project)}
           </span>
         </div>
       </div>
-      <div className="flex flex-col justify-between p-6">
+      <div className="flex flex-col justify-between p-4 lg:p-5">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
             {getProjectLga(project)}
           </p>
-          <h3 className="mt-3 font-['Playfair_Display'] text-3xl font-bold leading-tight text-[#030454]">
+          <h3 className="mt-1.5 text-balance font-['Playfair_Display'] text-xl font-bold leading-tight text-[#030454] sm:text-2xl">
             {project.title}
           </h3>
-          <p className="mt-4 text-sm leading-7 text-slate-600">{getProjectSummary(project)}</p>
+          <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{getProjectSummary(project)}</p>
         </div>
-        <div className="mt-6">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-md bg-[#F7F9FA] px-4 py-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Funded by</p>
-              <p className="mt-1 text-sm font-black text-[#030454]">{getProjectFundingSource(project)}</p>
-            </div>
-            <div className="rounded-md bg-[#F7F9FA] px-4 py-3">
-              <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">GHG removals</p>
-              <p className="mt-1 text-sm font-black text-[#030454]">
-                {formatNumber(getProjectReduction(project), 0)} tCO₂e
-              </p>
-            </div>
-          </div>
+        <div className="mt-3">
+          <dl className="grid gap-x-4 gap-y-1 text-xs leading-5 text-slate-600 sm:grid-cols-2">
+            <div><dt className="inline font-black text-[#030454]">Sector: </dt><dd className="inline">{getProjectSector(project)}</dd></div>
+            <div><dt className="inline font-black text-[#030454]">Funded by: </dt><dd className="inline">{getProjectFundingSource(project)}</dd></div>
+            {beneficiaries > 0 && (
+              <div><dt className="inline font-black text-[#030454]">Beneficiaries: </dt><dd className="inline">{formatCompactNumber(beneficiaries)}</dd></div>
+            )}
+            <div><dt className="inline font-black text-[#030454]">Estimated GHG reduction: </dt><dd className="inline">{formatNumber(getProjectReduction(project), 0)} tCO₂e</dd></div>
+            {period && (
+              <div><dt className="inline font-black text-[#030454]">Implementation period: </dt><dd className="inline">{period}</dd></div>
+            )}
+          </dl>
           <button
             type="button"
             onClick={() => onReadMore(project)}
-            className="mt-5 inline-flex items-center gap-2 rounded-md border border-[#030454] px-4 py-3 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:bg-[#030454] hover:text-white"
+            aria-label={`View project details for ${project.title}`}
+            className="mt-3.5 inline-flex items-center gap-2 rounded-md border border-[#030454] px-3.5 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:bg-[#030454] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
           >
-            Read more <span aria-hidden="true">→</span>
+            View project details <span aria-hidden="true">→</span>
           </button>
         </div>
       </div>
-    </article>
+    </PublicCard>
   );
 }
 
@@ -1053,34 +1105,67 @@ function ProjectShowcaseSection({ title, description, projects, onReadMore }) {
 
   useEffect(() => { setActiveIndex(0); }, [projects]);
 
+  function goToPrevious() {
+    setActiveIndex((current) => (current - 1 + projects.length) % projects.length);
+  }
+
+  function goToNext() {
+    setActiveIndex((current) => (current + 1) % projects.length);
+  }
+
   return (
-    <section className="rounded-md border border-[#CAD2D7] bg-white shadow-sm">
-      <div className="flex flex-col justify-between gap-4 border-b border-[#E6EAEC] px-6 py-5 md:flex-row md:items-start">
-        <div>
-          <h2 className="font-['Playfair_Display'] text-3xl font-bold text-[#030454]">{title}</h2>
-          <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-600">{description}</p>
+    <PublicCard as="section" className="overflow-hidden border-[#CAD2D7] p-0">
+      <div className="flex flex-col justify-between gap-2 border-b border-[#E6EAEC] bg-white px-5 py-3.5 md:flex-row md:items-center">
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-balance font-['Playfair_Display'] text-2xl font-bold text-[#030454]">{title}</h2>
+          <span className="rounded-full bg-[#030454]/8 px-2.5 py-1 text-xs font-black text-[#030454]">
+            {projects.length}
+          </span>
         </div>
-        <span className="w-fit rounded-full bg-[#F7F9FA] px-3 py-2 text-xs font-bold text-slate-500">
-          {projects.length} project{projects.length === 1 ? "" : "s"}
-        </span>
+        {description && <p className="max-w-2xl text-sm leading-6 text-slate-600">{description}</p>}
       </div>
-      <div className="p-5">
+      <div className="p-4">
         {projects.length > 0 ? (
           <>
             <RotatingProjectCard projects={projects} activeIndex={activeIndex} onReadMore={onReadMore} />
             {projects.length > 1 && (
-              <div className="mt-4 flex flex-wrap gap-2">
-                {projects.map((project, index) => (
-                  <button
-                    key={project.id || project.project_code || index}
-                    type="button"
-                    onClick={() => setActiveIndex(index)}
-                    className={`h-2.5 rounded-full transition ${
-                      index === activeIndex ? "w-8 bg-[#009B35]" : "w-2.5 bg-slate-300 hover:bg-slate-400"
-                    }`}
-                    aria-label={`Show project ${index + 1}`}
-                  />
-                ))}
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={goToPrevious}
+                  aria-label={`Show previous project in ${title}`}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#D8DDE2] bg-white text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
+                >
+                  <span aria-hidden="true">←</span>
+                </button>
+
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-slate-500">
+                    {activeIndex + 1} of {projects.length} projects
+                  </span>
+                  <div className="hidden gap-1.5 sm:flex">
+                    {projects.map((project, index) => (
+                      <button
+                        key={project.id || project.project_code || index}
+                        type="button"
+                        onClick={() => setActiveIndex(index)}
+                        className={`h-2 rounded-full transition ${
+                          index === activeIndex ? "w-6 bg-[#009B35]" : "w-2 bg-slate-300 hover:bg-slate-400"
+                        }`}
+                        aria-label={`Show project ${index + 1} of ${projects.length} in ${title}`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={goToNext}
+                  aria-label={`Show next project in ${title}`}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-[#D8DDE2] bg-white text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
+                >
+                  <span aria-hidden="true">→</span>
+                </button>
               </div>
             )}
           </>
@@ -1091,7 +1176,7 @@ function ProjectShowcaseSection({ title, description, projects, onReadMore }) {
           />
         )}
       </div>
-    </section>
+    </PublicCard>
   );
 }
 
@@ -1104,8 +1189,8 @@ function ProjectShowcase({ projects, onReadMore }) {
   }), [projects]);
 
   return (
-    <section className="bg-[#F7F9FA] px-4 pb-8 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1536px] space-y-8">
+    <PublicSection className="bg-[#F7F9FA] !py-10 lg:!py-11">
+      <div className="space-y-[26px]">
         <ProjectShowcaseSection
           title={getStatusMeta("ongoing").title}
           description={getStatusMeta("ongoing").description}
@@ -1133,7 +1218,7 @@ function ProjectShowcase({ projects, onReadMore }) {
           />
         )}
       </div>
-    </section>
+    </PublicSection>
   );
 }
 
@@ -1142,25 +1227,24 @@ function ProjectReadMorePanel({ project, onClose }) {
   const statusMeta = getStatusMeta(getProjectStatusKey(project));
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-[#030454]/50 px-4 py-6 backdrop-blur-sm sm:px-8">
-      <div className="mx-auto flex max-h-full max-w-5xl flex-col overflow-hidden rounded-md bg-white shadow-2xl">
-        <div className="flex items-start justify-between gap-4 border-b border-[#E6EAEC] px-6 py-5">
+    <div className="fixed inset-0 z-[9999] bg-[#030454]/60 px-4 py-6 backdrop-blur-sm sm:px-8">
+      <PublicCard className="mx-auto flex max-h-full max-w-5xl flex-col overflow-hidden p-0 shadow-lg">
+        <div className="flex items-start justify-between gap-4 border-b border-[#E6EAEC] bg-[#F7F9FA] px-6 py-5">
           <div>
-            <span className={`rounded-sm px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] ${statusMeta.badge}`}>
+            <span className={`rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] ${statusMeta.badge}`}>
               {getProjectStatus(project)}
             </span>
-            <h2 className="mt-4 font-['Playfair_Display'] text-3xl font-bold text-[#030454]">{project.title}</h2>
+            <h2 className="mt-4 text-balance font-['Playfair_Display'] text-3xl font-bold text-[#030454]">{project.title}</h2>
             <p className="mt-2 text-sm text-slate-500">
               {getProjectLga(project)} · {getProjectSector(project)}
             </p>
           </div>
-          <button
-            type="button"
+          <PublicSecondaryButton
             onClick={onClose}
-            className="rounded-md border border-[#D8DDE2] px-3 py-2 text-sm font-black text-[#030454] transition hover:bg-[#030454] hover:text-white"
+            className="px-3 py-2 text-sm"
           >
             Close
-          </button>
+          </PublicSecondaryButton>
         </div>
         <div className="grid overflow-y-auto lg:grid-cols-[0.9fr_1.1fr]">
           <div className="min-h-[320px] bg-[#030454]">
@@ -1169,59 +1253,39 @@ function ProjectReadMorePanel({ project, onClose }) {
           <div className="space-y-5 p-6">
             <p className="text-sm leading-7 text-slate-600">{getProjectDescription(project)}</p>
             <div className="grid gap-4 sm:grid-cols-2">
+              <SummaryChip label="Project code" value={project.project_code || "Not published"} />
+              <SummaryChip
+                label="Project type"
+                value={project.project_type_display || project.project_type || "Not specified"}
+              />
+              <SummaryChip label="Implementing MDA" value={getProjectImplementingMda(project)} />
               <SummaryChip label="Funding source" value={getProjectFundingSource(project)} />
               <SummaryChip label="Beneficiaries" value={formatCompactNumber(getProjectBeneficiaries(project))} />
               <SummaryChip
-                label="Estimated GHG removals"
+                label="Estimated GHG reduction"
                 value={`${formatNumber(getProjectReduction(project), 0)} tCO₂e`}
               />
-              <SummaryChip label="Project code" value={project.project_code || "Not published"} />
+              {getProjectPeriod(project) && (
+                <SummaryChip label="Implementation period" value={getProjectPeriod(project)} />
+              )}
             </div>
-            <div className="rounded-md border-l-4 border-[#F3F74B] bg-[#F3F74B]/25 px-5 py-4 text-sm leading-7 text-[#030454]">
+            {getProjectExternalLink(project) && (
+              <a
+                href={getProjectExternalLink(project)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.08em] text-[#009B35] underline-offset-4 hover:underline"
+              >
+                Visit project resource <span aria-hidden="true">→</span>
+              </a>
+            )}
+            <PublicDisclaimerNote className="">
               This public detail view excludes budget and financial values.
-            </div>
+            </PublicDisclaimerNote>
           </div>
         </div>
-      </div>
+      </PublicCard>
     </div>
-  );
-}
-
-function AboutDataAccordion() {
-  const [openItems, setOpenItems] = useState([]);
-
-  function toggleItem(title) {
-    setOpenItems((current) =>
-      current.includes(title) ? current.filter((item) => item !== title) : [...current, title]
-    );
-  }
-
-  return (
-    <section className="bg-[#F7F9FA] px-4 pb-14 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-5xl">
-        <h2 className="font-['Playfair_Display'] text-3xl font-bold text-[#030454]">About the data</h2>
-        <div className="mt-6 divide-y divide-[#D8DDE2] rounded-md border border-[#D8DDE2] bg-white">
-          {aboutDataItems.map((item) => {
-            const isOpen = openItems.includes(item.title);
-            return (
-              <div key={item.title}>
-                <button
-                  type="button"
-                  onClick={() => toggleItem(item.title)}
-                  className="flex w-full items-center justify-between gap-6 px-5 py-5 text-left"
-                >
-                  <span className="font-bold text-[#030454]">{item.title}</span>
-                  <span className="text-xl font-black text-[#009B35]">{isOpen ? "−" : "+"}</span>
-                </button>
-                {isOpen && (
-                  <div className="px-5 pb-5 text-sm leading-7 text-slate-600">{item.body}</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -1231,6 +1295,16 @@ export default function PublicProjectsPage() {
   const [filters, setFilters] = useState({ status: "all", sector: "all", lga: "all", search: "" });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Fires the project_viewed analytics event only for the deliberate
+  // "read more" action, never for incidental re-renders. Sends only a
+  // stable project identifier, never the full project object.
+  function handleProjectReadMore(project) {
+    trackPublicEvent(PUBLIC_EVENT_NAMES.PROJECT_VIEWED, {
+      project: project?.id || project?.project_code || project?.title,
+    });
+    setSelectedProject(project);
+  }
 
   async function loadSummary() {
     setIsLoading(true);
@@ -1295,27 +1369,25 @@ export default function PublicProjectsPage() {
       <PublicPortalHeader
         activePage="projects"
         compact
-        title={<>Climate action projects</>}
-        description="Explore public climate action projects, where they are happening, who they benefit, and their estimated greenhouse gas removal outcomes across Kaduna State."
+        showHero={false}
         showActions={false}
       />
 
-      {error && (
-        <section className="px-4 py-4 sm:px-8 lg:px-10">
-          <div className="mx-auto max-w-[1536px] rounded-sm border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-            {error}
-          </div>
-        </section>
-      )}
+      <PublicErrorBanner message={error} />
 
       {isLoading ? (
-        <section className="px-4 py-16 sm:px-8 lg:px-10">
-          <div className="mx-auto max-w-[1536px] rounded-sm border border-[#CAD2D7] bg-white p-8 text-sm text-slate-500 shadow-sm">
-            Loading public project portfolio...
-          </div>
-        </section>
+        <PublicLoadingState message="Loading public project portfolio..." />
       ) : (
         <>
+          <ProjectsExecutiveHero
+            projects={projectList}
+            summary={projectSummary}
+            onExploreMap={() => {
+              document
+                .getElementById("public-project-map")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          />
           <ProjectMetricRibbon projects={projectList} summary={projectSummary} />
           <ProjectMapFilters
             filters={filters}
@@ -1325,9 +1397,13 @@ export default function PublicProjectsPage() {
             lgaOptions={lgaOptions}
             filteredCount={filteredProjects.length}
           />
-          <ProjectLocationMap projects={filteredProjects} onReadMore={setSelectedProject} />
-          <ProjectShowcase projects={filteredProjects} onReadMore={setSelectedProject} />
-          <AboutDataAccordion />
+          <ProjectLocationMap projects={filteredProjects} onReadMore={handleProjectReadMore} />
+          <ProjectShowcase projects={filteredProjects} onReadMore={handleProjectReadMore} />
+          <PublicFaqAccordion
+            items={aboutDataItems}
+            className="bg-[#F7F9FA] px-4 pt-10 pb-11 sm:px-8 lg:px-10 lg:pt-11"
+            containerClassName="mx-auto max-w-5xl"
+          />
         </>
       )}
 

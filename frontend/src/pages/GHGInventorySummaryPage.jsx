@@ -3,6 +3,7 @@ import ExecutiveGHGInventorySummary from "../components/ExecutiveGHGInventorySum
 export default function GHGInventorySummaryPage({
   ghgSummary,
   isLoading,
+  onOpenSector,
 }) {
   if (isLoading && !ghgSummary) {
     return (
@@ -26,7 +27,10 @@ export default function GHGInventorySummaryPage({
 
   return (
     <section className="space-y-6">
-      <ExecutiveGHGInventorySummary ghgSummary={ghgSummary} />
+      <ExecutiveGHGInventorySummary
+        ghgSummary={ghgSummary}
+        onOpenSector={onOpenSector}
+      />
     </section>
   );
 }

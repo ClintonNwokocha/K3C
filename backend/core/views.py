@@ -1,3 +1,6 @@
+from django.db import connection
+from django.db.utils import OperationalError
+from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -19,10 +22,26 @@ from .serializers import (
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health_check(request):
-    return Response({
-        "status": "ok",
-        "message": "KS-CCC backend is running"
-    })
+    # Distinguishes "application process is alive" from "database is
+    # reachable" for operational monitoring (e.g. an uptime check or a
+    # hosting-platform liveness probe) — deliberately reports only a
+    # coarse ok/unreachable status, never exception detail or connection
+    # info, to avoid leaking system internals on a public endpoint.
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT 1")
+        database_status = "ok"
+    except OperationalError:
+        database_status = "unreachable"
+
+    body = {
+        "status": "ok" if database_status == "ok" else "error",
+        "message": "KS-CCC backend is running",
+        "database": database_status,
+    }
+    http_status = status.HTTP_200_OK if database_status == "ok" else status.HTTP_503_SERVICE_UNAVAILABLE
+
+    return Response(body, status=http_status)
 
 
 @api_view(["GET"])
