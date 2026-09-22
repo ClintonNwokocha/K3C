@@ -140,7 +140,9 @@ function FitGeoJsonBounds({ geoJsonData }) {
       const layer = L.geoJSON(geoJsonData);
       const bounds = layer.getBounds();
       if (bounds.isValid()) map.fitBounds(bounds, { padding: [20, 20] });
-    } catch {}
+    } catch {
+      // Best-effort bounds fit; ignore invalid/degenerate geometry.
+    }
   }, [geoJsonData, map]);
   return null;
 }
@@ -429,7 +431,11 @@ export default function ClimateActionLensMap({ ciData, ciLoading, setSelectedLga
       click: () => setSelectedLgaKey(key),
       mouseover: (e) => {
         e.target.setStyle({ weight: 3, color: "#030454", fillOpacity: 0.92 });
-        try { e.target.bringToFront(); } catch {}
+        try {
+          e.target.bringToFront();
+        } catch {
+          // Visual nicety only; ignore if the layer is already detached.
+        }
       },
       mouseout: (e) => {
         e.target.setStyle(getFeatureStyle(feature));

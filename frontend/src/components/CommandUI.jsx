@@ -1,4 +1,4 @@
-export function CommandPageHeader({ eyebrow, title, description, actions }) {
+export function CommandPageHeader({ title, description, actions }) {
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex flex-col justify-between gap-5 xl:flex-row xl:items-start">
@@ -21,7 +21,6 @@ export function CommandPageHeader({ eyebrow, title, description, actions }) {
 }
 
 export function CommandSection({
-  eyebrow,
   title,
   description,
   children,

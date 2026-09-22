@@ -784,6 +784,7 @@ export default function ClimateRiskPage({ currentUser }) {
   const [infrastructureRefreshKey, setInfrastructureRefreshKey] = useState(0);
   const [mapMetric, setMapMetric] = useState("overall");
   const [selectedLgaName, setSelectedLgaName] = useState("");
+  const [lastRiskDataForSelection, setLastRiskDataForSelection] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [ciData, setCiData] = useState(null);
@@ -845,21 +846,22 @@ export default function ClimateRiskPage({ currentUser }) {
   const topLgas = riskData?.top_lgas || [];
   const canManageRisk = canManageClimateRisk(currentUser);
 
-  useEffect(() => {
+  if (riskData !== lastRiskDataForSelection) {
+    setLastRiskDataForSelection(riskData);
+
     if (!profiles.length) {
-      setSelectedLgaName("");
-      return;
-    }
+      if (selectedLgaName !== "") setSelectedLgaName("");
+    } else {
+      const selectedExists = profiles.some(
+        (profile) =>
+          normalizeName(profile.lga_name) === normalizeName(selectedLgaName)
+      );
 
-    const selectedExists = profiles.some(
-      (profile) =>
-        normalizeName(profile.lga_name) === normalizeName(selectedLgaName)
-    );
-
-    if (!selectedLgaName || !selectedExists) {
-      setSelectedLgaName(profiles[0].lga_name);
+      if (!selectedLgaName || !selectedExists) {
+        setSelectedLgaName(profiles[0].lga_name);
+      }
     }
-  }, [profiles, selectedLgaName]);
+  }
 
   const visibleTabs = useMemo(
     () =>
@@ -1113,6 +1115,12 @@ function formatScreeningSeason(season) {
 // ---------------------------------------------------------------------------
 // ScreeningMatrixSection
 // ---------------------------------------------------------------------------
+function SortIcon({ field, sortField, sortAsc }) {
+  if (sortField !== field)
+    return <span className="ml-1 text-slate-300">↕</span>;
+  return <span className="ml-1">{sortAsc ? "↑" : "↓"}</span>;
+}
+
 function ScreeningMatrixSection({ ciData, ciLoading, setSelectedLgaName, setActiveTab }) {
   const [screeningView, setScreeningView] = useState("matrix");
   const [search, setSearch] = useState("");
@@ -1125,7 +1133,7 @@ function ScreeningMatrixSection({ ciData, ciLoading, setSelectedLgaName, setActi
   const evidencePeriod = useMemo(() => {
     if (!ciData?.filters) return "—";
     return `${ciData.filters.year} · ${formatScreeningSeason(ciData.filters.season)}`;
-  }, [ciData?.filters]);
+  }, [ciData?.filters?.year, ciData?.filters?.season]);
 
   const matrixRows = useMemo(() => {
     if (!ciData?.results) return [];
@@ -1175,12 +1183,6 @@ function ScreeningMatrixSection({ ciData, ciLoading, setSelectedLgaName, setActi
       setSortField(field);
       setSortAsc(true);
     }
-  }
-
-  function SortIcon({ field }) {
-    if (sortField !== field)
-      return <span className="ml-1 text-slate-300">↕</span>;
-    return <span className="ml-1">{sortAsc ? "↑" : "↓"}</span>;
   }
 
   function OverallStatusBadge({ status }) {
@@ -1304,7 +1306,7 @@ function ScreeningMatrixSection({ ciData, ciLoading, setSelectedLgaName, setActi
                     onClick={() => toggleSort("name")}
                   >
                     LGA
-                    <SortIcon field="name" />
+                    <SortIcon field="name" sortField={sortField} sortAsc={sortAsc} />
                   </th>
                   <th className="px-3 py-3 font-bold">Evidence period</th>
                   <th className="px-3 py-3 font-bold">Vegetation / restoration</th>
@@ -1316,14 +1318,14 @@ function ScreeningMatrixSection({ ciData, ciLoading, setSelectedLgaName, setActi
                     onClick={() => toggleSort("completeness")}
                   >
                     Evidence completeness
-                    <SortIcon field="completeness" />
+                    <SortIcon field="completeness" sortField={sortField} sortAsc={sortAsc} />
                   </th>
                   <th
                     className="cursor-pointer px-3 py-3 font-bold hover:text-[#030454]"
                     onClick={() => toggleSort("status")}
                   >
                     Action-readiness status
-                    <SortIcon field="status" />
+                    <SortIcon field="status" sortField={sortField} sortAsc={sortAsc} />
                   </th>
                   <th className="w-8 px-3 py-3" />
                 </tr>

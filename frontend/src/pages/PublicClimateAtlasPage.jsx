@@ -13,9 +13,7 @@ import {
   LocateFixed,
   Maximize2,
   Minimize2,
-  Minus,
   MousePointer2,
-  Plus,
   X,
   ZoomIn,
   ZoomOut,
@@ -436,12 +434,7 @@ function LabelMarker({ position, text, type }) {
   );
 }
 
-function BoundaryLabels({ stateGeoJson, lgaGeoJson, wardGeoJson, zoom, showWards }) {
-  const stateCenter = useMemo(() => {
-    if (!stateGeoJson) return null;
-    return getFeatureCenter(stateGeoJson.features?.[0] || stateGeoJson);
-  }, [stateGeoJson]);
-
+function BoundaryLabels({ lgaGeoJson, wardGeoJson, zoom, showWards }) {
   const lgaLabels = useMemo(() => {
     if (!lgaGeoJson?.features) return [];
     return lgaGeoJson.features.map((feature) => ({
@@ -909,7 +902,7 @@ export default function PublicClimateAtlasPage() {
   const [remoteStats, setRemoteStats] = useState([]);
   const [remoteStatsError, setRemoteStatsError] = useState(false);
   const [publicLayerCatalog, setPublicLayerCatalog] = useState(null);
-  const [geeStatus, setGeeStatus] = useState(null);
+  const [, setGeeStatus] = useState(null);
 
   const [briefingQuestion, setBriefingQuestion] = useState("");
   const [briefingAnswer, setBriefingAnswer] = useState("");
@@ -945,6 +938,12 @@ export default function PublicClimateAtlasPage() {
   const [ciProfileError, setCiProfileError] = useState(null);
   const [ciProfileOpen, setCiProfileOpen] = useState(false);
   const [ciBriefOpen, setCiBriefOpen] = useState(false);
+  const [ciBriefOpenForFeature, setCiBriefOpenForFeature] = useState(selectedLgaFeature);
+
+  if (selectedLgaFeature !== ciBriefOpenForFeature) {
+    setCiBriefOpenForFeature(selectedLgaFeature);
+    setCiBriefOpen(false);
+  }
 
   const [config, setConfig] = useState({
     variableKey: initialVariableKey,
@@ -1056,7 +1055,6 @@ export default function PublicClimateAtlasPage() {
     : (VARIABLE_PERIOD_CONFIGS[variable.key] || ATLAS_PERIODS);
   const variableConfig = getAtlasLayerConfig(variable.key);
   const variableStatistic = getAtlasVariableStatistic(variable.key)?.label || "Spatial mean";
-  const variableStatisticDetail = getAtlasVariableStatistic(variable.key)?.detail || "";
   const profilesByName = useMemo(() => buildLookup(profiles), [profiles]);
   const exposureByName = useMemo(() => {
     const lookup = {};
@@ -1150,7 +1148,6 @@ export default function PublicClimateAtlasPage() {
   const isNdviLandsat = activeNdviLayerKey === "ndvi_landsat";
   const runtimeCopy = getAtlasRuntimeCopy(variable.key, config.year);
   const activeDataSource = runtimeCopy?.dataSource || variable.dataSource;
-  const activeCoverageNote = runtimeCopy?.coverageNote || "";
   const popupConfig = variableConfig?.popup || {};
 
   // Derived from selectedLgaFeature so the popup re-resolves reactively when
@@ -1803,10 +1800,6 @@ export default function PublicClimateAtlasPage() {
     }
     fetchCiProfile();
   }, [selectedLgaFeature, config.year, config.season]);
-
-  useEffect(() => {
-    setCiBriefOpen(false);
-  }, [selectedLgaFeature]);
 
   useEffect(() => {
     if (isExportMode && lgaGeoJson) {

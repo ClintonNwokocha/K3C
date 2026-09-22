@@ -1,3 +1,4 @@
+/* global process */
 // Targeted tests for the shared climate-pathway rule utility.
 // Run from the repo root: node frontend/src/utils/climatePathways.test.js
 //

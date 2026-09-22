@@ -1,4 +1,3 @@
-import React from "react";
 import { PROVENANCE, READINESS, deriveActionPathways } from "../utils/climatePathways";
 
 // ---------------------------------------------------------------------------

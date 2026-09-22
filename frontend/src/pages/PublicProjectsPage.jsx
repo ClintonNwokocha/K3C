@@ -349,10 +349,12 @@ function ProjectImage({
     [project]
   );
   const [candidateIndex, setCandidateIndex] = useState(0);
+  const [candidateIndexForProject, setCandidateIndexForProject] = useState(project);
 
-  useEffect(() => {
+  if (project !== candidateIndexForProject) {
+    setCandidateIndexForProject(project);
     setCandidateIndex(0);
-  }, [project]);
+  }
 
   if (!candidates.length || candidateIndex >= candidates.length) {
     return <ProjectImageFallback project={project} label={label} />;
@@ -1094,6 +1096,12 @@ function RotatingProjectCard({ projects, activeIndex, onReadMore }) {
 
 function ProjectShowcaseSection({ title, description, projects, onReadMore }) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndexForProjects, setActiveIndexForProjects] = useState(projects);
+
+  if (projects !== activeIndexForProjects) {
+    setActiveIndexForProjects(projects);
+    setActiveIndex(0);
+  }
 
   useEffect(() => {
     if (projects.length <= 1) return undefined;
@@ -1102,8 +1110,6 @@ function ProjectShowcaseSection({ title, description, projects, onReadMore }) {
     }, PROJECT_SLIDE_INTERVAL_MS);
     return () => window.clearInterval(interval);
   }, [projects.length]);
-
-  useEffect(() => { setActiveIndex(0); }, [projects]);
 
   function goToPrevious() {
     setActiveIndex((current) => (current - 1 + projects.length) % projects.length);

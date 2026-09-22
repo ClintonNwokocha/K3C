@@ -64,12 +64,6 @@ const formTab = { key: "form", label: "Add / Edit Report" };
 const inputClass =
   "w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition placeholder:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10";
 
-function formatNumber(value, maximumFractionDigits = 0) {
-  return Number(value || 0).toLocaleString(undefined, {
-    maximumFractionDigits,
-  });
-}
-
 function getOptionLabel(options, value) {
   return options.find((item) => item.value === value)?.label || value || "—";
 }

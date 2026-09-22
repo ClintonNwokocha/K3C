@@ -626,6 +626,12 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
   const [mode, setMode] = useState("where");
   const [measure, setMeasure] = useState("count");
   const [activeEntity, setActiveEntity] = useState("all");
+  const [activeEntityMode, setActiveEntityMode] = useState(mode);
+
+  if (mode !== activeEntityMode) {
+    setActiveEntityMode(mode);
+    setActiveEntity("all");
+  }
 
   const entityOptions = useMemo(
     () => buildEntityOptions(projects, mode),
@@ -671,10 +677,6 @@ export default function ProjectPortfolioMapView({ projects = [] }) {
 
     return Math.max(...values, 0);
   }, [lgaStats, measure]);
-
-  useEffect(() => {
-    setActiveEntity("all");
-  }, [mode]);
 
   useEffect(() => {
     let isMounted = true;
