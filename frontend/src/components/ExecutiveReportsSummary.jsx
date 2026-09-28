@@ -86,10 +86,32 @@ export default function ExecutiveReportsSummary() {
   }
 
   useEffect(() => {
-    loadReportsDashboard();
+    let cancelled = false;
+
+    getReportDocuments({})
+      .then((data) => {
+        if (!cancelled) {
+          setReportsData(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load reports dashboard summary.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const reports = reportsData?.results || [];
+  const reports = useMemo(() => reportsData?.results || [], [reportsData]);
   const summary = reportsData?.summary || {};
 
   const dashboardStats = useMemo(() => {

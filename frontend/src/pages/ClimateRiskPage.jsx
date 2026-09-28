@@ -841,7 +841,7 @@ export default function ClimateRiskPage({ currentUser }) {
       .finally(() => setCiLoading(false));
   }, [currentUser]);
 
-  const profiles = riskData?.results || [];
+  const profiles = useMemo(() => riskData?.results || [], [riskData]);
   const summary = riskData?.summary;
   const topLgas = riskData?.top_lgas || [];
   const canManageRisk = canManageClimateRisk(currentUser);

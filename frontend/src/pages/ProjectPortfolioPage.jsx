@@ -1136,7 +1136,7 @@ export default function ProjectPortfolioPage({ currentUser }) {
     filters.lga,
   ]);
 
-  const projects = projectsData?.results || [];
+  const projects = useMemo(() => projectsData?.results || [], [projectsData]);
   const summary = projectsData?.summary || {};
 
   const filteredProjects = useMemo(() => {

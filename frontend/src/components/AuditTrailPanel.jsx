@@ -123,7 +123,7 @@ export default function AuditTrailPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.limit]);
 
-  const logs = auditData?.results || [];
+  const logs = useMemo(() => auditData?.results || [], [auditData]);
   const summary = auditData?.summary || {};
 
   const actionOptions = useMemo(() => {

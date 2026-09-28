@@ -96,12 +96,38 @@ export default function ExecutiveProjectPortfolioSummary() {
   }
 
   useEffect(() => {
-    loadPortfolioDashboard();
+    let cancelled = false;
+
+    Promise.all([
+      getClimateProjects({}),
+      getClimateRiskProfiles({}),
+    ])
+      .then(([projectsResponse, riskResponse]) => {
+        if (!cancelled) {
+          setProjectData(projectsResponse);
+          setRiskData(riskResponse);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load project portfolio dashboard summary.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const projects = projectData?.results || [];
+  const projects = useMemo(() => projectData?.results || [], [projectData]);
   const summary = projectData?.summary || {};
-  const riskProfiles = riskData?.results || [];
+  const riskProfiles = useMemo(() => riskData?.results || [], [riskData]);
 
   const dashboardStats = useMemo(() => {
     const highPriorityProjects = projects.filter((project) =>

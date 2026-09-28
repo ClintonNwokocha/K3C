@@ -1312,23 +1312,33 @@ export default function PublicProjectsPage() {
     setSelectedProject(project);
   }
 
-  async function loadSummary() {
-    setIsLoading(true);
-    setError("");
-    try {
-      const data = await getPublicPortalSummary();
-      setSummaryData(data.summary || {});
-    } catch (err) {
-      console.error(err);
-      setError("Could not load public project portfolio summary.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  useEffect(() => {
+    let cancelled = false;
 
-  useEffect(() => { loadSummary(); }, []);
+    getPublicPortalSummary()
+      .then((data) => {
+        if (!cancelled) {
+          setSummaryData(data.summary || {});
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load public project portfolio summary.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
 
-  const projectSummary = summaryData?.projects || {};
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const projectSummary = useMemo(() => summaryData?.projects || {}, [summaryData]);
 
   const projectList = useMemo(() => {
     const rows =

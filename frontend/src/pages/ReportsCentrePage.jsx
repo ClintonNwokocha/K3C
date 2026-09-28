@@ -816,7 +816,7 @@ export default function ReportsCentrePage({ currentUser }) {
     filters.is_public,
   ]);
 
-  const reports = reportsData?.results || [];
+  const reports = useMemo(() => reportsData?.results || [], [reportsData]);
   const summary = reportsData?.summary || {};
 
   const filteredReports = useMemo(() => {

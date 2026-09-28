@@ -302,7 +302,7 @@ export default function PublicProjectMapPreview() {
     };
   }, []);
 
-  const projects = projectData?.results || [];
+  const projects = useMemo(() => projectData?.results || [], [projectData]);
   const summary = projectData?.summary || {};
 
   const lgaStats = useMemo(() => buildLgaStats(projects), [projects]);

@@ -428,7 +428,7 @@ export default function ClimateRiskDatasetUploadPanel({
   const [year, setYear] = useState("2025");
   const [file, setFile] = useState(null);
   const [uploads, setUploads] = useState([]);
-  const [isLoadingUploads, setIsLoadingUploads] = useState(false);
+  const [isLoadingUploads, setIsLoadingUploads] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -451,7 +451,28 @@ export default function ClimateRiskDatasetUploadPanel({
   }
 
   useEffect(() => {
-    loadUploads();
+    let cancelled = false;
+
+    getClimateRiskDatasetUploads()
+      .then((data) => {
+        if (!cancelled) {
+          setUploads(data.results || []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingUploads(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   async function handleSubmit(event) {

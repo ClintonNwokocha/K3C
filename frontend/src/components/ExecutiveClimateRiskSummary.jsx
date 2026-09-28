@@ -103,10 +103,36 @@ export default function ExecutiveClimateRiskSummary() {
   }
 
   useEffect(() => {
-    loadDashboardClimateRisk();
+    let cancelled = false;
+
+    Promise.all([
+      getClimateRiskProfiles({}),
+      getClimateInfrastructureAssets({}),
+    ])
+      .then(([riskResponse, assetResponse]) => {
+        if (!cancelled) {
+          setRiskData(riskResponse);
+          setAssets(assetResponse.results || []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load Climate Intelligence dashboard summary.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const profiles = riskData?.results || [];
+  const profiles = useMemo(() => riskData?.results || [], [riskData]);
   const summary = riskData?.summary || {};
   const topLgas = riskData?.top_lgas || [];
 

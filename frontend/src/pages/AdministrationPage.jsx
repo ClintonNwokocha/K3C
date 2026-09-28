@@ -122,7 +122,29 @@ export default function AdministrationPage({ foundation }) {
   }
 
   useEffect(() => {
-    loadUsers();
+    let cancelled = false;
+
+    getManagedUsers()
+      .then((data) => {
+        if (!cancelled) {
+          setUsers(data.results || []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load users. Confirm you are logged in as Admin.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   function updateForm(field, value) {

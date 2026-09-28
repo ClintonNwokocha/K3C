@@ -170,7 +170,7 @@ function ExecutiveTabBar({ activeTab, onSelect }) {
   );
 }
 
-export default function Dashboard({ foundation, ghgSummary, currentUser, onPageChange }) {
+export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
   const role = currentUser?.profile?.role || "viewer";
   const { data: dashboardData, loading: dashboardLoading, errors: dashboardErrors } =
     useExecutiveDashboardData();

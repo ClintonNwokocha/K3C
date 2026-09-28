@@ -832,7 +832,7 @@ export default function PublicReportsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.report_type, filters.reporting_year]);
 
-  const reports = reportsData?.results || [];
+  const reports = useMemo(() => reportsData?.results || [], [reportsData]);
   const summary = reportsData?.summary || {};
 
   const filteredReports = useMemo(() => {
