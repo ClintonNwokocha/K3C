@@ -30,6 +30,8 @@ jobs:
       SECRET_KEY: ci-throwaway-secret-key-not-for-production
       DEBUG: "False"
       SECURE_SSL_REDIRECT: "False"
+      REST_THROTTLE_ANON_RATE: "100000/hour"
+      REST_THROTTLE_USER_RATE: "100000/hour"
       ALLOWED_HOSTS: localhost,127.0.0.1
       DATABASE_NAME: ci_test_db
       DATABASE_USER: ci_test_user

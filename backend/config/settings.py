@@ -143,11 +143,11 @@ REST_FRAMEWORK = {
         "rest_framework.throttling.UserRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/hour",
-        "user": "1000/hour",
+        "anon": os.getenv("REST_THROTTLE_ANON_RATE", "100/hour"),
+        "user": os.getenv("REST_THROTTLE_USER_RATE", "1000/hour"),
         # Tighter scope specifically for the login endpoint (brute-force
         # protection) — applied via ScopedRateThrottle on ThrottledTokenObtainPairView.
-        "login": "5/min",
+        "login": os.getenv("REST_THROTTLE_LOGIN_RATE", "5/min"),
     },
 }
 
