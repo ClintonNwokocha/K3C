@@ -799,38 +799,50 @@ export default function PublicReportsPage() {
     search: "",
   });
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState("");
+  const requestKey = `${filters.report_type}|${filters.reporting_year}`;
+  const [settledRequestKey, setSettledRequestKey] = useState(null);
+  const [requestError, setRequestError] = useState(null);
 
-  async function loadReports() {
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const params = {};
-
-      if (filters.report_type && filters.report_type !== "all") {
-        params.report_type = filters.report_type;
-      }
-
-      if (filters.reporting_year) {
-        params.reporting_year = filters.reporting_year;
-      }
-
-      const data = await getPublicReportDocuments(params);
-      setReportsData(normalizeReportsPayload(data));
-    } catch (err) {
-      console.error(err);
-      setError("Could not load public reports.");
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const isLoading = settledRequestKey !== requestKey;
+  const error = !isLoading && requestError?.key === requestKey ? requestError.message : "";
 
   useEffect(() => {
-    loadReports();
+    let cancelled = false;
+    const key = requestKey;
+
+    const params = {};
+
+    if (filters.report_type && filters.report_type !== "all") {
+      params.report_type = filters.report_type;
+    }
+
+    if (filters.reporting_year) {
+      params.reporting_year = filters.reporting_year;
+    }
+
+    getPublicReportDocuments(params)
+      .then((data) => {
+        if (!cancelled) {
+          setReportsData(normalizeReportsPayload(data));
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setRequestError({ key, message: "Could not load public reports." });
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledRequestKey(key);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.report_type, filters.reporting_year]);
+  }, [requestKey]);
 
   const reports = useMemo(() => reportsData?.results || [], [reportsData]);
   const summary = reportsData?.summary || {};
