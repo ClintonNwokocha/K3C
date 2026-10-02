@@ -223,6 +223,12 @@ export default function HomeClimateMapboxPreview({ height = "610px" }) {
   const [activeLocation, setActiveLocation] = useState(FLY_STOPS[0].label);
   const [mapStatus, setMapStatus] = useState("Starting");
 
+  const isTokenMissing =
+    !MAPBOX_TOKEN ||
+    MAPBOX_TOKEN === "pk.your_real_mapbox_token_here" ||
+    MAPBOX_TOKEN === "your_mapbox_public_token_here";
+  const displayStatus = isTokenMissing ? "Token required" : mapStatus;
+
   const activeSlide = useMemo(
     () => PREVIEW_SLIDES[activeSlideIndex] || PREVIEW_SLIDES[0],
     [activeSlideIndex]
@@ -231,14 +237,7 @@ export default function HomeClimateMapboxPreview({ height = "610px" }) {
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    if (
-      !MAPBOX_TOKEN ||
-      MAPBOX_TOKEN === "pk.your_real_mapbox_token_here" ||
-      MAPBOX_TOKEN === "your_mapbox_public_token_here"
-    ) {
-      setMapStatus("Token required");
-      return;
-    }
+    if (isTokenMissing) return;
 
     if (mapRef.current) return;
 
@@ -384,7 +383,7 @@ export default function HomeClimateMapboxPreview({ height = "610px" }) {
         mapRef.current = null;
       }
     };
-  }, []);
+  }, [isTokenMissing]);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -433,7 +432,7 @@ export default function HomeClimateMapboxPreview({ height = "610px" }) {
         <div className="home-mapbox-status-panel">
           <div>
             <span>Status</span>
-            <strong>{mapStatus}</strong>
+            <strong>{displayStatus}</strong>
           </div>
 
           <div>

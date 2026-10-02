@@ -459,6 +459,7 @@ function RiskMapSection({
           />
 
           <ClimateRiskEditPanel
+            key={`${selectedProfile?.lga ?? "none"}-${selectedProfile?.year ?? "none"}`}
             profile={selectedProfile}
             canManage={canManageRisk}
             onSaved={loadRiskProfiles}
@@ -492,6 +493,7 @@ function ParametersSection({
         description="Store raw hazard, exposure, vulnerability, and adaptive-capacity evidence behind final normalized scores."
       >
         <ClimateRiskParameterPanel
+          key={`${selectedProfile?.lga ?? "none"}-${selectedProfile?.year ?? "none"}`}
           lgas={
             riskData?.results?.map((profile) => ({
               lga_id: profile.lga,
@@ -785,11 +787,19 @@ export default function ClimateRiskPage({ currentUser }) {
   const [mapMetric, setMapMetric] = useState("overall");
   const [selectedLgaName, setSelectedLgaName] = useState("");
   const [lastRiskDataForSelection, setLastRiskDataForSelection] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingState, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const riskProfilesRequestKey = `${selectedYear}|${riskLevel}`;
+  const [settledRiskProfilesRequestKey, setSettledRiskProfilesRequestKey] = useState(null);
+  const isLoading =
+    isLoadingState || settledRiskProfilesRequestKey !== riskProfilesRequestKey;
   const [ciData, setCiData] = useState(null);
-  const [ciLoading, setCiLoading] = useState(false);
+  const [ciLoadingState, setCiLoading] = useState(false);
   const [ciPermissionDenied, setCiPermissionDenied] = useState(false);
+  const [settledCiUser, setSettledCiUser] = useState(undefined);
+  const ciLoading =
+    ciLoadingState ||
+    (canViewInternalModules(currentUser) && settledCiUser !== currentUser);
 
   async function loadRiskProfiles() {
     setIsLoading(true);
@@ -821,24 +831,74 @@ export default function ClimateRiskPage({ currentUser }) {
   }
 
   useEffect(() => {
-    loadRiskProfiles();
+    let cancelled = false;
+    const key = riskProfilesRequestKey;
+
+    const params = {};
+    if (selectedYear) params.year = selectedYear;
+    if (riskLevel !== "all") params.risk_level = riskLevel;
+
+    getClimateRiskProfiles(params)
+      .then((data) => {
+        if (cancelled) return;
+
+        setRiskData(data);
+        setError("");
+
+        if (!selectedYear && data.available_years?.length) {
+          setSelectedYear(String(data.available_years[0]));
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load Climate Intelligence profiles.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledRiskProfilesRequestKey(key);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedYear, riskLevel]);
+  }, [riskProfilesRequestKey]);
 
   useEffect(() => {
-    if (!canViewInternalModules(currentUser)) return;
-    setCiLoading(true);
-    setCiPermissionDenied(false);
+    if (!canViewInternalModules(currentUser)) return undefined;
+
+    let cancelled = false;
+    const user = currentUser;
+
     getClimateActionScreeningData({ admin_level: "lga", season: "annual" })
-      .then((data) => setCiData(data))
+      .then((data) => {
+        if (!cancelled) {
+          setCiPermissionDenied(false);
+          setCiData(data);
+        }
+      })
       .catch((err) => {
+        if (cancelled) return;
+
         const status = err?.response?.status;
         if (status === 401 || status === 403) {
           setCiPermissionDenied(true);
         }
         setCiData(null);
       })
-      .finally(() => setCiLoading(false));
+      .finally(() => {
+        if (!cancelled) {
+          setCiLoading(false);
+          setSettledCiUser(user);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [currentUser]);
 
   const profiles = useMemo(() => riskData?.results || [], [riskData]);
@@ -978,7 +1038,10 @@ export default function ClimateRiskPage({ currentUser }) {
           title="Selected LGA evidence summary"
           description="Review the evidence narrative behind the selected LGA profile."
         >
-          <ClimateRiskEvidenceBrief selectedProfile={selectedProfile} />
+          <ClimateRiskEvidenceBrief
+            key={`${selectedProfile?.lga ?? "none"}-${selectedProfile?.year ?? "none"}`}
+            selectedProfile={selectedProfile}
+          />
         </CommandSection>
       )}
 
@@ -1006,6 +1069,7 @@ export default function ClimateRiskPage({ currentUser }) {
           description="Inspect how final Climate Intelligence scores are derived."
         >
           <ClimateRiskScoringTransparencyPanel
+            key={`${selectedProfile?.lga ?? "none"}-${selectedProfile?.year ?? "none"}`}
             selectedProfile={selectedProfile}
           />
         </CommandSection>
@@ -1017,6 +1081,7 @@ export default function ClimateRiskPage({ currentUser }) {
           description="Review action responses connected to the selected Climate Intelligence profile."
         >
           <ClimateRiskLinkedProjectsPanel
+            key={selectedProfile?.lga ?? "none"}
             selectedProfile={selectedProfile}
             canManage={canManageRisk}
           />

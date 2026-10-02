@@ -90,8 +90,11 @@ export default function AuditTrailPanel() {
     action: "",
     limit: "10",
   });
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingState, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [settledLimit, setSettledLimit] = useState(null);
+  const isLoading = isLoadingState || settledLimit !== filters.limit;
 
   async function loadAuditLogs() {
     setIsLoading(true);
@@ -119,7 +122,40 @@ export default function AuditTrailPanel() {
   }
 
   useEffect(() => {
-    loadAuditLogs();
+    let cancelled = false;
+    const limit = filters.limit;
+
+    const params = {};
+    if (filters.search.trim()) params.search = filters.search.trim();
+    if (filters.action.trim()) params.action = filters.action.trim();
+    if (limit) params.limit = limit;
+
+    getAuditLogs(params)
+      .then((data) => {
+        if (!cancelled) {
+          setAuditData(data);
+          setError("");
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError(
+            err?.response?.data?.detail ||
+              err?.response?.data?.message ||
+              "Could not load audit logs."
+          );
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledLimit(limit);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.limit]);
 

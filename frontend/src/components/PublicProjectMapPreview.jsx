@@ -257,7 +257,29 @@ export default function PublicProjectMapPreview() {
   }
 
   useEffect(() => {
-    loadProjects();
+    let cancelled = false;
+
+    getPublicClimateProjects()
+      .then((data) => {
+        if (!cancelled) {
+          setProjectData(data);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.error(error);
+          setDataError("Could not load public climate project records.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

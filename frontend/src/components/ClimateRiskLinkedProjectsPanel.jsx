@@ -177,14 +177,27 @@ function Notice({ type = "success", children }) {
   );
 }
 
+function buildInitialForm(selectedProfile) {
+  if (!selectedProfile) return initialForm;
+
+  return {
+    ...initialForm,
+    climate_risk_relevance: getDefaultRiskRelevance(selectedProfile),
+    location_notes: `${selectedProfile.lga_name} LGA`,
+  };
+}
+
 export default function ClimateRiskLinkedProjectsPanel({
   selectedProfile,
   canManage,
 }) {
   const [projects, setProjects] = useState([]);
-  const [form, setForm] = useState(initialForm);
+  // Form defaults are intentionally derived from `selectedProfile` on mount
+  // only — the parent remounts this component (via `key`) whenever the
+  // selected LGA changes, so a fresh instance always starts in sync.
+  const [form, setForm] = useState(() => buildInitialForm(selectedProfile));
   const [showForm, setShowForm] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => !!selectedProfile?.lga);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -213,17 +226,35 @@ export default function ClimateRiskLinkedProjectsPanel({
   }
 
   useEffect(() => {
-    loadProjects();
+    if (!selectedProfile?.lga) return undefined;
 
-    if (selectedProfile) {
-      setForm((current) => ({
-        ...current,
-        climate_risk_relevance: getDefaultRiskRelevance(selectedProfile),
-        location_notes: `${selectedProfile.lga_name} LGA`,
-      }));
-    }
+    let cancelled = false;
+
+    getClimateProjects({ lga: selectedProfile.lga })
+      .then((data) => {
+        if (!cancelled) {
+          setProjects(data.results || []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load linked projects for this LGA.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // This effect intentionally runs once per mounted instance — the parent
+    // remounts this component (via `key`) whenever the selected LGA changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProfile?.lga]);
+  }, []);
 
   const summary = useMemo(() => {
     const totalBudget = projects.reduce(

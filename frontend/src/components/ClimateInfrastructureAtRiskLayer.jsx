@@ -151,16 +151,31 @@ export default function ClimateInfrastructureAtRiskLayer({
   selectedProfile,
   canManage,
 }) {
-  const [assets, setAssets] = useState([]);
+  const [rawAssets, setAssets] = useState([]);
   const [assetTypeFilter, setAssetTypeFilter] = useState("all");
   const [riskStatusFilter, setRiskStatusFilter] = useState("all");
   const [form, setForm] = useState(initialForm);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingState, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const selectedLgaId = selectedProfile?.lga || selectedProfile?.lga_id || "";
+  const assets = useMemo(
+    () => (selectedLgaId ? rawAssets : []),
+    [selectedLgaId, rawAssets]
+  );
+
+  const assetsRequestKey = [
+    selectedLgaId,
+    selectedProfile?.year,
+    assetTypeFilter,
+    riskStatusFilter,
+  ].join("|");
+  const [settledAssetsRequestKey, setSettledAssetsRequestKey] = useState(null);
+  const isLoading =
+    isLoadingState ||
+    (!!selectedLgaId && settledAssetsRequestKey !== assetsRequestKey);
 
   async function loadAssets() {
     if (!selectedLgaId) {
@@ -196,7 +211,48 @@ export default function ClimateInfrastructureAtRiskLayer({
   }
 
   useEffect(() => {
-    loadAssets();
+    let cancelled = false;
+    const key = assetsRequestKey;
+
+    if (!selectedLgaId) {
+      return undefined;
+    }
+
+    const params = {
+      lga: selectedLgaId,
+      year: selectedProfile?.year || 2025,
+    };
+
+    if (assetTypeFilter !== "all") {
+      params.asset_type = assetTypeFilter;
+    }
+
+    if (riskStatusFilter !== "all") {
+      params.risk_status = riskStatusFilter;
+    }
+
+    getClimateInfrastructureAssets(params)
+      .then((data) => {
+        if (!cancelled) {
+          setAssets(data.results || []);
+          setError("");
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load infrastructure assets.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledAssetsRequestKey(key);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     selectedLgaId,

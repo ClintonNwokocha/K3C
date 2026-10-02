@@ -92,6 +92,10 @@ export default function ClimateIntelligenceMapbox3D({ height = "560px" }) {
   const [currentLocation, setCurrentLocation] = useState(FLY_STOPS[0].label);
   const [mapStatus, setMapStatus] = useState("Starting");
 
+  const isTokenMissing =
+    !MAPBOX_TOKEN || MAPBOX_TOKEN === "pk.your_real_mapbox_token_here";
+  const displayStatus = isTokenMissing ? "Missing token" : mapStatus;
+
   const currentSlide = useMemo(
     () => CLIMATE_SLIDES[activeSlide] || CLIMATE_SLIDES[0],
     [activeSlide]
@@ -100,10 +104,7 @@ export default function ClimateIntelligenceMapbox3D({ height = "560px" }) {
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
-    if (!MAPBOX_TOKEN || MAPBOX_TOKEN === "pk.your_real_mapbox_token_here") {
-      setMapStatus("Missing token");
-      return;
-    }
+    if (isTokenMissing) return;
 
     if (mapRef.current) return;
 
@@ -197,7 +198,7 @@ export default function ClimateIntelligenceMapbox3D({ height = "560px" }) {
         mapRef.current = null;
       }
     };
-  }, []);
+  }, [isTokenMissing]);
 
   return (
     <section className="climate-mapbox-section">
@@ -218,7 +219,7 @@ export default function ClimateIntelligenceMapbox3D({ height = "560px" }) {
         <div className="climate-mapbox-ribbon">
           <div>
             <span>Status</span>
-            <strong>{mapStatus}</strong>
+            <strong>{displayStatus}</strong>
           </div>
 
           <div>

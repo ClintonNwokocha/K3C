@@ -40,8 +40,13 @@ const sectorDescriptions = {
 export default function GHGInventoryPage({ foundation, currentUser }) {
   const [activeSector, setActiveSector] = useState("summary");
   const [ghgSummary, setGhgSummary] = useState(null);
-  const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+  const [isSummaryLoadingState, setIsSummaryLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const [settledSector, setSettledSector] = useState(null);
+  const isSummaryLoading =
+    isSummaryLoadingState ||
+    (activeSector === "summary" && settledSector !== activeSector);
 
   async function loadSummary() {
     setIsSummaryLoading(true);
@@ -59,9 +64,33 @@ export default function GHGInventoryPage({ foundation, currentUser }) {
   }
 
   useEffect(() => {
-    if (activeSector === "summary") {
-      loadSummary();
-    }
+    if (activeSector !== "summary") return undefined;
+
+    let cancelled = false;
+    const sector = activeSector;
+
+    getGHGDashboardSummary()
+      .then((data) => {
+        if (!cancelled) {
+          setGhgSummary(data);
+          setError("");
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load GHG inventory summary.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledSector(sector);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeSector]);
 
   return (

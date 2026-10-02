@@ -323,7 +323,7 @@ function printBrief(profile, records, groupedRecords, recommendations) {
 
 export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
   const [records, setRecords] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(() => !!selectedProfile?.lga);
   const [error, setError] = useState("");
 
   async function loadRecords() {
@@ -351,9 +351,38 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
   }
 
   useEffect(() => {
-    loadRecords();
+    if (!selectedProfile?.lga) return undefined;
+
+    let cancelled = false;
+
+    getClimateRiskParameterRecords({
+      lga: selectedProfile.lga,
+      year: selectedProfile.year,
+    })
+      .then((data) => {
+        if (!cancelled) {
+          setRecords(data.results || []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load parameter evidence for this LGA.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // This effect intentionally runs once per mounted instance — the parent
+    // remounts this component (via `key`) whenever the selected LGA/year changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedProfile?.lga, selectedProfile?.year]);
+  }, []);
 
   const groupedRecords = useMemo(() => {
     return records.reduce((groups, record) => {

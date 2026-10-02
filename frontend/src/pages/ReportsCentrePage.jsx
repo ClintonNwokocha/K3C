@@ -761,10 +761,20 @@ export default function ReportsCentrePage({ currentUser }) {
     search: "",
   });
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingState, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const reportsRequestKey = [
+    filters.report_type,
+    filters.status,
+    filters.reporting_year,
+    filters.source_module,
+    filters.is_public,
+  ].join("|");
+  const [settledReportsRequestKey, setSettledReportsRequestKey] = useState(null);
+  const isLoading = isLoadingState || settledReportsRequestKey !== reportsRequestKey;
 
   const canManage = canManageReports(currentUser);
 
@@ -806,15 +816,51 @@ export default function ReportsCentrePage({ currentUser }) {
   }
 
   useEffect(() => {
-    loadReports();
+    let cancelled = false;
+    const key = reportsRequestKey;
+
+    const params = {};
+
+    Object.entries(filters).forEach(([field, value]) => {
+      if (value && value !== "all") {
+        params[field] = value;
+      }
+    });
+
+    delete params.search;
+
+    getReportDocuments(params)
+      .then((data) => {
+        if (cancelled) return;
+
+        setReportsData(data);
+        setError("");
+
+        setSelectedReport((current) => {
+          if (!current) return current;
+          const refreshed = (data.results || []).find(
+            (report) => report.id === current.id
+          );
+          return refreshed || null;
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load reports.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledReportsRequestKey(key);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    filters.report_type,
-    filters.status,
-    filters.reporting_year,
-    filters.source_module,
-    filters.is_public,
-  ]);
+  }, [reportsRequestKey]);
 
   const reports = useMemo(() => reportsData?.results || [], [reportsData]);
   const summary = reportsData?.summary || {};

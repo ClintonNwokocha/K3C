@@ -107,31 +107,46 @@ function Notice({ type = "success", children }) {
   );
 }
 
+function buildInitialForm(selectedLgaId, selectedProfile) {
+  if (!selectedLgaId) return initialForm;
+
+  return {
+    ...initialForm,
+    lga: String(selectedLgaId),
+    year: String(selectedProfile?.year || 2025),
+  };
+}
+
 export default function ClimateRiskParameterPanel({
   lgas = [],
   selectedProfile,
   canManage,
 }) {
+  const selectedLgaId = selectedProfile?.lga || selectedProfile?.lga_id || "";
+
   const [records, setRecords] = useState([]);
-  const [form, setForm] = useState(initialForm);
+  // `lga`/`year` defaults are intentionally derived from the selection on
+  // mount only — the parent remounts this component (via `key`) whenever
+  // the selected LGA changes, so a fresh instance always starts in sync.
+  const [form, setForm] = useState(() =>
+    buildInitialForm(selectedLgaId, selectedProfile)
+  );
   const [editingRecordId, setEditingRecordId] = useState(null);
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingState, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const selectedLgaId = selectedProfile?.lga || selectedProfile?.lga_id || "";
-
-  useEffect(() => {
-    if (selectedLgaId) {
-      setForm((current) => ({
-        ...current,
-        lga: String(selectedLgaId),
-        year: String(selectedProfile?.year || 2025),
-      }));
-    }
-  }, [selectedLgaId, selectedProfile?.year]);
+  const recordsRequestKey = [
+    selectedLgaId,
+    selectedProfile?.year,
+    categoryFilter,
+  ].join("|");
+  const [settledRecordsRequestKey, setSettledRecordsRequestKey] = useState(null);
+  const isLoading =
+    isLoadingState ||
+    (!!selectedLgaId && settledRecordsRequestKey !== recordsRequestKey);
 
   async function loadRecords() {
     if (!selectedLgaId) {
@@ -163,7 +178,44 @@ export default function ClimateRiskParameterPanel({
   }
 
   useEffect(() => {
-    loadRecords();
+    let cancelled = false;
+    const key = recordsRequestKey;
+
+    if (!selectedLgaId) {
+      return undefined;
+    }
+
+    const params = {
+      lga: selectedLgaId,
+      year: selectedProfile?.year || 2025,
+    };
+
+    if (categoryFilter !== "all") {
+      params.category = categoryFilter;
+    }
+
+    getClimateRiskParameterRecords(params)
+      .then((data) => {
+        if (!cancelled) {
+          setRecords(data.results || []);
+          setError("");
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load parameter records.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledRecordsRequestKey(key);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLgaId, selectedProfile?.year, categoryFilter]);
 

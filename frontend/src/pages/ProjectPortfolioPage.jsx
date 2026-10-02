@@ -1051,10 +1051,20 @@ export default function ProjectPortfolioPage({ currentUser }) {
     search: "",
   });
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingState, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const projectsRequestKey = [
+    filters.project_type,
+    filters.sector,
+    filters.status,
+    filters.priority,
+    filters.lga,
+  ].join("|");
+  const [settledProjectsRequestKey, setSettledProjectsRequestKey] = useState(null);
+  const isLoading = isLoadingState || settledProjectsRequestKey !== projectsRequestKey;
 
   const canManage = canManageProjectPortfolio(currentUser);
 
@@ -1101,40 +1111,82 @@ export default function ProjectPortfolioPage({ currentUser }) {
     }
   }
 
-  async function loadLgas() {
-    try {
-      const data = await getClimateRiskProfiles({});
-      const options =
-        data?.results?.map((profile) => ({
-          lga_id: profile.lga,
-          lga_name: profile.lga_name,
-        })) || [];
-
-      const uniqueOptions = Array.from(
-        new Map(options.map((item) => [item.lga_id, item])).values()
-      ).sort((a, b) => a.lga_name.localeCompare(b.lga_name));
-
-      setLgaOptions(uniqueOptions);
-    } catch (err) {
-      console.error(err);
-      setLgaOptions([]);
-    }
-  }
-
   useEffect(() => {
-    loadLgas();
+    let cancelled = false;
+
+    getClimateRiskProfiles({})
+      .then((data) => {
+        if (cancelled) return;
+
+        const options =
+          data?.results?.map((profile) => ({
+            lga_id: profile.lga,
+            lga_name: profile.lga_name,
+          })) || [];
+
+        const uniqueOptions = Array.from(
+          new Map(options.map((item) => [item.lga_id, item])).values()
+        ).sort((a, b) => a.lga_name.localeCompare(b.lga_name));
+
+        setLgaOptions(uniqueOptions);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setLgaOptions([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
-    loadProjects();
+    let cancelled = false;
+    const key = projectsRequestKey;
+
+    const params = {};
+    const serverFilterKeys = ["project_type", "sector", "status", "priority", "lga"];
+
+    Object.entries(filters).forEach(([field, value]) => {
+      if (serverFilterKeys.includes(field) && value && value !== "all") {
+        params[field] = value;
+      }
+    });
+
+    getClimateProjects(params)
+      .then((data) => {
+        if (cancelled) return;
+
+        setProjectsData(data);
+        setError("");
+
+        setSelectedProject((current) => {
+          if (!current) return current;
+          const refreshed = (data.results || []).find(
+            (project) => project.id === current.id
+          );
+          return refreshed || null;
+        });
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError("Could not load project portfolio.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledProjectsRequestKey(key);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    filters.project_type,
-    filters.sector,
-    filters.status,
-    filters.priority,
-    filters.lga,
-  ]);
+  }, [projectsRequestKey]);
 
   const projects = useMemo(() => projectsData?.results || [], [projectsData]);
   const summary = projectsData?.summary || {};

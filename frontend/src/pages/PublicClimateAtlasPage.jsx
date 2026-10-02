@@ -1,5 +1,5 @@
 ﻿import L from "leaflet";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
   ChevronDown,
@@ -117,6 +117,24 @@ const ATLAS_PERIODS = [
   { id: "1991-2000", label: "1991–2000", startYear: 1991, endYear: 2000, ticks: [1991, 1995, 2000] },
   { id: "1981-1990", label: "1981–1990", startYear: 1981, endYear: 1990, ticks: [1981, 1985, 1990] },
 ];
+
+// Dry Season 1982 safeguard: no rainfall_anomaly/drought_index records exist
+// for dry_season 1981 (CHIRPS incomplete Nov 1980-Mar 1981). This is the
+// single normalization boundary applied to every config mutation (initial
+// load, updateConfig, updatePeriod, handleVariableChange) so the invalid
+// combination can never be reached, regardless of which field changed.
+function normalizeConfig(nextConfig) {
+  const isDroughtAffectedVariable =
+    nextConfig.variableKey === "drought_index" || nextConfig.variableKey === "rainfall_anomaly";
+  const isDrySeason = SEASON_PARAM[nextConfig.season] === "dry_season";
+  const isNextLatest = nextConfig.period === "Latest";
+
+  if (isDroughtAffectedVariable && isDrySeason && !isNextLatest && Number(nextConfig.year) === 1981) {
+    return { ...nextConfig, year: 1982 };
+  }
+
+  return nextConfig;
+}
 
 // Per-variable period overrides. Variables not listed here use ATLAS_PERIODS (full historical set).
 // NDVI uses a unified list spanning both Landsat (1985–2017) and Sentinel-2 (2018–2025) eras.
@@ -899,8 +917,8 @@ export default function PublicClimateAtlasPage() {
 
   const [profiles, setProfiles] = useState([]);
   const [exposureBreakdown, setExposureBreakdown] = useState({ population: [], buildings: [] });
-  const [remoteStats, setRemoteStats] = useState([]);
-  const [remoteStatsError, setRemoteStatsError] = useState(false);
+  const [rawRemoteStats, setRemoteStats] = useState([]);
+  const [rawRemoteStatsError, setRemoteStatsError] = useState(false);
   const [publicLayerCatalog, setPublicLayerCatalog] = useState(null);
   const [, setGeeStatus] = useState(null);
 
@@ -918,24 +936,24 @@ export default function PublicClimateAtlasPage() {
   const [selectedLgaFeature, setSelectedLgaFeature] = useState(null);
   const [selectedWard, setSelectedWard] = useState(null);
   const [error, setError] = useState("");
-  const [remoteStatsLoading, setRemoteStatsLoading] = useState(false);
-  const [lulcData, setLulcData] = useState(null);
-  const [lulcTileUrl, setLulcTileUrl] = useState(null);
-  const [lulcAvailableYears, setLulcAvailableYears] = useState(null);
+  const [settledRemoteStatsKey, setSettledRemoteStatsKey] = useState(null);
+  const [rawLulcData, setLulcData] = useState(null);
+  const [rawLulcTileUrl, setLulcTileUrl] = useState(null);
+  const [rawLulcAvailableYears, setLulcAvailableYears] = useState(null);
   const [lulcDisplayMode, setLulcDisplayMode] = useState("cartographic");
-  const [floodOccurrenceData, setFloodOccurrenceData] = useState(null);
-  const [elevationData, setElevationData] = useState(null);
+  const [rawFloodOccurrenceData, setFloodOccurrenceData] = useState(null);
+  const [rawElevationData, setElevationData] = useState(null);
   const [elevationDisplayMode, setElevationDisplayMode] = useState("terrain_detail");
-  const [elevationTileUrl, setElevationTileUrl] = useState(null);
-  const [elevationPointSample, setElevationPointSample] = useState(null);
+  const [rawElevationTileUrl, setElevationTileUrl] = useState(null);
+  const [rawElevationPointSample, setElevationPointSample] = useState(null);
   const [elevationPointLoading, setElevationPointLoading] = useState(false);
 
   const [ciLookup, setCiLookup] = useState({});
-  const [ciLoading, setCiLoading] = useState(false);
+  const [settledCiIntelKey, setSettledCiIntelKey] = useState(null);
 
-  const [ciProfile, setCiProfile] = useState(null);
-  const [ciProfileLoading, setCiProfileLoading] = useState(false);
-  const [ciProfileError, setCiProfileError] = useState(null);
+  const [rawCiProfile, setCiProfile] = useState(null);
+  const [rawCiProfileError, setCiProfileError] = useState(null);
+  const [settledCiProfileKey, setSettledCiProfileKey] = useState(null);
   const [ciProfileOpen, setCiProfileOpen] = useState(false);
   const [ciBriefOpen, setCiBriefOpen] = useState(false);
   const [ciBriefOpenForFeature, setCiBriefOpenForFeature] = useState(selectedLgaFeature);
@@ -945,14 +963,27 @@ export default function PublicClimateAtlasPage() {
     setCiBriefOpen(false);
   }
 
-  const [config, setConfig] = useState({
-    variableKey: initialVariableKey,
-    season: initialSeason,
-    period: initialPeriod,
-    opacity: 0.68,
-    year: initialYear,
-    admin_level: "lga",
-  });
+  const [config, setConfig] = useState(() =>
+    normalizeConfig({
+      variableKey: initialVariableKey,
+      season: initialSeason,
+      period: initialPeriod,
+      opacity: 0.68,
+      year: initialYear,
+      admin_level: "lga",
+    })
+  );
+
+  const ciIntelRequestKey = `${config.year}|${config.season}`;
+  const ciLoading = !!config.year && settledCiIntelKey !== ciIntelRequestKey;
+
+  const ciProfile = selectedLgaFeature ? rawCiProfile : null;
+  const ciProfileError = selectedLgaFeature ? rawCiProfileError : null;
+  const ciProfileRequestKey = selectedLgaFeature
+    ? `${getFeatureAdminCode(selectedLgaFeature) ?? getFeatureName(selectedLgaFeature)}|${config.year}|${config.season}`
+    : null;
+  const ciProfileLoading =
+    !!selectedLgaFeature && settledCiProfileKey !== ciProfileRequestKey;
 
   const publicLayerKeys = useMemo(
     () => new Set((publicLayerCatalog || []).map((layer) => layer.key)),
@@ -1031,6 +1062,33 @@ export default function PublicClimateAtlasPage() {
   }, [publicLayerCatalog, publicLayerKeys, INTERNAL_LULC_PREVIEW_PARAM, INTERNAL_FLOOD_PREVIEW_PARAM, INTERNAL_ELEVATION_PREVIEW_PARAM]);
   const variable = availableVariables.find((item) => item.key === config.variableKey) || availableVariables[0] || ATLAS_VARIABLES[0];
   const selectedVariableAvailable = availableVariables.some((item) => item.key === config.variableKey);
+
+  // These mirror the show/hide conditions of their former clear-on-effect
+  // guards exactly — when the active variable/publication state doesn't
+  // match, the data reads as absent without needing to synchronously wipe
+  // the underlying fetched state from inside an effect.
+  const showRemoteStats = !!publicLayerCatalog && selectedVariableAvailable && variable.source === "remote_sensing";
+  const remoteStats = useMemo(
+    () => (showRemoteStats ? rawRemoteStats : []),
+    [showRemoteStats, rawRemoteStats]
+  );
+  const remoteStatsError = showRemoteStats ? rawRemoteStatsError : false;
+  const remoteStatsRequestKey = `${config.variableKey}|${config.year}|${config.season}|${config.admin_level}|${config.period}`;
+  const remoteStatsLoading = showRemoteStats && settledRemoteStatsKey !== remoteStatsRequestKey;
+
+  const showLulc = variable.key === "annual_lulc" && (INTERNAL_LULC_PREVIEW_PARAM || isLulcPublic);
+  const lulcData = showLulc ? rawLulcData : null;
+  const lulcTileUrl = showLulc ? rawLulcTileUrl : null;
+  const lulcAvailableYears = showLulc ? rawLulcAvailableYears : null;
+
+  const showFlood = variable.key === "flood_occurrence" && (isFloodPublic || INTERNAL_FLOOD_PREVIEW_PARAM);
+  const floodOccurrenceData = showFlood ? rawFloodOccurrenceData : null;
+
+  const showElevation = variable.key === "elevation" && (isElevationPublic || INTERNAL_ELEVATION_PREVIEW_PARAM);
+  const elevationData = showElevation ? rawElevationData : null;
+  const showElevationTile = showElevation && elevationDisplayMode === "terrain_detail";
+  const elevationTileUrl = showElevationTile ? rawElevationTileUrl : null;
+  const elevationPointSample = showElevationTile ? rawElevationPointSample : null;
 
   // Build LULC period options dynamically from available_years returned by the backend,
   // so the selector only shows years that actually exist in the database.
@@ -1235,18 +1293,18 @@ export default function PublicClimateAtlasPage() {
     if (key === "year" || key === "season") {
       setSelectedLgaFeature(null);
     }
-    setConfig((current) => ({ ...current, [key]: value }));
+    setConfig((current) => normalizeConfig({ ...current, [key]: value }));
   }
 
   function updatePeriod(label) {
     setSelectedLgaFeature(null);
     const period = variablePeriods.find((p) => p.label === label) || variablePeriods[0];
     if (period.id === "latest") {
-      setConfig((prev) => ({ ...prev, period: label }));
+      setConfig((prev) => normalizeConfig({ ...prev, period: label }));
       return;
     }
     const { startYear, endYear } = period;
-    setConfig((prev) => ({
+    setConfig((prev) => normalizeConfig({
       ...prev,
       period: label,
       year: prev.year >= startYear && prev.year <= endYear ? prev.year : endYear,
@@ -1261,7 +1319,7 @@ export default function PublicClimateAtlasPage() {
     const currentPeriodValid = periods.some((p) => p.label === config.period);
     trackPublicEvent(PUBLIC_EVENT_NAMES.INDICATOR_SELECTED, { indicator: newKey });
     setSelectedLgaFeature(null);
-    setConfig((prev) => ({
+    setConfig((prev) => normalizeConfig({
       ...prev,
       variableKey: newKey,
       ...(newKey === "flood_occurrence"
@@ -1452,195 +1510,6 @@ export default function PublicClimateAtlasPage() {
     setBriefingAnswer(`${variable.label} is selected for ${config.season}. Data source: ${variable.dataSource}. Period: ${config.period}.`);
   }
 
-  async function loadInitialData() {
-    setError("");
-
-    try {
-      const [stateResponse, lgaResponse, wardResponse] = await Promise.all([
-        fetch("/data/kaduna_state.geojson", { cache: "no-cache" }),
-        fetch("/data/kaduna_lga.geojson", { cache: "no-cache" }),
-        fetch("/data/kaduna_ward.geojson", { cache: "no-cache" }),
-      ]);
-
-      if (!stateResponse.ok) throw new Error("Kaduna State GeoJSON could not be loaded.");
-      if (!lgaResponse.ok) throw new Error("Kaduna LGA GeoJSON could not be loaded.");
-      if (!wardResponse.ok) throw new Error("Kaduna Ward GeoJSON could not be loaded.");
-
-      const [stateData, lgaData, wardData] = await Promise.all([
-        stateResponse.json(),
-        lgaResponse.json(),
-        wardResponse.json(),
-      ]);
-
-      setStateGeoJson(stateData);
-      setLgaGeoJson(lgaData);
-      setWardGeoJson(wardData);
-
-      const results = await Promise.allSettled([
-        getPublicClimateRiskProfiles(),
-        getRemoteSensingDashboardKpis(),
-        getGeeStatus(),
-        getRemoteSensingLayers(),
-      ]);
-
-      if (results[0].status === "fulfilled") {
-        setProfiles(results[0].value.results || []);
-        const summary = results[0].value.summary || {};
-        setExposureBreakdown({
-          population: summary.high_risk_lga_population_breakdown || [],
-          buildings: summary.high_risk_lga_building_breakdown || [],
-        });
-      }
-      if (results[2].status === "fulfilled") setGeeStatus(results[2].value || null);
-      if (results[3].status === "fulfilled") {
-        setPublicLayerCatalog(results[3].value.results || []);
-      } else {
-        setPublicLayerCatalog([]);
-      }
-    } catch (err) {
-      console.error(err);
-      setPublicLayerCatalog([]);
-      setError(err.message || "Could not load Kaduna Climate Change Intelligence System.");
-    }
-  }
-
-  async function loadRemoteStats() {
-    if (!publicLayerCatalog || !selectedVariableAvailable) {
-      setRemoteStats([]);
-      setRemoteStatsError(false);
-      return;
-    }
-
-    if (variable.source !== "remote_sensing") {
-      setRemoteStats([]);
-      setRemoteStatsError(false);
-      return;
-    }
-
-    setRemoteStatsLoading(true);
-    setRemoteStatsError(false);
-    try {
-      // Dry Season 1982 safeguard: no rainfall_anomaly records exist for dry_season 1981
-      // (CHIRPS incomplete Nov 1980â€"Mar 1981). Reset year and re-trigger via state update.
-      if ((variable.key === "rainfall_anomaly" || variable.key === "drought_index") && SEASON_PARAM[config.season] === "dry_season" && !isLatest && config.year === 1981) {
-        updateConfig("year", 1982);
-        return;
-      }
-
-      // For NDVI, resolve the backend layer key from the active year.
-      // "Latest" always requests ndvi (Sentinel-2) without a year; explicit years â‰¤ 2017 use ndvi_landsat.
-      const resolvedLayerKey = variable.key === "ndvi"
-        ? (isLatest ? "ndvi" : config.year <= 2017 ? "ndvi_landsat" : "ndvi")
-        : variable.key;
-      const params = {
-        layer: resolvedLayerKey,
-        season: SEASON_PARAM[config.season] || "annual",
-        admin_level: config.admin_level,
-      };
-      // "Latest" omits year so the backend resolves the most recent stored year.
-      if (!isLatest) {
-        params.year = config.year;
-      }
-      const data = await getRemoteSensingLgaStats(params);
-      setRemoteStats(data.results || []);
-      // Sync the resolved year back to the slider when period is "Latest".
-      const resolvedYear = data.filters?.year;
-      if (isLatest && resolvedYear && resolvedYear !== config.year) {
-        updateConfig("year", resolvedYear);
-      }
-    } catch (err) {
-      console.error("loadRemoteStats failed:", {
-        message: err.message,
-        status: err.response?.status,
-        data: err.response?.data,
-        baseURL: err.config?.baseURL,
-        url: err.config?.url,
-      });
-      setRemoteStats([]);
-      // 404 means the layer is not yet public â€" treat as empty results, not a connection error.
-      setRemoteStatsError(err.response?.status !== 404);
-    } finally {
-      setRemoteStatsLoading(false);
-    }
-  }
-
-  async function loadLulcDataAndTile() {
-    if (!INTERNAL_LULC_PREVIEW_PARAM && !isLulcPublic) return;
-
-    // Step 1: Fetch LGA class stats and dataset metadata.
-    let resolvedYear = null;
-    try {
-      const params = {};
-      // "Latest" period: omit year so the backend returns the most recent dataset.
-      if (!isLatest && config.year) params.year = config.year;
-      const data = await getRemoteSensingLulcPreview(params);
-      setLulcData(data);
-      setLulcAvailableYears(data.available_years || null);
-      resolvedYear = data?.dataset?.year ?? (isLatest ? null : config.year);
-      // Sync config.year to the returned dataset year so sliders and labels stay consistent.
-      if (resolvedYear && resolvedYear !== config.year) {
-        setConfig((prev) => ({ ...prev, year: resolvedYear }));
-      }
-    } catch (err) {
-      console.error("loadLulcData failed:", err);
-      setLulcData(null);
-    }
-
-    // Step 2: Fetch the GEE tile URL for the exact resolved year so the raster
-    // matches the LGA stats dataset.  Runs after step 1 so we use the actual year.
-    try {
-      const tileParams = resolvedYear ? { year: resolvedYear } : {};
-      tileParams.display_mode = lulcDisplayMode;
-      const tileData = await getRemoteSensingLulcTileUrl(tileParams);
-      setLulcTileUrl(tileData?.tile?.tile_url || null);
-    } catch (err) {
-      console.error("loadLulcTileUrl failed:", err);
-      setLulcTileUrl(null);
-    }
-  }
-
-  async function loadFloodOccurrenceData() {
-    const usePublic = publicLayerKeys.has("flood_occurrence");
-    if (!usePublic && !INTERNAL_FLOOD_PREVIEW_PARAM) return;
-    try {
-      const data = usePublic
-        ? await getPublicHistoricalSurfaceWater()
-        : await getFloodOccurrencePreview();
-      setFloodOccurrenceData(data);
-    } catch (err) {
-      console.error("loadFloodOccurrenceData failed:", err);
-      setFloodOccurrenceData(null);
-    }
-  }
-
-  async function loadElevationData() {
-    const usePublic = publicLayerKeys.has("elevation");
-    if (!usePublic && !INTERNAL_ELEVATION_PREVIEW_PARAM) return;
-    try {
-      const data = usePublic
-        ? await getPublicElevationSummary()
-        : await getElevationPreview();
-      setElevationData(data);
-    } catch (err) {
-      console.error("loadElevationData failed:", err);
-      setElevationData(null);
-    }
-  }
-
-  async function loadElevationTileUrl() {
-    const isPublic = publicLayerKeys.has("elevation");
-    if (!isPublic && !INTERNAL_ELEVATION_PREVIEW_PARAM) return;
-    try {
-      const data = isPublic
-        ? await getElevationTileUrlPublic()
-        : await getElevationTileUrl();
-      setElevationTileUrl(data?.tile?.tile_url || null);
-    } catch (err) {
-      console.error("loadElevationTileUrl failed:", err);
-      setElevationTileUrl(null);
-    }
-  }
-
   async function handleElevationPointClick(lat, lng) {
     const isPublic = publicLayerKeys.has("elevation");
     if (!isPublic && !INTERNAL_ELEVATION_PREVIEW_PARAM) return;
@@ -1658,148 +1527,363 @@ export default function PublicClimateAtlasPage() {
     }
   }
 
-  async function loadClimateIntelligence() {
-    setCiLoading(true);
-    try {
-      const params = {
-        year: config.year,
-        season: SEASON_PARAM[config.season] || "annual",
-      };
-      if (INTERNAL_LULC_PREVIEW_PARAM) params.include_lulc_preview = "true";
-      const data = await getClimateIntelligence(params);
-      const lookup = {};
-      for (const item of data.results || []) {
-        if (item.admin_code) lookup[item.admin_code] = item;
-        lookup[normalizeName(item.admin_name)] = item;
-      }
-      setCiLookup(lookup);
-    } catch (err) {
-      console.error("loadClimateIntelligence failed:", err);
-      setCiLookup({});
-    } finally {
-      setCiLoading(false);
-    }
-  }
-
   useEffect(() => {
-    loadInitialData();
-  }, []);
+    let cancelled = false;
 
-  useEffect(() => {
-    if (!lgaGeoJson?.features?.length || selectedLgaFeature) return;
-    if (!initialAdminCode && !initialLgaName) return;
-    const requestedName = normalizeName(initialLgaName);
-    const feature = lgaGeoJson.features.find((item) => {
-      const adminCode = String(getFeatureAdminCode(item));
-      return (initialAdminCode && adminCode === String(initialAdminCode)) ||
-        (requestedName && normalizeName(getFeatureName(item)) === requestedName);
-    });
-    if (feature) {
-      setSelectedLgaFeature(feature);
-      setSelectedWard(null);
-    }
-  }, [lgaGeoJson, selectedLgaFeature, initialAdminCode, initialLgaName]);
+    Promise.all([
+      fetch("/data/kaduna_state.geojson", { cache: "no-cache" }),
+      fetch("/data/kaduna_lga.geojson", { cache: "no-cache" }),
+      fetch("/data/kaduna_ward.geojson", { cache: "no-cache" }),
+    ])
+      .then(([stateResponse, lgaResponse, wardResponse]) => {
+        if (!stateResponse.ok) throw new Error("Kaduna State GeoJSON could not be loaded.");
+        if (!lgaResponse.ok) throw new Error("Kaduna LGA GeoJSON could not be loaded.");
+        if (!wardResponse.ok) throw new Error("Kaduna Ward GeoJSON could not be loaded.");
+        return Promise.all([stateResponse.json(), lgaResponse.json(), wardResponse.json()]);
+      })
+      .then(([stateData, lgaData, wardData]) => {
+        if (cancelled) return undefined;
 
-  useEffect(() => {
-    if (!publicLayerCatalog) return;
-    if (selectedVariableAvailable) return;
-    const fallback = availableVariables.find((item) => item.key === "rainfall") || availableVariables[0] || ATLAS_VARIABLES[0];
-    setConfig((current) => ({
-      ...current,
-      variableKey: fallback.key,
-      period: "Latest",
-    }));
-  }, [publicLayerCatalog, selectedVariableAvailable, availableVariables]);
+        setStateGeoJson(stateData);
+        setLgaGeoJson(lgaData);
+        setWardGeoJson(wardData);
 
-  useEffect(() => {
-    if (variable.key !== "drought_index") return;
-    if (SEASON_PARAM[config.season] !== "dry_season") return;
-    if (isLatest || config.year !== 1981) return;
-    updateConfig("year", 1982);
-  }, [variable.key, config.season, config.year, isLatest]);
-
-  useEffect(() => {
-    loadRemoteStats();
-  }, [config.variableKey, config.year, config.season, config.admin_level, config.period, publicLayerCatalog, selectedVariableAvailable]);
-
-  useEffect(() => {
-    if (variable.key !== "annual_lulc" || (!INTERNAL_LULC_PREVIEW_PARAM && !isLulcPublic)) {
-      if (lulcData !== null) setLulcData(null);
-      if (lulcTileUrl !== null) setLulcTileUrl(null);
-      if (lulcAvailableYears !== null) setLulcAvailableYears(null);
-      return;
-    }
-    loadLulcDataAndTile();
-  }, [config.variableKey, config.year, config.period, lulcDisplayMode, publicLayerCatalog]);
-
-  useEffect(() => {
-    const isPublic = publicLayerKeys.has("flood_occurrence");
-    if (variable.key !== "flood_occurrence" || (!isPublic && !INTERNAL_FLOOD_PREVIEW_PARAM)) {
-      if (floodOccurrenceData !== null) setFloodOccurrenceData(null);
-      return;
-    }
-    loadFloodOccurrenceData();
-  }, [config.variableKey, publicLayerCatalog]);
-
-  useEffect(() => {
-    const isPublic = publicLayerKeys.has("elevation");
-    if (variable.key !== "elevation" || (!isPublic && !INTERNAL_ELEVATION_PREVIEW_PARAM)) {
-      if (elevationData !== null) setElevationData(null);
-      if (elevationTileUrl !== null) setElevationTileUrl(null);
-      if (elevationPointSample !== null) setElevationPointSample(null);
-      return;
-    }
-    loadElevationData();
-  }, [config.variableKey, publicLayerCatalog]);
-
-  useEffect(() => {
-    const isPublic = publicLayerKeys.has("elevation");
-    if (variable.key !== "elevation" || (!isPublic && !INTERNAL_ELEVATION_PREVIEW_PARAM)) return;
-    if (elevationDisplayMode !== "terrain_detail") {
-      if (elevationTileUrl !== null) setElevationTileUrl(null);
-      setElevationPointSample(null);
-      return;
-    }
-    loadElevationTileUrl();
-  }, [config.variableKey, elevationDisplayMode, publicLayerCatalog]);
-
-  useEffect(() => {
-    if (!config.year) return;
-    loadClimateIntelligence();
-  }, [config.year, config.season]);
-
-  useEffect(() => {
-    if (!selectedLgaFeature) {
-      setCiProfile(null);
-      setCiProfileError(null);
-      return;
-    }
-    async function fetchCiProfile() {
-      setCiProfileLoading(true);
-      setCiProfileError(null);
-      try {
-        const adminCode = selectedLga?.metric?.admin_code;
-        const params = {
-          year: config.year,
-          season: SEASON_PARAM[config.season] || "annual",
-        };
-        if (adminCode) {
-          params.admin_code = adminCode;
-        } else {
-          params.admin_name = getFeatureName(selectedLgaFeature);
+        // Deep-link initial LGA selection: resolve once, now that lgaGeoJson is available.
+        if (initialAdminCode || initialLgaName) {
+          const requestedName = normalizeName(initialLgaName);
+          const feature = (lgaData.features || []).find((item) => {
+            const adminCode = String(getFeatureAdminCode(item));
+            return (initialAdminCode && adminCode === String(initialAdminCode)) ||
+              (requestedName && normalizeName(getFeatureName(item)) === requestedName);
+          });
+          if (feature) {
+            setSelectedLgaFeature(feature);
+            setSelectedWard(null);
+          }
         }
-        if (INTERNAL_LULC_PREVIEW_PARAM) params.include_lulc_preview = "true";
-        const data = await getClimateIntelligenceProfile(params);
-        setCiProfile(data.profile || null);
-      } catch (err) {
-        console.error("fetchCiProfile failed:", err);
-        setCiProfileError(err.response?.status === 404 ? "notfound" : "error");
-      } finally {
-        setCiProfileLoading(false);
-      }
+
+        return Promise.allSettled([
+          getPublicClimateRiskProfiles(),
+          getRemoteSensingDashboardKpis(),
+          getGeeStatus(),
+          getRemoteSensingLayers(),
+        ]);
+      })
+      .then((results) => {
+        if (cancelled || !results) return;
+
+        if (results[0].status === "fulfilled") {
+          setProfiles(results[0].value.results || []);
+          const summary = results[0].value.summary || {};
+          setExposureBreakdown({
+            population: summary.high_risk_lga_population_breakdown || [],
+            buildings: summary.high_risk_lga_building_breakdown || [],
+          });
+        }
+        if (results[2].status === "fulfilled") setGeeStatus(results[2].value || null);
+
+        const catalog = results[3].status === "fulfilled" ? (results[3].value.results || []) : [];
+        setPublicLayerCatalog(catalog);
+
+        // Fallback-variable correction: the initial variableKey (from URL params or
+        // default) may not be in the catalog that just loaded — reconciled once here,
+        // since later user-driven changes are already constrained to available keys
+        // (see handleVariableChange's own availability guard).
+        const freshLayerKeys = new Set(catalog.map((layer) => layer.key));
+        const freshKeys = getAtlasAvailableLayerConfigs(freshLayerKeys).map((item) => item.key);
+        const extraKeys = [
+          ...(INTERNAL_LULC_PREVIEW_PARAM && !freshKeys.includes("annual_lulc") ? [ANNUAL_LULC_INTERNAL_CONFIG.key] : []),
+          ...(INTERNAL_FLOOD_PREVIEW_PARAM && !freshKeys.includes("flood_occurrence") ? [FLOOD_OCCURRENCE_INTERNAL_CONFIG.key] : []),
+        ];
+        const allKeys = [...freshKeys, ...extraKeys];
+        if (!allKeys.includes(initialVariableKey)) {
+          const fallbackKey = allKeys.includes("rainfall") ? "rainfall" : (allKeys[0] || ATLAS_VARIABLES[0].key);
+          setConfig((prev) => ({ ...prev, variableKey: fallbackKey, period: "Latest" }));
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error(err);
+        setPublicLayerCatalog([]);
+        setError(err.message || "Could not load Kaduna Climate Change Intelligence System.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // Effectively mount-only: initialAdminCode/initialLgaName/initialVariableKey/
+    // the INTERNAL_*_PREVIEW_PARAM flags are all derived once from the URL's
+    // query params and don't change for the lifetime of this component
+    // instance, so listing them here does not cause this to re-run — it
+    // resolves initial GeoJSON, catalog, deep-link selection, and
+    // variable-availability fallback exactly once. (The 1981→1982 dry-season
+    // SPI correction is handled by normalizeConfig, applied at every config
+    // mutation boundary — see its definition near SEASON_PARAM above.)
+  }, [initialAdminCode, initialLgaName, initialVariableKey, INTERNAL_LULC_PREVIEW_PARAM, INTERNAL_FLOOD_PREVIEW_PARAM]);
+
+  useEffect(() => {
+    if (!showRemoteStats) return undefined;
+
+    // The dry-season-1981 combination is now unreachable: normalizeConfig
+    // corrects it at every config mutation boundary (initial load,
+    // updateConfig, updatePeriod, handleVariableChange), so this effect no
+    // longer needs its own corrective branch.
+
+    let cancelled = false;
+    const key = remoteStatsRequestKey;
+
+    // For NDVI, resolve the backend layer key from the active year.
+    // "Latest" always requests ndvi (Sentinel-2) without a year; explicit years <= 2017 use ndvi_landsat.
+    const resolvedLayerKey = variable.key === "ndvi"
+      ? (isLatest ? "ndvi" : config.year <= 2017 ? "ndvi_landsat" : "ndvi")
+      : variable.key;
+    const params = {
+      layer: resolvedLayerKey,
+      season: SEASON_PARAM[config.season] || "annual",
+      admin_level: config.admin_level,
+    };
+    // "Latest" omits year so the backend resolves the most recent stored year.
+    if (!isLatest) {
+      params.year = config.year;
     }
-    fetchCiProfile();
-  }, [selectedLgaFeature, config.year, config.season]);
+
+    getRemoteSensingLgaStats(params)
+      .then((data) => {
+        if (cancelled) return;
+        setRemoteStats(data.results || []);
+        setRemoteStatsError(false);
+        // Sync the resolved year back to the slider when period is "Latest".
+        const resolvedYear = data.filters?.year;
+        if (isLatest && resolvedYear && resolvedYear !== config.year) {
+          updateConfig("year", resolvedYear);
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        console.error("loadRemoteStats failed:", {
+          message: err.message,
+          status: err.response?.status,
+          data: err.response?.data,
+          baseURL: err.config?.baseURL,
+          url: err.config?.url,
+        });
+        setRemoteStats([]);
+        // 404 means the layer is not yet public — treat as empty results, not a connection error.
+        setRemoteStatsError(err.response?.status !== 404);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledRemoteStatsKey(key);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config.variableKey, config.year, config.season, config.admin_level, config.period, publicLayerCatalog, selectedVariableAvailable, isLatest, showRemoteStats, remoteStatsRequestKey, variable.key]);
+
+  useEffect(() => {
+    if (!showLulc) return undefined;
+
+    let cancelled = false;
+    let resolvedYear = null;
+
+    const params = {};
+    // "Latest" period: omit year so the backend returns the most recent dataset.
+    if (!isLatest && config.year) params.year = config.year;
+
+    getRemoteSensingLulcPreview(params)
+      .then((data) => {
+        if (cancelled) return undefined;
+        setLulcData(data);
+        setLulcAvailableYears(data.available_years || null);
+        resolvedYear = data?.dataset?.year ?? (isLatest ? null : config.year);
+        // Sync config.year to the returned dataset year so sliders and labels stay consistent.
+        if (resolvedYear && resolvedYear !== config.year) {
+          setConfig((prev) => ({ ...prev, year: resolvedYear }));
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("loadLulcData failed:", err);
+          setLulcData(null);
+        }
+      })
+      .then(() => {
+        if (cancelled) return undefined;
+        // Step 2: Fetch the GEE tile URL for the exact resolved year so the raster
+        // matches the LGA stats dataset. Runs after step 1 so we use the actual year.
+        const tileParams = resolvedYear ? { year: resolvedYear } : {};
+        tileParams.display_mode = lulcDisplayMode;
+        return getRemoteSensingLulcTileUrl(tileParams)
+          .then((tileData) => {
+            if (!cancelled) {
+              setLulcTileUrl(tileData?.tile?.tile_url || null);
+            }
+          })
+          .catch((err) => {
+            if (!cancelled) {
+              console.error("loadLulcTileUrl failed:", err);
+              setLulcTileUrl(null);
+            }
+          });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config.variableKey, config.year, config.period, lulcDisplayMode, publicLayerCatalog, isLatest, showLulc]);
+
+  useEffect(() => {
+    if (!showFlood) return undefined;
+
+    let cancelled = false;
+    const usePublic = isFloodPublic;
+
+    (usePublic ? getPublicHistoricalSurfaceWater() : getFloodOccurrencePreview())
+      .then((data) => {
+        if (!cancelled) {
+          setFloodOccurrenceData(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("loadFloodOccurrenceData failed:", err);
+          setFloodOccurrenceData(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config.variableKey, publicLayerCatalog, isFloodPublic, showFlood]);
+
+  useEffect(() => {
+    if (!showElevation) return undefined;
+
+    let cancelled = false;
+    const usePublic = isElevationPublic;
+
+    (usePublic ? getPublicElevationSummary() : getElevationPreview())
+      .then((data) => {
+        if (!cancelled) {
+          setElevationData(data);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("loadElevationData failed:", err);
+          setElevationData(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config.variableKey, publicLayerCatalog, isElevationPublic, showElevation]);
+
+  useEffect(() => {
+    if (!showElevationTile) return undefined;
+
+    let cancelled = false;
+    const usePublic = isElevationPublic;
+
+    (usePublic ? getElevationTileUrlPublic() : getElevationTileUrl())
+      .then((data) => {
+        if (!cancelled) {
+          setElevationTileUrl(data?.tile?.tile_url || null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("loadElevationTileUrl failed:", err);
+          setElevationTileUrl(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config.variableKey, elevationDisplayMode, publicLayerCatalog, isElevationPublic, showElevationTile]);
+
+  useEffect(() => {
+    if (!config.year) return undefined;
+
+    let cancelled = false;
+    const key = ciIntelRequestKey;
+    const params = {
+      year: config.year,
+      season: SEASON_PARAM[config.season] || "annual",
+    };
+    if (INTERNAL_LULC_PREVIEW_PARAM) params.include_lulc_preview = "true";
+
+    getClimateIntelligence(params)
+      .then((data) => {
+        if (cancelled) return;
+        const lookup = {};
+        for (const item of data.results || []) {
+          if (item.admin_code) lookup[item.admin_code] = item;
+          lookup[normalizeName(item.admin_name)] = item;
+        }
+        setCiLookup(lookup);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("loadClimateIntelligence failed:", err);
+          setCiLookup({});
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledCiIntelKey(key);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [config.year, config.season, ciIntelRequestKey, INTERNAL_LULC_PREVIEW_PARAM]);
+
+  useEffect(() => {
+    if (!selectedLgaFeature) return undefined;
+
+    let cancelled = false;
+    const key = ciProfileRequestKey;
+    const adminCode = selectedLga?.metric?.admin_code;
+    const params = {
+      year: config.year,
+      season: SEASON_PARAM[config.season] || "annual",
+    };
+    if (adminCode) {
+      params.admin_code = adminCode;
+    } else {
+      params.admin_name = getFeatureName(selectedLgaFeature);
+    }
+    if (INTERNAL_LULC_PREVIEW_PARAM) params.include_lulc_preview = "true";
+
+    getClimateIntelligenceProfile(params)
+      .then((data) => {
+        if (!cancelled) {
+          setCiProfile(data.profile || null);
+          setCiProfileError(null);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("fetchCiProfile failed:", err);
+          setCiProfileError(err.response?.status === 404 ? "notfound" : "error");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledCiProfileKey(key);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLgaFeature, config.year, config.season, ciProfileRequestKey, INTERNAL_LULC_PREVIEW_PARAM, selectedLga?.metric?.admin_code]);
 
   useEffect(() => {
     if (isExportMode && lgaGeoJson) {
@@ -1934,12 +2018,19 @@ export default function PublicClimateAtlasPage() {
     return formatNumber(val);
   }
 
-  // Synchronous ref updates — run on every render so Leaflet handlers always read current state.
-  styleLgaFeatureRef.current = styleLgaFeature;
-  resolveFeatureRef.current = resolveFeature;
-  formatHoverValueRef.current = formatHoverValue;
-  variableKeyRef.current = variable.key;
-  ciLookupRef.current = ciLookup;
+  // Keep refs synced to the latest committed values so Leaflet's imperative
+  // event handlers (bound once per layer, outside React's render cycle)
+  // always read current state without forcing a full layer re-creation.
+  // useLayoutEffect (not useEffect) so this runs before the browser paints,
+  // preserving the "always fresh before any interaction is possible" guarantee
+  // the previous render-time assignment provided.
+  useLayoutEffect(() => {
+    styleLgaFeatureRef.current = styleLgaFeature;
+    resolveFeatureRef.current = resolveFeature;
+    formatHoverValueRef.current = formatHoverValue;
+    variableKeyRef.current = variable.key;
+    ciLookupRef.current = ciLookup;
+  }, [styleLgaFeature, resolveFeature, formatHoverValue, variable.key, ciLookup]);
 
   function styleWardFeature() {
     return {

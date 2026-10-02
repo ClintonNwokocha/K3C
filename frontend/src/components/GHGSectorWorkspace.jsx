@@ -202,7 +202,8 @@ export default function GHGSectorWorkspace({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [settledCanReview, setSettledCanReview] = useState(null);
+  const [isLoadingState, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
 
@@ -210,6 +211,7 @@ export default function GHGSectorWorkspace({
   const role = currentUser?.profile?.role;
   const canReview =
     role === "admin" || role === "analyst" || currentUser?.is_superuser;
+  const isLoading = isLoadingState || settledCanReview !== canReview;
   // Backend can_final_approve() restricts approve/reject to admin (or
   // superuser) only — analysts can mark-under-review and request-revision,
   // but not give or refuse final approval.
@@ -349,7 +351,48 @@ export default function GHGSectorWorkspace({
   }
 
   useEffect(() => {
-    loadData();
+    let cancelled = false;
+    const reviewFlag = canReview;
+
+    Promise.all([services.getOptions(), services.getEntries()])
+      .then(async ([optionsData, entriesData]) => {
+        if (cancelled) return;
+
+        setOptions(optionsData);
+        setEntries(entriesData.results || []);
+        setSummary(entriesData.summary || []);
+        setError("");
+
+        if (reviewFlag) {
+          try {
+            const reviewData = await services.getReviewQueue();
+            if (!cancelled) {
+              setReviewEntries(reviewData.results || []);
+            }
+          } catch (reviewError) {
+            if (!cancelled) {
+              console.error(reviewError);
+              setReviewEntries([]);
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setError(`Could not load ${sectorName} GHG data.`);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setSettledCanReview(reviewFlag);
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canReview]);
 

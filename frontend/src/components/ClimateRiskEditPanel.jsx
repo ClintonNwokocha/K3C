@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { updateClimateRiskProfile } from "../services/api";
 
 const initialForm = {
@@ -39,35 +39,33 @@ function Notice({ type = "success", children }) {
   );
 }
 
+function buildFormFromProfile(profile) {
+  if (!profile) return initialForm;
+
+  return {
+    flood_risk_score: scoreToFormValue(profile.flood_risk_score),
+    drought_risk_score: scoreToFormValue(profile.drought_risk_score),
+    heat_risk_score: scoreToFormValue(profile.heat_risk_score),
+    erosion_risk_score: scoreToFormValue(profile.erosion_risk_score),
+    exposure_score: scoreToFormValue(profile.exposure_score),
+    vulnerability_score: scoreToFormValue(profile.vulnerability_score),
+    adaptive_capacity_score: scoreToFormValue(profile.adaptive_capacity_score),
+    notes: profile.notes || "",
+    data_source: profile.data_source || "",
+  };
+}
+
 export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
-  const [form, setForm] = useState(initialForm);
+  // Initializes from `profile` once per mounted instance — the parent
+  // remounts this component (via `key`) whenever a different LGA/profile is
+  // selected, so a fresh instance always starts synced to the current
+  // profile. A save completing for the SAME profile is handled separately
+  // in handleSubmit, directly from the save response (see below), not by
+  // reacting to a prop change.
+  const [form, setForm] = useState(() => buildFormFromProfile(profile));
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!profile) {
-      setForm(initialForm);
-      setMessage("");
-      setError("");
-      return;
-    }
-
-    setForm({
-      flood_risk_score: scoreToFormValue(profile.flood_risk_score),
-      drought_risk_score: scoreToFormValue(profile.drought_risk_score),
-      heat_risk_score: scoreToFormValue(profile.heat_risk_score),
-      erosion_risk_score: scoreToFormValue(profile.erosion_risk_score),
-      exposure_score: scoreToFormValue(profile.exposure_score),
-      vulnerability_score: scoreToFormValue(profile.vulnerability_score),
-      adaptive_capacity_score: scoreToFormValue(profile.adaptive_capacity_score),
-      notes: profile.notes || "",
-      data_source: profile.data_source || "",
-    });
-
-    setMessage("");
-    setError("");
-  }, [profile]);
 
   if (!canManage) {
     return null;
@@ -114,7 +112,15 @@ export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
     setError("");
 
     try {
-      await updateClimateRiskProfile(profile.id, buildPayload());
+      const data = await updateClimateRiskProfile(profile.id, buildPayload());
+
+      // Resync the form directly from the save response — the authoritative,
+      // server-normalized profile (overall_risk_score/risk_level are
+      // recalculated backend-side) — rather than waiting on a prop change
+      // that may not arrive with a different object reference every time.
+      if (data?.profile) {
+        setForm(buildFormFromProfile(data.profile));
+      }
 
       setMessage("Risk profile updated successfully.");
 
