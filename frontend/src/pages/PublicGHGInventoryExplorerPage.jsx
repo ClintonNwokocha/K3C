@@ -2173,7 +2173,20 @@ function GeographyNotice({ geography }) {
   );
 }
 
+// Matches ClimateProject.Sector / GHGInventoryEntry.Sector shared sector
+// codes (backend/projects/models.py, backend/ghg/models.py). Only these are
+// accepted from ?sector= — anything else falls back to ALL rather than being
+// passed through unvalidated.
+const VALID_SECTOR_PARAMS = new Set(["energy", "agriculture", "waste", "ippu", "lulucf"]);
+
 export default function PublicGHGInventoryExplorerPage() {
+  // Full page load from e.g. /public/ghg-inventory?sector=agriculture&from_lga=Zaria
+  // — read once, stable for the lifetime of this page instance (no client-side router).
+  const navParams = new URLSearchParams(window.location.search);
+  const sectorParam = navParams.get("sector") || "";
+  const fromLgaParam = navParams.get("from_lga") || "";
+  const initialSector = VALID_SECTOR_PARAMS.has(sectorParam) ? sectorParam : ALL;
+
   const [inventoryData, setInventoryData] = useState(null);
   const [summaryData, setSummaryData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -2182,7 +2195,7 @@ export default function PublicGHGInventoryExplorerPage() {
   const [filters, setFilters] = useState({
     year_from: ALL,
     year_to: ALL,
-    sector: ALL,
+    sector: initialSector,
     category: ALL,
     gas: "CO2e",
     breakout: "sector",
@@ -2428,6 +2441,15 @@ export default function PublicGHGInventoryExplorerPage() {
 
           <PublicSection className="bg-[#F7F9FA]">
             <div className="min-w-0 space-y-5">
+              {fromLgaParam && (
+                <PublicCard className="border-[#173B91]/30 bg-[#EEF1FD] p-4">
+                  <p className="text-xs leading-5 text-[#030454]">
+                    <strong>Kaduna State GHG context relevant to this project sector.</strong> You followed a
+                    suggested project opportunity from {fromLgaParam}. The data below is the existing Kaduna
+                    State-wide GHG inventory — it is not an LGA-level emissions figure for {fromLgaParam}.
+                  </p>
+                </PublicCard>
+              )}
               <FiltersPanel
                 filters={filters}
                 onFilterChange={handleFilterChange}

@@ -3557,6 +3557,14 @@ export default function PublicClimateAtlasPage() {
                   isFloodAvailable={isFloodPublic || INTERNAL_FLOOD_PREVIEW_PARAM}
                   isElevationAvailable={isElevationPublic || INTERNAL_ELEVATION_PREVIEW_PARAM}
                 />
+                <div className="border-t border-[#E6EAEC] p-4">
+                  <a
+                    href={`/public/projects?lga=${encodeURIComponent(selectedLga.name)}`}
+                    className="block w-full rounded-md border border-[#173B91] bg-[#173B91] px-3 py-2 text-center text-[10px] font-black uppercase tracking-[0.1em] text-white transition-colors hover:bg-[#122c73]"
+                  >
+                    Explore Project Opportunities →
+                  </a>
+                </div>
               </div>
             )}
             {selectedWard && (

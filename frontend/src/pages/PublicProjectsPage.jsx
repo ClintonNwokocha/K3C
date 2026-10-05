@@ -25,8 +25,10 @@ import {
   PublicSection,
   PublicSectionHeading,
 } from "../components/PublicPortalChrome";
-import { getPublicPortalSummary } from "../services/api";
+import { getClimateIntelligenceProfile, getPublicPortalSummary } from "../services/api";
 import { PUBLIC_EVENT_NAMES, trackPublicEvent } from "../config/analytics";
+import { deriveActionPathways } from "../utils/climatePathways";
+import ClimateActionOpportunitiesPanel from "../components/ClimateActionOpportunitiesPanel";
 
 const KADUNA_CENTER = [10.5105, 7.4165];
 const PROJECT_SLIDE_INTERVAL_MS = 6000;
@@ -1296,11 +1298,21 @@ function ProjectReadMorePanel({ project, onClose }) {
 }
 
 export default function PublicProjectsPage() {
+  // Full page load from e.g. /public/projects?lga=Zaria — read once, stable
+  // for the lifetime of this page instance (no client-side router).
+  const lgaParam = new URLSearchParams(window.location.search).get("lga") || "";
+
   const [summaryData, setSummaryData] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [filters, setFilters] = useState({ status: "all", sector: "all", lga: "all", search: "" });
+  const [filters, setFilters] = useState({
+    status: "all",
+    sector: "all",
+    lga: lgaParam || "all",
+    search: "",
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [pathways, setPathways] = useState([]);
 
   // Fires the project_viewed analytics event only for the deliberate
   // "read more" action, never for incidental re-renders. Sends only a
@@ -1338,6 +1350,34 @@ export default function PublicProjectsPage() {
     };
   }, []);
 
+  // Mount-only: reuses the existing public climate-intelligence profile
+  // endpoint and the existing deriveActionPathways() engine (climatePathways.js)
+  // — no new scoring/classification logic. No-op when no ?lga= is present.
+  useEffect(() => {
+    if (!lgaParam) return undefined;
+
+    let cancelled = false;
+
+    getClimateIntelligenceProfile({ admin_name: lgaParam, season: "annual" })
+      .then((data) => {
+        if (cancelled) return;
+        const profile = data.profile || null;
+        setPathways(
+          profile ? deriveActionPathways({ ciProfile: profile, floodSnap: null, isFloodAvailable: false }) : []
+        );
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error("fetchCiProfile failed:", err);
+          setPathways([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [lgaParam]);
+
   const projectSummary = useMemo(() => summaryData?.projects || {}, [summaryData]);
 
   const projectList = useMemo(() => {
@@ -1357,7 +1397,12 @@ export default function PublicProjectsPage() {
   }, [projectList]);
 
   const sectorOptions = useMemo(() => getUniqueOptions(projectList, getProjectSector), [projectList]);
-  const lgaOptions = useMemo(() => getUniqueOptions(projectList, getProjectLga), [projectList]);
+  const lgaOptions = useMemo(() => {
+    const base = getUniqueOptions(projectList, getProjectLga);
+    // Keeps a ?lga= selection visible in the filter even when that LGA
+    // currently has zero registered projects (an honest, real result).
+    return lgaParam && !base.includes(lgaParam) ? [...base, lgaParam] : base;
+  }, [projectList, lgaParam]);
 
   const filteredProjects = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
@@ -1405,6 +1450,13 @@ export default function PublicProjectsPage() {
             }}
           />
           <ProjectMetricRibbon projects={projectList} summary={projectSummary} />
+          {lgaParam && (
+            <ClimateActionOpportunitiesPanel
+              lgaName={lgaParam}
+              pathways={pathways}
+              existingProjects={projectList}
+            />
+          )}
           <ProjectMapFilters
             filters={filters}
             setFilters={setFilters}
