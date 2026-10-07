@@ -11,6 +11,8 @@ backend/.venv/
 # Environment files
 backend/.env
 .env
+.env.staging
+.env.*.local
 
 # Django
 *.sqlite3
