@@ -1,4 +1,5 @@
 Django==6.0.5
+dj-database-url==3.1.2
 django-cors-headers==4.9.0
 djangorestframework==3.17.1
 djangorestframework-simplejwt==5.5.1
@@ -8,3 +9,4 @@ Pillow==12.2.0
 psycopg[binary]==3.3.4
 python-dotenv==1.2.2
 scipy==1.18.0
+whitenoise==6.12.0

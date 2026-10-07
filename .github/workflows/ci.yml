@@ -2,9 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+  workflow_dispatch:
+
+# Conservative default — only the build-and-push job below needs write
+# access (to GHCR packages), and only grants itself that explicitly.
+permissions:
+  contents: read
 
 jobs:
   backend:
@@ -88,3 +94,66 @@ jobs:
       - name: Build
         working-directory: frontend
         run: npm run build
+
+  # Builds and pushes ksccc-api / ksccc-frontend images to GHCR. Only runs
+  # on a direct push to main or develop (never for pull_request — a PR run
+  # never has packages:write and this job's own `if` excludes PR events
+  # entirely), and only after both test jobs above succeed. Does not deploy
+  # anywhere — the shared quintessence-infrastructure platform is
+  # responsible for pulling and running these images later.
+  build-and-push:
+    name: Build & push (${{ matrix.image }})
+    needs: [backend, frontend]
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        include:
+          - component: api
+            context: ./backend
+            image: ksccc-api
+          - component: frontend
+            context: ./frontend
+            image: ksccc-frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Compute image tags
+        id: vars
+        run: |
+          echo "owner=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "moving_tag=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "moving_tag=develop" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.image }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ghcr.io/${{ steps.vars.outputs.owner }}/${{ matrix.image }}:${{ steps.vars.outputs.sha_tag }}
+            ghcr.io/${{ steps.vars.outputs.owner }}/${{ matrix.image }}:${{ steps.vars.outputs.moving_tag }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}
