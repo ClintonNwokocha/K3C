@@ -97,6 +97,14 @@ function App() {
     });
   }, []);
 
+  // Fires only on explicit user action ("View related emissions" click) —
+  // never from an effect. Preserves lgaId/lgaName via the functional update
+  // (spread of `current`) rather than replacing the whole context object.
+  function handleViewGhgSector(sector) {
+    setSharedLgaContext((current) => ({ ...current, sector }));
+    setActivePage("ghg");
+  }
+
   async function loadDashboardData() {
     const [healthData, foundationData, ghgDashboardData] = await Promise.all([
       getHealthCheck(),
@@ -239,6 +247,7 @@ function App() {
           currentUser={currentUser}
           onLgaSelected={handleLgaSelected}
           onPageChange={setActivePage}
+          onViewGhgSector={handleViewGhgSector}
         />
       );
     }

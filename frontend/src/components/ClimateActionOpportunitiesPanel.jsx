@@ -43,7 +43,7 @@ const GHG_SECTOR_LABELS = {
   lulucf: "LULUCF",
 };
 
-function OpportunityCard({ lgaName, pathway, existingProjects }) {
+function OpportunityCard({ lgaName, pathway, existingProjects, onViewGhgSector }) {
   const opportunity = getOpportunityForPathway(pathway.id);
   if (!opportunity || !opportunity.category) return null;
 
@@ -107,12 +107,22 @@ function OpportunityCard({ lgaName, pathway, existingProjects }) {
               {opportunity.ghgSectors.map((s) => GHG_SECTOR_LABELS[s] || s).join(", ")}
             </p>
             <p className="mt-1 text-xs leading-5 text-slate-600">{opportunity.ghgRelationship}</p>
-            <a
-              href={`/public/ghg-inventory?sector=${encodeURIComponent(opportunity.ghgSectors[0])}&from_lga=${encodeURIComponent(lgaName)}`}
-              className="mt-2 inline-block text-xs font-bold text-[#173B91] underline"
-            >
-              View related emissions →
-            </a>
+            {typeof onViewGhgSector === "function" ? (
+              <button
+                type="button"
+                onClick={() => onViewGhgSector(opportunity.ghgSectors[0])}
+                className="mt-2 text-xs font-bold text-[#173B91] underline"
+              >
+                View related emissions →
+              </button>
+            ) : (
+              <a
+                href={`/public/ghg-inventory?sector=${encodeURIComponent(opportunity.ghgSectors[0])}&from_lga=${encodeURIComponent(lgaName)}`}
+                className="mt-2 inline-block text-xs font-bold text-[#173B91] underline"
+              >
+                View related emissions →
+              </a>
+            )}
           </>
         ) : (
           <p className="mt-1 text-xs leading-5 text-slate-500">
@@ -143,7 +153,12 @@ function OpportunityCard({ lgaName, pathway, existingProjects }) {
   );
 }
 
-export default function ClimateActionOpportunitiesPanel({ lgaName, pathways, existingProjects = [] }) {
+export default function ClimateActionOpportunitiesPanel({
+  lgaName,
+  pathways,
+  existingProjects = [],
+  onViewGhgSector,
+}) {
   if (!lgaName || !pathways?.length) return null;
 
   const cards = pathways
@@ -153,6 +168,7 @@ export default function ClimateActionOpportunitiesPanel({ lgaName, pathways, exi
         lgaName={lgaName}
         pathway={pathway}
         existingProjects={existingProjects}
+        onViewGhgSector={onViewGhgSector}
       />
     ))
     .filter(Boolean);

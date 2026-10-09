@@ -37,20 +37,17 @@ const sectorDescriptions = {
     "Manage land use, land-use change and forestry records for emissions and removals accounting.",
 };
 
-const SECTOR_TAB_KEYS = new Set(sectorTabs.map((tab) => tab.key));
-
 export default function GHGInventoryPage({
   foundation,
   currentUser,
   sharedSector,
   sharedLgaName,
 }) {
-  // Lazy initializer only: this page remounts fresh whenever the user
-  // navigates to "ghg" (App.jsx swaps the rendered page component
-  // entirely), so this always picks up the latest inherited sector.
-  const [activeSector, setActiveSector] = useState(() =>
-    sharedSector && SECTOR_TAB_KEYS.has(sharedSector) ? sharedSector : "summary"
-  );
+  // Stays on the Summary tab even when arriving with shared sector context
+  // — "View related emissions" means look at the dashboard, not jump into
+  // the sector's data-entry workspace (a different, unrelated action already
+  // reachable via each SectorCard's own "Open Sector Workspace" button).
+  const [activeSector, setActiveSector] = useState("summary");
   const [ghgSummary, setGhgSummary] = useState(null);
   const [isSummaryLoadingState, setIsSummaryLoading] = useState(false);
   const [error, setError] = useState("");
@@ -105,6 +102,8 @@ export default function GHGInventoryPage({
     };
   }, [activeSector]);
 
+  const sharedSectorLabel = sectorTabs.find((tab) => tab.key === sharedSector)?.label || "";
+
   return (
     <div className="space-y-6">
       <CommandPageHeader
@@ -125,9 +124,14 @@ export default function GHGInventoryPage({
 
       {sharedLgaName && (
         <div className="rounded-xl border border-[#173B91]/30 bg-[#EEF1FD] px-5 py-3 text-sm text-[#030454]">
-          Kaduna State-wide sector context relevant to <strong>{sharedLgaName}</strong>. GHG
-          inventory data is reported statewide by sector, not at LGA level — figures below are
-          not {sharedLgaName}-specific emissions.
+          <p>
+            Viewing Kaduna State-wide{sharedSectorLabel ? ` ${sharedSectorLabel}` : ""} emissions in
+            the context of climate-action opportunities identified for <strong>{sharedLgaName}</strong>.
+          </p>
+          <p className="mt-1 text-xs text-[#030454]/70">
+            GHG inventory figures are reported at Kaduna State level and are not {sharedLgaName}-specific
+            emissions.
+          </p>
         </div>
       )}
 
@@ -161,6 +165,7 @@ export default function GHGInventoryPage({
           isLoading={isSummaryLoading}
           onRefresh={loadSummary}
           onOpenSector={setActiveSector}
+          highlightSector={sharedSector}
         />
       )}
 
