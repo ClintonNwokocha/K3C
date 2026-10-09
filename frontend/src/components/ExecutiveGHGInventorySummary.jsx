@@ -266,11 +266,17 @@ function TopEmissionSources({ rows }) {
   );
 }
 
-function SectorCard({ sector, pending, onOpenSector }) {
+function SectorCard({ sector, pending, onOpenSector, highlighted = false }) {
   const inReview = Number(pending?.pending_review_count || 0) + Number(pending?.under_review_count || 0);
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <div
+      className={`flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-sm ${
+        highlighted
+          ? "border-[#173B91] ring-2 ring-[#173B91]/30"
+          : "border-slate-200"
+      }`}
+    >
       <div>
         <p className="font-black text-[#030454]">{sector.sector_label}</p>
 
@@ -311,7 +317,7 @@ function SectorCard({ sector, pending, onOpenSector }) {
 // (GHGInventorySummaryPage.jsx), where onOpenSector is wired to switch
 // the parent's active sector tab. This component performs no fetch of its
 // own — ghgSummary is fetched once by the caller and passed down as a prop.
-export default function ExecutiveGHGInventorySummary({ ghgSummary, onOpenSector }) {
+export default function ExecutiveGHGInventorySummary({ ghgSummary, onOpenSector, highlightSector }) {
   if (!ghgSummary) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -399,6 +405,7 @@ export default function ExecutiveGHGInventorySummary({ ghgSummary, onOpenSector 
               sector={sector}
               pending={pendingBySector.find((row) => row.sector === sector.sector)}
               onOpenSector={onOpenSector}
+              highlighted={highlightSector === sector.sector}
             />
           ))}
 

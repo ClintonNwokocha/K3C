@@ -4,6 +4,7 @@ export default function GHGInventorySummaryPage({
   ghgSummary,
   isLoading,
   onOpenSector,
+  highlightSector,
 }) {
   if (isLoading && !ghgSummary) {
     return (
@@ -30,6 +31,7 @@ export default function GHGInventorySummaryPage({
       <ExecutiveGHGInventorySummary
         ghgSummary={ghgSummary}
         onOpenSector={onOpenSector}
+        highlightSector={highlightSector}
       />
     </section>
   );

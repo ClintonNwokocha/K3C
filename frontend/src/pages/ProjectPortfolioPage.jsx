@@ -1032,7 +1032,11 @@ function ProjectRegisterSection({
   );
 }
 
-export default function ProjectPortfolioPage({ currentUser }) {
+export default function ProjectPortfolioPage({
+  currentUser,
+  sharedLgaId,
+  sharedLgaName,
+}) {
   const [projectsData, setProjectsData] = useState(null);
   const [lgaOptions, setLgaOptions] = useState([]);
   const [form, setForm] = useState(initialForm);
@@ -1040,16 +1044,20 @@ export default function ProjectPortfolioPage({ currentUser }) {
   const [selectedProject, setSelectedProject] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
 
-  const [filters, setFilters] = useState({
+  // Lazy initializer only: this page remounts fresh whenever the user
+  // navigates to "projects" (App.jsx swaps the rendered page component
+  // entirely), so this always picks up the latest inherited LGA without
+  // needing an effect that could fight the user's own filter changes.
+  const [filters, setFilters] = useState(() => ({
     project_type: "all",
     sector: "all",
     status: "all",
     priority: "all",
-    lga: "",
+    lga: sharedLgaId ? String(sharedLgaId) : "",
     implementing_agency: "",
     funding_source: "",
     search: "",
-  });
+  }));
 
   const [isLoadingState, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -1350,6 +1358,21 @@ export default function ProjectPortfolioPage({ currentUser }) {
           </div>
         }
       />
+
+      {sharedLgaId != null && filters.lga === String(sharedLgaId) && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#009B35]/30 bg-[#009B35]/5 px-5 py-3 text-sm text-[#030454]">
+          <span>
+            Viewing: <strong>{sharedLgaName || "Selected LGA"}</strong> — inherited from Climate Risk.
+          </span>
+          <button
+            type="button"
+            onClick={() => setFilters((current) => ({ ...current, lga: "" }))}
+            className="text-xs font-bold uppercase tracking-[0.08em] text-[#030454] underline hover:text-[#009B35]"
+          >
+            Clear LGA filter
+          </button>
+        </div>
+      )}
 
       {error && (
         <CommandNotice title="Project portfolio error" tone="red">

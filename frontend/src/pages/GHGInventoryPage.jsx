@@ -37,7 +37,16 @@ const sectorDescriptions = {
     "Manage land use, land-use change and forestry records for emissions and removals accounting.",
 };
 
-export default function GHGInventoryPage({ foundation, currentUser }) {
+export default function GHGInventoryPage({
+  foundation,
+  currentUser,
+  sharedSector,
+  sharedLgaName,
+}) {
+  // Stays on the Summary tab even when arriving with shared sector context
+  // — "View related emissions" means look at the dashboard, not jump into
+  // the sector's data-entry workspace (a different, unrelated action already
+  // reachable via each SectorCard's own "Open Sector Workspace" button).
   const [activeSector, setActiveSector] = useState("summary");
   const [ghgSummary, setGhgSummary] = useState(null);
   const [isSummaryLoadingState, setIsSummaryLoading] = useState(false);
@@ -93,6 +102,8 @@ export default function GHGInventoryPage({ foundation, currentUser }) {
     };
   }, [activeSector]);
 
+  const sharedSectorLabel = sectorTabs.find((tab) => tab.key === sharedSector)?.label || "";
+
   return (
     <div className="space-y-6">
       <CommandPageHeader
@@ -110,6 +121,19 @@ export default function GHGInventoryPage({ foundation, currentUser }) {
           ) : null
         }
       />
+
+      {sharedLgaName && (
+        <div className="rounded-xl border border-[#173B91]/30 bg-[#EEF1FD] px-5 py-3 text-sm text-[#030454]">
+          <p>
+            Viewing Kaduna State-wide{sharedSectorLabel ? ` ${sharedSectorLabel}` : ""} emissions in
+            the context of climate-action opportunities identified for <strong>{sharedLgaName}</strong>.
+          </p>
+          <p className="mt-1 text-xs text-[#030454]/70">
+            GHG inventory figures are reported at Kaduna State level and are not {sharedLgaName}-specific
+            emissions.
+          </p>
+        </div>
+      )}
 
       {error && (
         <CommandNotice title="GHG inventory error" tone="red">
@@ -141,6 +165,7 @@ export default function GHGInventoryPage({ foundation, currentUser }) {
           isLoading={isSummaryLoading}
           onRefresh={loadSummary}
           onOpenSector={setActiveSector}
+          highlightSector={sharedSector}
         />
       )}
 

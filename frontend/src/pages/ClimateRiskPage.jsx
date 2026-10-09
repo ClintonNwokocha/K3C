@@ -12,6 +12,8 @@ import ClimateInfrastructureAssetImportPanel from "../components/ClimateInfrastr
 import ClimateRiskDataQualityPanel from "../components/ClimateRiskDataQualityPanel";
 import ClimateRiskScoringTransparencyPanel from "../components/ClimateRiskScoringTransparencyPanel";
 import ClimateRiskLinkedProjectsPanel from "../components/ClimateRiskLinkedProjectsPanel";
+import ClimateActionOpportunitiesPanel from "../components/ClimateActionOpportunitiesPanel";
+import { getOpportunityForPathway } from "../decision-support/climateActionOpportunityCatalog";
 import {
   CommandButton,
   CommandNotice,
@@ -20,9 +22,18 @@ import {
   CommandStatCard,
   CommandTabs,
 } from "../components/CommandUI";
-import { getClimateActionScreeningData, getClimateRiskProfiles } from "../services/api";
+import {
+  getClimateActionScreeningData,
+  getClimateIntelligenceProfile,
+  getClimateProjects,
+  getClimateRiskProfiles,
+} from "../services/api";
 import { canManageClimateRisk, canViewInternalModules } from "../utils/permissions";
-import { derivePathwaysFromIndicators, READINESS } from "../utils/climatePathways";
+import {
+  derivePathwaysFromIndicators,
+  deriveActionPathways,
+  READINESS,
+} from "../utils/climatePathways";
 
 const COLORS = {
   blue: "#030454",
@@ -156,7 +167,7 @@ function MetricRow({ label, value, reverse = false, helperText = "" }) {
   );
 }
 
-function LGADetailPanel({ selectedLgaName, selectedProfile }) {
+function LGADetailPanel({ selectedLgaName, selectedProfile, onViewProjects }) {
   if (!selectedLgaName) {
     return (
       <CommandSection
@@ -182,13 +193,21 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
       title={selectedProfile.lga_name}
       description={`Risk profile year: ${selectedProfile.year}`}
       actions={
-        <span
-          className={`rounded-md px-3 py-1 text-xs font-black uppercase tracking-[0.08em] ${getRiskClass(
-            selectedProfile.risk_level
-          )}`}
-        >
-          {selectedProfile.risk_level_display}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-md px-3 py-1 text-xs font-black uppercase tracking-[0.08em] ${getRiskClass(
+              selectedProfile.risk_level
+            )}`}
+          >
+            {selectedProfile.risk_level_display}
+          </span>
+
+          {typeof onViewProjects === "function" && (
+            <CommandButton variant="outline" onClick={onViewProjects}>
+              View Projects for {selectedProfile.lga_name} →
+            </CommandButton>
+          )}
+        </div>
       }
     >
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -376,6 +395,12 @@ function OverviewSection({
   topLgas,
   setSelectedLgaName,
   setActiveTab,
+  onViewProjects,
+  opportunityPathways,
+  opportunityExistingProjects,
+  opportunityLoading,
+  opportunityCiUnavailable,
+  onViewGhgSector,
 }) {
   return (
     <>
@@ -385,6 +410,7 @@ function OverviewSection({
         <LGADetailPanel
           selectedLgaName={selectedLgaName}
           selectedProfile={selectedProfile}
+          onViewProjects={onViewProjects}
         />
 
         <TopLgasPanel
@@ -394,6 +420,33 @@ function OverviewSection({
           showOpenTable
         />
       </div>
+
+      {selectedProfile && (
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          {opportunityLoading ? (
+            <p className="p-6 text-sm text-slate-500">
+              Loading climate action opportunities for {selectedProfile.lga_name}...
+            </p>
+          ) : opportunityCiUnavailable ? (
+            <p className="p-6 text-sm text-slate-500">
+              Climate intelligence evidence is currently unavailable for {selectedProfile.lga_name}.
+              Risk scoring and other Climate Intelligence workspace features above are unaffected.
+            </p>
+          ) : opportunityPathways.some((p) => getOpportunityForPathway(p.id)?.category) ? (
+            <ClimateActionOpportunitiesPanel
+              lgaName={selectedProfile.lga_name}
+              pathways={opportunityPathways}
+              existingProjects={opportunityExistingProjects}
+              onViewGhgSector={onViewGhgSector}
+            />
+          ) : (
+            <p className="p-6 text-sm text-slate-500">
+              No current climate-action pathway is indicated by satellite evidence for{" "}
+              {selectedProfile.lga_name}.
+            </p>
+          )}
+        </div>
+      )}
 
       <IndexExplanationBox />
     </>
@@ -777,7 +830,12 @@ function RiskTableSection({
   );
 }
 
-export default function ClimateRiskPage({ currentUser }) {
+export default function ClimateRiskPage({
+  currentUser,
+  onLgaSelected,
+  onPageChange,
+  onViewGhgSector,
+}) {
   const [riskData, setRiskData] = useState(null);
   const [selectedYear, setSelectedYear] = useState("");
   const [riskLevel, setRiskLevel] = useState("all");
@@ -942,6 +1000,85 @@ export default function ClimateRiskPage({ currentUser }) {
     );
   }, [profiles, selectedLgaName]);
 
+  // Forwards the already-resolved selection up to App.jsx's shared
+  // navigation context — never reads shared state back down, so this
+  // cannot create an update loop. Fires only when selectedProfile itself
+  // changes (a real user selection or the initial-selection default below),
+  // not on every render.
+  useEffect(() => {
+    if (selectedProfile) {
+      onLgaSelected?.(selectedProfile.lga, selectedProfile.lga_name);
+    }
+  }, [selectedProfile, onLgaSelected]);
+
+  // Climate Action Opportunities: reuses the existing public climate-
+  // intelligence profile endpoint and the existing deriveActionPathways()
+  // engine (climatePathways.js) — no new scoring/classification logic, no
+  // second pathway engine. Keyed on primitive identity (lga id + name, not
+  // the selectedProfile object reference) so an unrelated risk-data reload
+  // that recomputes selectedProfile doesn't trigger a redundant refetch.
+  const opportunityLgaId = selectedProfile?.lga ?? null;
+  const opportunityLgaName = selectedProfile?.lga_name ?? "";
+  const opportunityRequestKey = opportunityLgaId ? String(opportunityLgaId) : "";
+  const [rawOpportunityPathways, setOpportunityPathways] = useState([]);
+  const [rawOpportunityExistingProjects, setOpportunityExistingProjects] = useState([]);
+  const [rawOpportunityCiUnavailable, setOpportunityCiUnavailable] = useState(false);
+  const [settledOpportunityKey, setSettledOpportunityKey] = useState(null);
+  // Derived at read site rather than reset via effect: no LGA selected means
+  // "nothing to show" regardless of whatever the last fetch happened to
+  // leave in the raw state — no setState call needed for that case at all.
+  const opportunityPathways = opportunityLgaId ? rawOpportunityPathways : [];
+  const opportunityExistingProjects = opportunityLgaId ? rawOpportunityExistingProjects : [];
+  const opportunityCiUnavailable = opportunityLgaId ? rawOpportunityCiUnavailable : false;
+  const opportunityLoading =
+    !!opportunityLgaId && settledOpportunityKey !== opportunityRequestKey;
+
+  useEffect(() => {
+    if (!opportunityLgaId) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    const key = opportunityRequestKey;
+
+    // Each source is handled independently (allSettled, not all/race) so a
+    // climate-intelligence failure never blocks the projects list or the
+    // rest of this page, and vice versa.
+    Promise.allSettled([
+      getClimateIntelligenceProfile({ admin_name: opportunityLgaName, season: "annual" }),
+      getClimateProjects({ lga: opportunityLgaId }),
+    ]).then(([ciResult, projectsResult]) => {
+      if (cancelled) return;
+
+      if (ciResult.status === "fulfilled") {
+        const profile = ciResult.value.profile || null;
+        setOpportunityCiUnavailable(!profile);
+        setOpportunityPathways(
+          profile
+            ? deriveActionPathways({ ciProfile: profile, floodSnap: null, isFloodAvailable: false })
+            : []
+        );
+      } else {
+        console.error("Climate intelligence fetch failed:", ciResult.reason);
+        setOpportunityCiUnavailable(true);
+        setOpportunityPathways([]);
+      }
+
+      if (projectsResult.status === "fulfilled") {
+        setOpportunityExistingProjects(projectsResult.value.results || []);
+      } else {
+        console.error("Linked projects fetch failed:", projectsResult.reason);
+        setOpportunityExistingProjects([]);
+      }
+
+      setSettledOpportunityKey(key);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [opportunityLgaId, opportunityLgaName, opportunityRequestKey]);
+
   const filteredProfiles = useMemo(() => {
     const search = searchText.trim().toLowerCase();
 
@@ -986,6 +1123,16 @@ export default function ClimateRiskPage({ currentUser }) {
           topLgas={topLgas}
           setSelectedLgaName={setSelectedLgaName}
           setActiveTab={setActiveTab}
+          onViewProjects={
+            selectedProfile && typeof onPageChange === "function"
+              ? () => onPageChange("projects")
+              : undefined
+          }
+          opportunityPathways={opportunityPathways}
+          opportunityExistingProjects={opportunityExistingProjects}
+          opportunityLoading={opportunityLoading}
+          opportunityCiUnavailable={opportunityCiUnavailable}
+          onViewGhgSector={onViewGhgSector}
         />
       )}
 
