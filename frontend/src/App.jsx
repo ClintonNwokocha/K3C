@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ReportsCentrePage from "./pages/ReportsCentrePage";
 import AppShell from "./layouts/AppShell";
 import AdministrationPage from "./pages/AdministrationPage";
@@ -73,6 +73,29 @@ function App() {
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+
+  // Smallest shared internal-navigation context: Climate Risk -> Project
+  // Portfolio -> GHG Inventory. lgaId is the real LGARegistry integer PK
+  // (never the display name) so every internal consumer can use it directly
+  // against existing lga_id-keyed filters/APIs with no translation step.
+  const [sharedLgaContext, setSharedLgaContext] = useState({
+    lgaId: null,
+    lgaName: "",
+    sector: null,
+  });
+
+  // Stable reference (useCallback) is required here: ClimateRiskPage calls
+  // this from a useEffect keyed partly on the callback itself. An unstable
+  // reference would re-fire that effect on every App.jsx re-render it
+  // triggers, which would loop.
+  const handleLgaSelected = useCallback((lgaId, lgaName) => {
+    setSharedLgaContext((current) => {
+      if (current.lgaId === lgaId && current.lgaName === lgaName) {
+        return current;
+      }
+      return { ...current, lgaId, lgaName };
+    });
+  }, []);
 
   async function loadDashboardData() {
     const [healthData, foundationData, ghgDashboardData] = await Promise.all([
@@ -201,16 +224,33 @@ function App() {
 
     if (activePage === "ghg") {
       return (
-        <GHGInventoryPage foundation={foundation} currentUser={currentUser} />
+        <GHGInventoryPage
+          foundation={foundation}
+          currentUser={currentUser}
+          sharedSector={sharedLgaContext.sector}
+          sharedLgaName={sharedLgaContext.lgaName}
+        />
       );
     }
 
     if (activePage === "risk") {
-      return <ClimateRiskPage currentUser={currentUser} />;
+      return (
+        <ClimateRiskPage
+          currentUser={currentUser}
+          onLgaSelected={handleLgaSelected}
+          onPageChange={setActivePage}
+        />
+      );
     }
 
     if (activePage === "projects") {
-      return <ProjectPortfolioPage currentUser={currentUser} />;
+      return (
+        <ProjectPortfolioPage
+          currentUser={currentUser}
+          sharedLgaId={sharedLgaContext.lgaId}
+          sharedLgaName={sharedLgaContext.lgaName}
+        />
+      );
     }
 
     if (activePage === "reports") {

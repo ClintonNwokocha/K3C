@@ -37,8 +37,20 @@ const sectorDescriptions = {
     "Manage land use, land-use change and forestry records for emissions and removals accounting.",
 };
 
-export default function GHGInventoryPage({ foundation, currentUser }) {
-  const [activeSector, setActiveSector] = useState("summary");
+const SECTOR_TAB_KEYS = new Set(sectorTabs.map((tab) => tab.key));
+
+export default function GHGInventoryPage({
+  foundation,
+  currentUser,
+  sharedSector,
+  sharedLgaName,
+}) {
+  // Lazy initializer only: this page remounts fresh whenever the user
+  // navigates to "ghg" (App.jsx swaps the rendered page component
+  // entirely), so this always picks up the latest inherited sector.
+  const [activeSector, setActiveSector] = useState(() =>
+    sharedSector && SECTOR_TAB_KEYS.has(sharedSector) ? sharedSector : "summary"
+  );
   const [ghgSummary, setGhgSummary] = useState(null);
   const [isSummaryLoadingState, setIsSummaryLoading] = useState(false);
   const [error, setError] = useState("");
@@ -110,6 +122,14 @@ export default function GHGInventoryPage({ foundation, currentUser }) {
           ) : null
         }
       />
+
+      {sharedLgaName && (
+        <div className="rounded-xl border border-[#173B91]/30 bg-[#EEF1FD] px-5 py-3 text-sm text-[#030454]">
+          Kaduna State-wide sector context relevant to <strong>{sharedLgaName}</strong>. GHG
+          inventory data is reported statewide by sector, not at LGA level — figures below are
+          not {sharedLgaName}-specific emissions.
+        </div>
+      )}
 
       {error && (
         <CommandNotice title="GHG inventory error" tone="red">

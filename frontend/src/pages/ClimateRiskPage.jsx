@@ -156,7 +156,7 @@ function MetricRow({ label, value, reverse = false, helperText = "" }) {
   );
 }
 
-function LGADetailPanel({ selectedLgaName, selectedProfile }) {
+function LGADetailPanel({ selectedLgaName, selectedProfile, onViewProjects }) {
   if (!selectedLgaName) {
     return (
       <CommandSection
@@ -182,13 +182,21 @@ function LGADetailPanel({ selectedLgaName, selectedProfile }) {
       title={selectedProfile.lga_name}
       description={`Risk profile year: ${selectedProfile.year}`}
       actions={
-        <span
-          className={`rounded-md px-3 py-1 text-xs font-black uppercase tracking-[0.08em] ${getRiskClass(
-            selectedProfile.risk_level
-          )}`}
-        >
-          {selectedProfile.risk_level_display}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span
+            className={`rounded-md px-3 py-1 text-xs font-black uppercase tracking-[0.08em] ${getRiskClass(
+              selectedProfile.risk_level
+            )}`}
+          >
+            {selectedProfile.risk_level_display}
+          </span>
+
+          {typeof onViewProjects === "function" && (
+            <CommandButton variant="outline" onClick={onViewProjects}>
+              View Projects for {selectedProfile.lga_name} →
+            </CommandButton>
+          )}
+        </div>
       }
     >
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
@@ -376,6 +384,7 @@ function OverviewSection({
   topLgas,
   setSelectedLgaName,
   setActiveTab,
+  onViewProjects,
 }) {
   return (
     <>
@@ -385,6 +394,7 @@ function OverviewSection({
         <LGADetailPanel
           selectedLgaName={selectedLgaName}
           selectedProfile={selectedProfile}
+          onViewProjects={onViewProjects}
         />
 
         <TopLgasPanel
@@ -777,7 +787,7 @@ function RiskTableSection({
   );
 }
 
-export default function ClimateRiskPage({ currentUser }) {
+export default function ClimateRiskPage({ currentUser, onLgaSelected, onPageChange }) {
   const [riskData, setRiskData] = useState(null);
   const [selectedYear, setSelectedYear] = useState("");
   const [riskLevel, setRiskLevel] = useState("all");
@@ -942,6 +952,17 @@ export default function ClimateRiskPage({ currentUser }) {
     );
   }, [profiles, selectedLgaName]);
 
+  // Forwards the already-resolved selection up to App.jsx's shared
+  // navigation context — never reads shared state back down, so this
+  // cannot create an update loop. Fires only when selectedProfile itself
+  // changes (a real user selection or the initial-selection default below),
+  // not on every render.
+  useEffect(() => {
+    if (selectedProfile) {
+      onLgaSelected?.(selectedProfile.lga, selectedProfile.lga_name);
+    }
+  }, [selectedProfile, onLgaSelected]);
+
   const filteredProfiles = useMemo(() => {
     const search = searchText.trim().toLowerCase();
 
@@ -986,6 +1007,11 @@ export default function ClimateRiskPage({ currentUser }) {
           topLgas={topLgas}
           setSelectedLgaName={setSelectedLgaName}
           setActiveTab={setActiveTab}
+          onViewProjects={
+            selectedProfile && typeof onPageChange === "function"
+              ? () => onPageChange("projects")
+              : undefined
+          }
         />
       )}
 
