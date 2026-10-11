@@ -9,6 +9,8 @@ from django.test import TestCase
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
+from core.models import LGARegistry
+
 from .models import HealthFacility
 
 User = get_user_model()
@@ -294,3 +296,70 @@ class HealthFacilityImportCommandTests(TestCase):
             self.assertIn("name", str(ctx.exception))
         finally:
             os.unlink(path)
+
+
+class HealthFacilityImportLgaLinkTests(TestCase):
+    """The import must set the LGA link, not only the lga_name text (the API filters on the link)."""
+
+    def setUp(self):
+        self.north = LGARegistry.objects.create(lga_id=9, lga_name="Kaduna North", state="Kaduna")
+        self.jemaa = LGARegistry.objects.create(lga_id=7, lga_name="Jema'a", state="Kaduna")
+
+    def _row(self, **overrides):
+        row = {"name": "Kawo PHC", "lga_name": "Kaduna North", "facility_type": "phc"}
+        row.update(overrides)
+        return row
+
+    def _run(self, rows, *args):
+        path = _write_temp_csv(rows)
+        try:
+            out = io.StringIO()
+            call_command("import_health_facilities", path, *args, stdout=out)
+            return out.getvalue()
+        finally:
+            os.unlink(path)
+
+    def test_import_sets_lga_link(self):
+        self._run([self._row()])
+        facility = HealthFacility.objects.get(name="Kawo PHC")
+        self.assertEqual(facility.lga_id, self.north.lga_id)
+
+    def test_lga_match_ignores_case(self):
+        self._run([self._row(name="Jema'a PHC", lga_name="Jema'A")])
+        facility = HealthFacility.objects.get(name="Jema'a PHC")
+        self.assertEqual(facility.lga_id, self.jemaa.lga_id)
+
+    def test_unknown_lga_still_imports_without_link_and_warns(self):
+        output = self._run([self._row(name="Border PHC", lga_name="Karu")])
+        facility = HealthFacility.objects.get(name="Border PHC")
+        self.assertIsNone(facility.lga)
+        self.assertIn("Created: 1", output)
+        self.assertIn("Karu", output)
+
+    def test_skipped_existing_row_gets_missing_link_filled(self):
+        existing = _make_facility(name="Kawo PHC", lga_name="Kaduna North", bed_capacity=10)
+        self.assertIsNone(existing.lga)
+        output = self._run([self._row(name="Kawo PHC")])
+        existing.refresh_from_db()
+        self.assertEqual(existing.lga_id, self.north.lga_id)
+        self.assertEqual(existing.bed_capacity, 10)  # data untouched
+        self.assertIn("Skipped: 1", output)
+        self.assertIn("LGA link filled on 1", output)
+
+    def test_update_existing_keeps_link_when_lga_name_unmatched(self):
+        existing = _make_facility(name="Kawo PHC", lga_name="Kaduna North")
+        existing.lga = self.north
+        existing.save()
+        self._run([self._row(bed_capacity="40")], "--update-existing")
+        existing.refresh_from_db()
+        self.assertEqual(existing.bed_capacity, 40)
+        self.assertEqual(existing.lga_id, self.north.lga_id)
+
+    def test_api_lga_filter_finds_imported_facility(self):
+        self._run([self._row()])
+        user = User.objects.create_user(username="reader", password="pw-12345")
+        client = APIClient()
+        client.force_authenticate(user=user)
+        response = client.get(LIST_URL, {"lga": self.north.lga_id})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["count"], 1)

@@ -3,6 +3,7 @@ from decimal import Decimal, InvalidOperation
 
 from django.core.management.base import BaseCommand, CommandError
 
+from core.models import LGARegistry
 from infrastructure.models import HealthFacility
 
 REQUIRED_COLUMNS = {"name", "lga_name", "facility_type"}
@@ -41,6 +42,9 @@ class Command(BaseCommand):
         "Import health facilities from a CSV file. "
         "Matches on name + lga_name. By default skips existing rows; "
         "pass --update-existing to upsert. "
+        "The LGA link (used by the API's ?lga=<id> filter) is set by matching lga_name "
+        "to the LGA registry, case-insensitively; existing rows that are still unlinked "
+        "are linked too. "
         "Template: docs/templates/health_facilities_template.csv"
     )
 
@@ -74,8 +78,15 @@ class Command(BaseCommand):
         if not rows:
             raise CommandError("CSV file is empty.")
 
-        created = updated = skipped = 0
+        created = updated = skipped = linked = 0
         errors = []
+
+        # Match LGA names to the registry once, case-insensitively, so each facility
+        # gets its LGA link (the API filters on it) and not only the lga_name text.
+        lga_lookup = {
+            lga.lga_name.strip().lower(): lga for lga in LGARegistry.objects.all()
+        }
+        unmatched_lgas = set()
 
         for lineno, row in enumerate(rows, start=2):
             name = _clean(row.get("name"))
@@ -127,6 +138,12 @@ class Command(BaseCommand):
                 "population_served": _to_int(row.get("population_served")),
             }
 
+            lga_obj = lga_lookup.get(lga_name.lower())
+            if lga_obj is not None:
+                defaults["lga"] = lga_obj
+            else:
+                unmatched_lgas.add(lga_name)
+
             if update_existing:
                 try:
                     obj, was_created = HealthFacility.objects.update_or_create(
@@ -143,7 +160,13 @@ class Command(BaseCommand):
                 else:
                     updated += 1
             else:
-                if HealthFacility.objects.filter(name=name, lga_name=lga_name).exists():
+                existing = HealthFacility.objects.filter(name=name, lga_name=lga_name).first()
+                if existing is not None:
+                    # Skipped rows keep their data, but a missing LGA link is filled in.
+                    if lga_obj is not None and existing.lga_id is None:
+                        existing.lga = lga_obj
+                        existing.save(update_fields=["lga", "updated_at"])
+                        linked += 1
                     skipped += 1
                     continue
                 HealthFacility.objects.create(name=name, lga_name=lga_name, **defaults)
@@ -154,6 +177,17 @@ class Command(BaseCommand):
                 f"Import complete. Created: {created}. Updated: {updated}. Skipped: {skipped}."
             )
         )
+
+        if linked:
+            self.stdout.write(f"LGA link filled on {linked} existing row(s).")
+
+        if unmatched_lgas:
+            self.stdout.write(
+                self.style.WARNING(
+                    "LGA name not found in the LGA registry (row imported, LGA link left empty): "
+                    + ", ".join(sorted(unmatched_lgas))
+                )
+            )
 
         if errors:
             self.stdout.write(self.style.WARNING("Skipped rows:"))
