@@ -4,6 +4,7 @@ from .views import (
     climate_project_detail,
     climate_projects,
     import_climate_projects,
+    project_progress_updates,
 )
 
 urlpatterns = [
@@ -13,5 +14,10 @@ urlpatterns = [
         "projects/<int:project_id>/",
         climate_project_detail,
         name="climate-project-detail",
+    ),
+    path(
+        "projects/<int:project_id>/progress/",
+        project_progress_updates,
+        name="project-progress-updates",
     ),
 ]

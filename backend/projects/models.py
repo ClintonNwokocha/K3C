@@ -143,6 +143,24 @@ class ClimateProject(models.Model):
 
     location_notes = models.TextField(blank=True)
 
+    sdg_goals = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of UN Sustainable Development Goal numbers (1-17) this project contributes to.",
+    )
+
+    # core.NDCConstant is a single statewide constants row (baseline/target
+    # percentages), not a per-target/per-sector lookup table — every project
+    # would FK to the same one row, conveying no real linkage information.
+    # A free-text reference lets staff describe which NDC pledge/target/
+    # sector a project contributes to without fabricating a structured NDC
+    # target taxonomy that doesn't exist in the data model.
+    ndc_linkage_reference = models.CharField(
+        max_length=500,
+        blank=True,
+        help_text="Free-text reference to the NDC target/pledge/sector this project contributes to, if any.",
+    )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -170,3 +188,56 @@ class ClimateProject(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class ProjectProgressUpdate(models.Model):
+    """
+    One periodic monitoring record for a ClimateProject. The most recent
+    record per project (by reporting_date, then created_at) is treated as
+    that project's current physical-completion/disbursement snapshot —
+    computed at read time (see projects/serializers.py), never cached on
+    ClimateProject itself, so it can never go stale.
+    """
+
+    project = models.ForeignKey(
+        ClimateProject,
+        on_delete=models.CASCADE,
+        related_name="progress_updates",
+    )
+
+    reporting_date = models.DateField()
+
+    physical_completion_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        help_text="Physical completion, 0-100.",
+    )
+
+    financial_disbursement_naira = models.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        default=Decimal("0.00"),
+        help_text="Cumulative amount disbursed as of this reporting date.",
+    )
+
+    progress_notes = models.TextField(blank=True)
+
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="created_project_progress_updates",
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-reporting_date", "-created_at"]
+        indexes = [
+            models.Index(fields=["project", "-reporting_date"]),
+        ]
+
+    def __str__(self):
+        return f"{self.project.title} - {self.reporting_date}"

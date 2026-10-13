@@ -136,12 +136,13 @@ export default function ProjectPortfolioImportPanel({ canManage, onImported }) {
     setImportErrors([]);
 
     if (!file) {
-      setError("Please select a project CSV file.");
+      setError("Please select a project CSV or XLSX file.");
       return;
     }
 
-    if (!file.name.toLowerCase().endsWith(".csv")) {
-      setError("Only CSV files are supported.");
+    const lowerName = file.name.toLowerCase();
+    if (!lowerName.endsWith(".csv") && !lowerName.endsWith(".xlsx")) {
+      setError("Only CSV or XLSX files are supported.");
       return;
     }
 
@@ -191,13 +192,13 @@ export default function ProjectPortfolioImportPanel({ canManage, onImported }) {
           </p>
 
           <h2 className="mt-2 text-2xl font-black text-[#030454]">
-            Upload Climate Projects CSV
+            Upload Climate Projects (CSV or XLSX)
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Import multiple adaptation, mitigation and cross-cutting projects
-            from a CSV file. Use project_code to update existing projects during
-            import.
+            from a CSV or Excel (.xlsx) file — both use the same validation
+            rules. Use project_code to update existing projects during import.
           </p>
         </div>
 
@@ -220,13 +221,13 @@ export default function ProjectPortfolioImportPanel({ canManage, onImported }) {
         >
           <div>
             <label className="mb-2 block text-sm font-bold text-[#030454]">
-              CSV File
+              CSV or XLSX File
             </label>
 
             <input
               id="project-portfolio-csv"
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               onChange={(event) => setFile(event.target.files?.[0] || null)}
               className="w-full rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none transition file:mr-4 file:rounded-md file:border-0 file:bg-[#030454] file:px-4 file:py-2 file:text-xs file:font-bold file:text-white focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
               required
@@ -241,7 +242,7 @@ export default function ProjectPortfolioImportPanel({ canManage, onImported }) {
           </div>
 
           <div className="mt-5 rounded-xl border-l-4 border-[#F3F74B] bg-[#F3F74B]/25 px-5 py-4 text-sm leading-6 text-[#030454]">
-            <p className="font-black">CSV structure guide</p>
+            <p className="font-black">File structure guide (CSV or XLSX)</p>
 
             <p className="mt-2">
               Required column: <span className="font-bold">title</span>

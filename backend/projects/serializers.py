@@ -1,6 +1,43 @@
+from datetime import date
+
 from rest_framework import serializers
 
-from .models import ClimateProject
+from .models import ClimateProject, ProjectProgressUpdate
+from .performance import compute_performance_status
+
+VALID_SDG_GOALS = set(range(1, 18))
+
+
+def _progress_snapshot(obj):
+    """
+    Returns {"pct": Decimal|None, "disbursement": Decimal|None, "date": date|None}
+    for a project's latest real progress update, computed once and cached on
+    the instance. Reads pre-annotated queryset attributes (set by
+    projects.views.annotate_latest_progress) when present — zero extra
+    queries for list/detail GETs. Falls back to a direct single-object query
+    (used for freshly created/updated instances returned straight from
+    .save(), which were never annotated) — never invents a value.
+    """
+    cached = getattr(obj, "_progress_snapshot", None)
+    if cached is not None:
+        return cached
+
+    if hasattr(obj, "latest_physical_completion_pct"):
+        snapshot = {
+            "pct": obj.latest_physical_completion_pct,
+            "disbursement": obj.latest_financial_disbursement_naira,
+            "date": obj.latest_progress_date,
+        }
+    else:
+        latest = obj.progress_updates.order_by("-reporting_date", "-created_at").first()
+        snapshot = {
+            "pct": latest.physical_completion_pct if latest else None,
+            "disbursement": latest.financial_disbursement_naira if latest else None,
+            "date": latest.reporting_date if latest else None,
+        }
+
+    obj._progress_snapshot = snapshot
+    return snapshot
 
 
 class ClimateProjectSerializer(serializers.ModelSerializer):
@@ -23,6 +60,11 @@ class ClimateProjectSerializer(serializers.ModelSerializer):
     )
     created_by_name = serializers.SerializerMethodField()
     project_image_url = serializers.SerializerMethodField()
+    latest_physical_completion_pct = serializers.SerializerMethodField()
+    latest_financial_disbursement_naira = serializers.SerializerMethodField()
+    budget_disbursement_pct = serializers.SerializerMethodField()
+    latest_progress_date = serializers.SerializerMethodField()
+    performance_status = serializers.SerializerMethodField()
 
     class Meta:
         model = ClimateProject
@@ -57,12 +99,47 @@ class ClimateProjectSerializer(serializers.ModelSerializer):
             "external_link",
             "climate_risk_relevance",
             "location_notes",
+            "sdg_goals",
+            "ndc_linkage_reference",
             "created_by",
             "created_by_name",
             "is_active",
             "created_at",
             "updated_at",
+            "latest_physical_completion_pct",
+            "latest_financial_disbursement_naira",
+            "budget_disbursement_pct",
+            "latest_progress_date",
+            "performance_status",
         ]
+
+    def get_latest_physical_completion_pct(self, obj):
+        return _progress_snapshot(obj)["pct"]
+
+    def get_latest_financial_disbursement_naira(self, obj):
+        return _progress_snapshot(obj)["disbursement"]
+
+    def get_latest_progress_date(self, obj):
+        return _progress_snapshot(obj)["date"]
+
+    def get_budget_disbursement_pct(self, obj):
+        disbursement = _progress_snapshot(obj)["disbursement"]
+
+        if disbursement is None or not obj.estimated_budget_naira:
+            return None
+
+        return round(float(disbursement) / float(obj.estimated_budget_naira) * 100, 2)
+
+    def get_performance_status(self, obj):
+        snapshot = _progress_snapshot(obj)
+
+        return compute_performance_status(
+            status=obj.status,
+            start_date=obj.start_date,
+            end_date=obj.end_date,
+            latest_physical_completion_pct=snapshot["pct"],
+            today=date.today(),
+        )
 
     def get_created_by_name(self, obj):
         if not obj.created_by:
@@ -113,6 +190,8 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
             "external_link",
             "climate_risk_relevance",
             "location_notes",
+            "sdg_goals",
+            "ndc_linkage_reference",
             "is_active",
         ]
 
@@ -178,6 +257,32 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
 
         return value or None
 
+    def validate_sdg_goals(self, value):
+        if value in (None, ""):
+            return []
+
+        if not isinstance(value, list):
+            raise serializers.ValidationError("SDG goals must be a list of integers.")
+
+        goals = []
+        for item in value:
+            try:
+                goal = int(item)
+            except (TypeError, ValueError):
+                raise serializers.ValidationError(
+                    f"Invalid SDG goal value: {item!r}. Must be an integer 1-17."
+                )
+
+            if goal not in VALID_SDG_GOALS:
+                raise serializers.ValidationError(
+                    f"Invalid SDG goal: {goal}. Must be between 1 and 17."
+                )
+
+            if goal not in goals:
+                goals.append(goal)
+
+        return sorted(goals)
+
     def validate_public_summary(self, value):
         value = str(value or "").strip()
 
@@ -207,3 +312,49 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+
+class ProjectProgressUpdateSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProjectProgressUpdate
+        fields = [
+            "id",
+            "project",
+            "reporting_date",
+            "physical_completion_pct",
+            "financial_disbursement_naira",
+            "progress_notes",
+            "created_by",
+            "created_by_name",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["project", "created_by"]
+
+    def get_created_by_name(self, obj):
+        if not obj.created_by:
+            return ""
+
+        return (
+            getattr(obj.created_by, "full_name", "")
+            or getattr(obj.created_by, "email", "")
+            or str(obj.created_by)
+        )
+
+    def validate_physical_completion_pct(self, value):
+        if value < 0 or value > 100:
+            raise serializers.ValidationError(
+                "Physical completion must be between 0 and 100."
+            )
+
+        return value
+
+    def validate_financial_disbursement_naira(self, value):
+        if value < 0:
+            raise serializers.ValidationError(
+                "Financial disbursement cannot be negative."
+            )
+
+        return value

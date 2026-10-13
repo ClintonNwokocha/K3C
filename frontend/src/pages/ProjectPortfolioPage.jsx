@@ -14,10 +14,40 @@ import {
 import { canManageProjectPortfolio } from "../utils/permissions";
 import {
   createClimateProject,
+  createProjectProgressUpdate,
   getClimateProjects,
   getClimateRiskProfiles,
+  getProjectProgressUpdates,
   updateClimateProject,
 } from "../services/api";
+
+const SDG_GOALS = Array.from({ length: 17 }, (_, index) => index + 1);
+
+const RAG_LABELS = {
+  on_track: "On Track",
+  at_risk: "At Risk",
+  off_track: "Off Track",
+  not_assessed: "Not Assessed",
+};
+
+const RAG_CLASSES = {
+  on_track: "bg-[#009B35]/10 text-[#009B35]",
+  at_risk: "bg-[#F3F74B]/45 text-[#030454]",
+  off_track: "bg-red-50 text-red-700",
+  not_assessed: "bg-slate-100 text-slate-500",
+};
+
+function RagBadge({ status: ragStatus }) {
+  return (
+    <span
+      className={`rounded-md px-3 py-1 text-xs font-black uppercase tracking-[0.08em] ${
+        RAG_CLASSES[ragStatus] || RAG_CLASSES.not_assessed
+      }`}
+    >
+      {RAG_LABELS[ragStatus] || "Not Assessed"}
+    </span>
+  );
+}
 
 const projectTypeOptions = [
   { value: "adaptation", label: "Adaptation" },
@@ -75,6 +105,8 @@ const initialForm = {
   longitude: "",
   climate_risk_relevance: "",
   location_notes: "",
+  sdg_goals: [],
+  ndc_linkage_reference: "",
   is_active: true,
 };
 
@@ -150,6 +182,8 @@ function buildFormFromProject(project) {
     longitude: project.longitude !== null && project.longitude !== undefined ? String(project.longitude) : "",
     climate_risk_relevance: project.climate_risk_relevance || "",
     location_notes: project.location_notes || "",
+    sdg_goals: Array.isArray(project.sdg_goals) ? project.sdg_goals : [],
+    ndc_linkage_reference: project.ndc_linkage_reference || "",
     is_active: project.is_active !== false,
   };
 }
@@ -197,6 +231,100 @@ function ProjectSummaryCards({ summary }) {
   );
 }
 
+function PortfolioAnalyticsSummary({ summary }) {
+  const bySector = summary.by_sector || [];
+  const byLga = summary.by_lga || [];
+  const byFundingSource = summary.by_funding_source || [];
+  const averageRate = summary.average_implementation_rate;
+  const assessedCount = summary.assessed_project_count || 0;
+  const offTrackCount = summary.off_track_count || 0;
+  const atRiskCount = summary.at_risk_count || 0;
+
+  return (
+    <section className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+          Sector Distribution
+        </p>
+        <div className="mt-3 space-y-1.5">
+          {bySector.slice(0, 5).map((row) => (
+            <div key={row.sector} className="flex items-center justify-between text-sm">
+              <span className="truncate text-[#030454]">
+                {getOptionLabel(sectorOptions, row.sector)}
+              </span>
+              <span className="font-black text-[#030454]">{row.count}</span>
+            </div>
+          ))}
+          {bySector.length === 0 && (
+            <p className="text-xs text-slate-400">No data yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+          Geographic Spread
+        </p>
+        <div className="mt-3 space-y-1.5">
+          {byLga.slice(0, 5).map((row) => (
+            <div key={row.lga_name} className="flex items-center justify-between text-sm">
+              <span className="truncate text-[#030454]">{row.lga_name}</span>
+              <span className="font-black text-[#030454]">{row.count}</span>
+            </div>
+          ))}
+          {byLga.length === 0 && (
+            <p className="text-xs text-slate-400">No data yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+          Financing Source Mix
+        </p>
+        <div className="mt-3 space-y-1.5">
+          {byFundingSource.slice(0, 5).map((row) => (
+            <div
+              key={row.funding_source}
+              className="flex items-center justify-between text-sm"
+            >
+              <span className="truncate text-[#030454]">{row.funding_source}</span>
+              <span className="font-black text-[#030454]">{row.count}</span>
+            </div>
+          ))}
+          {byFundingSource.length === 0 && (
+            <p className="text-xs text-slate-400">No data yet.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+          Average Implementation Rate
+        </p>
+        <p className="mt-3 text-3xl font-black text-[#030454]">
+          {averageRate != null ? `${formatNumber(averageRate, 2)}%` : "Not available"}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Based on {assessedCount} project{assessedCount === 1 ? "" : "s"} with reported
+          progress. Projects without a progress update are not counted as 0%.
+        </p>
+
+        {(offTrackCount > 0 || atRiskCount > 0) && (
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
+            <p className="text-xs font-black uppercase tracking-[0.1em] text-red-700">
+              Attention Required
+            </p>
+            <p className="mt-1 text-xs text-red-700">
+              {offTrackCount} off track · {atRiskCount} at risk
+            </p>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 function InfoTile({ label, value, muted = false }) {
   return (
     <div
@@ -213,11 +341,241 @@ function InfoTile({ label, value, muted = false }) {
   );
 }
 
+function ProjectProgressSection({ project, canManage, onProgressAdded }) {
+  const [updates, setUpdates] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [formState, setFormState] = useState({
+    reporting_date: "",
+    physical_completion_pct: "",
+    financial_disbursement_naira: "",
+    progress_notes: "",
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    // No setIsLoading(true) here: isLoading already starts true (see
+    // useState above), and this effect is mount-only — the parent remounts
+    // this component fresh (via key={project.id}) whenever the selected
+    // project changes, so the initial value is always correct already.
+    let cancelled = false;
+
+    getProjectProgressUpdates(project.id)
+      .then((data) => {
+        if (!cancelled) {
+          setUpdates(data.results || []);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setUpdates([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // Mount-only per project — the parent keys this component on
+    // project.id, so a fresh instance always fetches the current project's
+    // own progress history.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function handleAddProgress(event) {
+    event.preventDefault();
+
+    setIsSaving(true);
+    setError("");
+
+    try {
+      const data = await createProjectProgressUpdate(project.id, {
+        reporting_date: formState.reporting_date,
+        physical_completion_pct: Number(formState.physical_completion_pct || 0),
+        financial_disbursement_naira: Number(
+          formState.financial_disbursement_naira || 0
+        ),
+        progress_notes: formState.progress_notes,
+      });
+
+      setUpdates((current) => [data.progress_update, ...current]);
+      setFormState({
+        reporting_date: "",
+        physical_completion_pct: "",
+        financial_disbursement_naira: "",
+        progress_notes: "",
+      });
+      setShowForm(false);
+
+      if (onProgressAdded) {
+        await onProgressAdded();
+      }
+    } catch (err) {
+      console.error(err);
+      setError(
+        err?.response?.data
+          ? JSON.stringify(err.response.data)
+          : "Could not save progress update."
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="font-black text-[#030454]">Progress Updates</p>
+
+        {canManage && (
+          <CommandButton
+            variant="outline"
+            onClick={() => setShowForm((current) => !current)}
+          >
+            {showForm ? "Cancel" : "Add Progress Update"}
+          </CommandButton>
+        )}
+      </div>
+
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+
+      {showForm && (
+        <form
+          onSubmit={handleAddProgress}
+          className="mt-4 grid gap-3 rounded-lg border border-slate-100 bg-slate-50 p-4 sm:grid-cols-2"
+        >
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#030454]">
+              Reporting Date
+            </label>
+            <input
+              type="date"
+              required
+              value={formState.reporting_date}
+              onChange={(event) =>
+                setFormState((current) => ({
+                  ...current,
+                  reporting_date: event.target.value,
+                }))
+              }
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#030454]">
+              Physical Completion %
+            </label>
+            <input
+              type="number"
+              min="0"
+              max="100"
+              step="0.01"
+              required
+              value={formState.physical_completion_pct}
+              onChange={(event) =>
+                setFormState((current) => ({
+                  ...current,
+                  physical_completion_pct: event.target.value,
+                }))
+              }
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-bold text-[#030454]">
+              Amount Disbursed (₦)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={formState.financial_disbursement_naira}
+              onChange={(event) =>
+                setFormState((current) => ({
+                  ...current,
+                  financial_disbursement_naira: event.target.value,
+                }))
+              }
+              className={inputClass}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="mb-1 block text-xs font-bold text-[#030454]">
+              Notes
+            </label>
+            <textarea
+              rows="2"
+              value={formState.progress_notes}
+              onChange={(event) =>
+                setFormState((current) => ({
+                  ...current,
+                  progress_notes: event.target.value,
+                }))
+              }
+              className={inputClass}
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <CommandButton type="submit" disabled={isSaving}>
+              {isSaving ? "Saving..." : "Save Progress Update"}
+            </CommandButton>
+          </div>
+        </form>
+      )}
+
+      <div className="mt-4">
+        {isLoading ? (
+          <p className="text-sm text-slate-500">Loading progress updates...</p>
+        ) : updates.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            No progress updates recorded yet for this project.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {updates.map((update) => (
+              <div
+                key={update.id}
+                className="rounded-lg border border-slate-100 p-3 text-sm"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-[#030454]">
+                    {update.reporting_date}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {formatNumber(update.physical_completion_pct, 2)}% complete ·{" "}
+                    {formatMoney(update.financial_disbursement_naira, 0)} disbursed
+                  </span>
+                </div>
+                {update.progress_notes && (
+                  <p className="mt-1 text-xs leading-5 text-slate-600">
+                    {update.progress_notes}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function SelectedProjectDetail({
   selectedProject,
   canManage,
   onEditProject,
   onClear,
+  onProgressAdded,
 }) {
   if (!selectedProject) {
     return (
@@ -239,7 +597,9 @@ function SelectedProjectDetail({
         selectedProject.description || "No project description provided."
       }
       actions={
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <RagBadge status={selectedProject.performance_status} />
+
           {canManage && (
             <CommandButton
               variant="primary"
@@ -307,7 +667,64 @@ function SelectedProjectDetail({
           label="Beneficiaries"
           value={formatNumber(selectedProject.expected_beneficiaries, 0)}
         />
+
+        <InfoTile
+          label="Physical Completion"
+          value={
+            selectedProject.latest_physical_completion_pct != null
+              ? `${formatNumber(selectedProject.latest_physical_completion_pct, 2)}%`
+              : "Not yet reported"
+          }
+        />
+
+        <InfoTile
+          label="Financial Disbursement"
+          value={
+            selectedProject.latest_financial_disbursement_naira != null
+              ? formatMoney(selectedProject.latest_financial_disbursement_naira, 0)
+              : "Not yet reported"
+          }
+        />
+
+        <InfoTile
+          label="Disbursement %"
+          value={
+            selectedProject.budget_disbursement_pct != null
+              ? `${formatNumber(selectedProject.budget_disbursement_pct, 2)}%`
+              : "Not available"
+          }
+        />
+
+        <InfoTile
+          label="Latest Reporting Date"
+          value={selectedProject.latest_progress_date || "Not yet reported"}
+        />
       </div>
+
+      {selectedProject.sdg_goals?.length > 0 && (
+        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <p className="font-black text-[#030454]">SDG Goals</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {selectedProject.sdg_goals.map((goal) => (
+              <span
+                key={goal}
+                className="rounded-md bg-[#030454]/10 px-2.5 py-1 text-xs font-bold text-[#030454]"
+              >
+                SDG {goal}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {selectedProject.ndc_linkage_reference && (
+        <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+          <p className="font-black text-[#030454]">NDC Linkage</p>
+          <p className="mt-2 leading-6 text-slate-600">
+            {selectedProject.ndc_linkage_reference}
+          </p>
+        </div>
+      )}
 
       {selectedProject.climate_risk_relevance && (
         <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm">
@@ -326,6 +743,13 @@ function SelectedProjectDetail({
           </p>
         </div>
       )}
+
+      <ProjectProgressSection
+        key={selectedProject.id}
+        project={selectedProject}
+        canManage={canManage}
+        onProgressAdded={onProgressAdded}
+      />
     </CommandSection>
   );
 }
@@ -336,6 +760,7 @@ function PortfolioOverview({
   canManage,
   onEditProject,
   onClearSelectedProject,
+  onProgressAdded,
   setActiveTab,
 }) {
   const statusCounts = useMemo(() => getStatusCounts(projects), [projects]);
@@ -388,6 +813,7 @@ function PortfolioOverview({
         canManage={canManage}
         onEditProject={onEditProject}
         onClear={onClearSelectedProject}
+        onProgressAdded={onProgressAdded}
       />
     </div>
   );
@@ -761,6 +1187,53 @@ function ProjectFormSection({
               }
               className={inputClass}
               placeholder="Describe site, wards, communities, coordinates or implementation area..."
+            />
+          </div>
+
+          <div className="md:col-span-3">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              SDG Goals
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {SDG_GOALS.map((goal) => {
+                const checked = form.sdg_goals.includes(goal);
+                return (
+                  <button
+                    key={goal}
+                    type="button"
+                    onClick={() =>
+                      updateForm(
+                        "sdg_goals",
+                        checked
+                          ? form.sdg_goals.filter((item) => item !== goal)
+                          : [...form.sdg_goals, goal].sort((a, b) => a - b)
+                      )
+                    }
+                    className={`h-9 w-9 rounded-md border text-xs font-black transition ${
+                      checked
+                        ? "border-[#009B35] bg-[#009B35] text-white"
+                        : "border-slate-200 bg-white text-[#030454] hover:border-[#009B35]"
+                    }`}
+                    title={`SDG ${goal}`}
+                  >
+                    {goal}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="md:col-span-3">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              NDC Linkage Reference
+            </label>
+            <input
+              value={form.ndc_linkage_reference}
+              onChange={(event) =>
+                updateForm("ndc_linkage_reference", event.target.value)
+              }
+              className={inputClass}
+              placeholder="e.g. Unconditional target — Agriculture sector mitigation"
             />
           </div>
         </div>
@@ -1388,6 +1861,8 @@ export default function ProjectPortfolioPage({
 
       <ProjectSummaryCards summary={summary} />
 
+      <PortfolioAnalyticsSummary summary={summary} />
+
       <div className="sticky top-24 z-10">
         <CommandTabs
           tabs={tabs}
@@ -1403,6 +1878,7 @@ export default function ProjectPortfolioPage({
           canManage={canManage}
           onEditProject={handleEditProject}
           onClearSelectedProject={() => setSelectedProject(null)}
+          onProgressAdded={loadProjects}
           setActiveTab={setActiveTab}
         />
       )}

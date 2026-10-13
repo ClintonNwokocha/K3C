@@ -401,6 +401,16 @@ export async function importClimateProjectsCsv(file) {
   return response.data;
 }
 
+export async function getProjectProgressUpdates(projectId) {
+  const response = await api.get(`/portfolio/projects/${projectId}/progress/`);
+  return response.data;
+}
+
+export async function createProjectProgressUpdate(projectId, payload) {
+  const response = await api.post(`/portfolio/projects/${projectId}/progress/`, payload);
+  return response.data;
+}
+
 export async function getReportDocuments(params = {}) {
   const response = await api.get("/reports/documents/", { params });
   return response.data;

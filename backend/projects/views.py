@@ -1,9 +1,11 @@
 import csv
 import io
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
+import openpyxl
 from django.db import transaction
-from django.db.models import Count, Sum
+from django.db.models import Count, OuterRef, Subquery, Sum
 from django.shortcuts import get_object_or_404
 
 from rest_framework import status
@@ -14,11 +16,31 @@ from rest_framework.response import Response
 from accounts.models import UserProfile
 from audit.utils import log_audit_action
 from core.models import LGARegistry
-from .models import ClimateProject
+from .models import ClimateProject, ProjectProgressUpdate
+from .performance import compute_performance_status
 from .serializers import (
     ClimateProjectCreateUpdateSerializer,
     ClimateProjectSerializer,
+    ProjectProgressUpdateSerializer,
 )
+
+
+def annotate_latest_progress(queryset):
+    """
+    Attaches each project's latest real ProjectProgressUpdate (by
+    reporting_date, then created_at) as three annotated columns, via a
+    correlated subquery — one query for the whole list, not N+1.
+    Consumed by ClimateProjectSerializer's SerializerMethodFields.
+    """
+    latest = ProjectProgressUpdate.objects.filter(
+        project=OuterRef("pk")
+    ).order_by("-reporting_date", "-created_at")
+
+    return queryset.annotate(
+        latest_physical_completion_pct=Subquery(latest.values("physical_completion_pct")[:1]),
+        latest_financial_disbursement_naira=Subquery(latest.values("financial_disbursement_naira")[:1]),
+        latest_progress_date=Subquery(latest.values("reporting_date")[:1]),
+    )
 
 
 def get_user_profile(user):
@@ -148,6 +170,39 @@ def read_csv_rows(uploaded_file):
     return list(reader), reader.fieldnames or []
 
 
+def read_xlsx_rows(uploaded_file):
+    """
+    Reads the first worksheet's header row as fieldnames and every
+    subsequent non-empty row as a dict, matching read_csv_rows' return
+    shape exactly so both feed the same import_projects_rows() validation —
+    no business rules are duplicated between CSV and XLSX.
+    """
+    workbook = openpyxl.load_workbook(uploaded_file, read_only=True, data_only=True)
+    worksheet = workbook.active
+    rows_iter = worksheet.iter_rows(values_only=True)
+
+    try:
+        header_row = next(rows_iter)
+    except StopIteration:
+        return [], []
+
+    fieldnames = [str(cell).strip() if cell is not None else "" for cell in header_row]
+
+    rows = []
+    for raw_row in rows_iter:
+        if raw_row is None or all(cell is None for cell in raw_row):
+            continue
+
+        row = {
+            fieldnames[index]: ("" if cell is None else cell)
+            for index, cell in enumerate(raw_row)
+            if index < len(fieldnames)
+        }
+        rows.append(row)
+
+    return rows, fieldnames
+
+
 def normalize_choice(value, default_value):
     text = str(value or "").strip().lower().replace(" ", "_").replace("-", "_")
 
@@ -157,9 +212,7 @@ def normalize_choice(value, default_value):
     return text
 
 
-def import_projects_csv(uploaded_file, request):
-    rows, fieldnames = read_csv_rows(uploaded_file)
-
+def import_projects_rows(rows, fieldnames, request):
     required_columns = {"title"}
     missing_columns = required_columns - set(fieldnames)
 
@@ -350,6 +403,16 @@ def import_projects_csv(uploaded_file, request):
     }
 
 
+def import_projects_csv(uploaded_file, request):
+    rows, fieldnames = read_csv_rows(uploaded_file)
+    return import_projects_rows(rows, fieldnames, request)
+
+
+def import_projects_xlsx(uploaded_file, request):
+    rows, fieldnames = read_xlsx_rows(uploaded_file)
+    return import_projects_rows(rows, fieldnames, request)
+
+
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def climate_projects(request):
@@ -385,6 +448,8 @@ def climate_projects(request):
 
         if search:
             projects = projects.filter(title__icontains=search)
+
+        projects = annotate_latest_progress(projects)
 
         serializer = ClimateProjectSerializer(projects, many=True)
 
@@ -435,6 +500,64 @@ def climate_projects(request):
         for row in by_type_raw:
             by_type[row["project_type"]] = row["count"]
 
+        by_sector = [
+            {"sector": row["sector"], "count": row["count"]}
+            for row in (
+                projects.values("sector").annotate(count=Count("id")).order_by("-count")
+            )
+        ]
+
+        by_lga = [
+            {"lga_name": row["lga__lga_name"] or "Not specified", "count": row["count"]}
+            for row in (
+                projects.values("lga__lga_name").annotate(count=Count("id")).order_by("-count")
+            )
+        ]
+
+        by_funding_source = [
+            {"funding_source": row["funding_source"] or "Not specified", "count": row["count"]}
+            for row in (
+                projects.values("funding_source").annotate(count=Count("id")).order_by("-count")
+            )
+        ]
+
+        # average_implementation_rate and the RAG counts are computed only
+        # from projects that have a real progress record — never invented
+        # for projects with no reporting history. assessed_project_count is
+        # returned alongside so the UI never implies an unassessed project
+        # is "0% complete".
+        today = date.today()
+        assessed_count = 0
+        completion_sum = Decimal("0")
+        off_track_count = 0
+        at_risk_count = 0
+
+        for row in projects.values(
+            "status", "start_date", "end_date", "latest_physical_completion_pct"
+        ):
+            pct = row["latest_physical_completion_pct"]
+
+            if pct is not None:
+                assessed_count += 1
+                completion_sum += Decimal(pct)
+
+            performance_status = compute_performance_status(
+                status=row["status"],
+                start_date=row["start_date"],
+                end_date=row["end_date"],
+                latest_physical_completion_pct=pct,
+                today=today,
+            )
+
+            if performance_status == "off_track":
+                off_track_count += 1
+            elif performance_status == "at_risk":
+                at_risk_count += 1
+
+        average_implementation_rate = (
+            round(float(completion_sum / assessed_count), 2) if assessed_count > 0 else None
+        )
+
         return Response({
             "status": "ok",
             "message": "Climate projects loaded.",
@@ -445,6 +568,13 @@ def climate_projects(request):
                 "total_expected_beneficiaries": total_beneficiaries,
                 "by_status": by_status,
                 "by_type": by_type,
+                "by_sector": by_sector,
+                "by_lga": by_lga,
+                "by_funding_source": by_funding_source,
+                "average_implementation_rate": average_implementation_rate,
+                "assessed_project_count": assessed_count,
+                "off_track_count": off_track_count,
+                "at_risk_count": at_risk_count,
             },
             "results": serializer.data,
         })
@@ -481,7 +611,9 @@ def climate_projects(request):
 @permission_classes([IsAuthenticated])
 def climate_project_detail(request, project_id):
     project = get_object_or_404(
-        ClimateProject.objects.select_related("lga", "created_by"),
+        annotate_latest_progress(
+            ClimateProject.objects.select_related("lga", "created_by")
+        ),
         id=project_id,
     )
 
@@ -538,15 +670,21 @@ def import_climate_projects(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    if not uploaded_file.name.lower().endswith(".csv"):
+    filename = uploaded_file.name.lower()
+
+    if filename.endswith(".csv"):
+        importer = import_projects_csv
+    elif filename.endswith(".xlsx"):
+        importer = import_projects_xlsx
+    else:
         return Response(
-            {"detail": "Only CSV files are supported."},
+            {"detail": "Only CSV or XLSX files are supported."},
             status=status.HTTP_400_BAD_REQUEST,
         )
 
     try:
         with transaction.atomic():
-            result = import_projects_csv(uploaded_file, request)
+            result = importer(uploaded_file, request)
     except Exception as exc:
         return Response(
             {
@@ -557,6 +695,47 @@ def import_climate_projects(request):
         )
 
     return Response({
-        "message": "Climate project CSV import processed.",
+        "message": "Climate project import processed.",
         "result": result,
     })
+
+
+@api_view(["GET", "POST"])
+@permission_classes([IsAuthenticated])
+def project_progress_updates(request, project_id):
+    project = get_object_or_404(ClimateProject, id=project_id)
+
+    if request.method == "GET":
+        updates = project.progress_updates.select_related("created_by").order_by(
+            "-reporting_date", "-created_at"
+        )
+        return Response({
+            "status": "ok",
+            "results": ProjectProgressUpdateSerializer(updates, many=True).data,
+        })
+
+    if not can_manage_projects(request.user):
+        return Response(
+            {"detail": "Only Admin and Analyst users can record project progress."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+
+    serializer = ProjectProgressUpdateSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    progress_update = serializer.save(project=project, created_by=request.user)
+
+    log_audit_action(
+        request=request,
+        action="created_project_progress_update",
+        instance=progress_update,
+        old_value=None,
+        new_value=ProjectProgressUpdateSerializer(progress_update).data,
+    )
+
+    return Response(
+        {
+            "message": "Progress update recorded successfully.",
+            "progress_update": ProjectProgressUpdateSerializer(progress_update).data,
+        },
+        status=status.HTTP_201_CREATED,
+    )

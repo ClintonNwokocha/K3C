@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import ClimateProject
+from .models import ClimateProject, ProjectProgressUpdate
 
 
 @admin.register(ClimateProject)
@@ -81,6 +81,8 @@ class ClimateProjectAdmin(admin.ModelAdmin):
                     "description",
                     "climate_risk_relevance",
                     "location_notes",
+                    "sdg_goals",
+                    "ndc_linkage_reference",
                 )
             },
         ),
@@ -107,3 +109,18 @@ class ClimateProjectAdmin(admin.ModelAdmin):
             },
         ),
     )
+
+
+@admin.register(ProjectProgressUpdate)
+class ProjectProgressUpdateAdmin(admin.ModelAdmin):
+    list_display = (
+        "project",
+        "reporting_date",
+        "physical_completion_pct",
+        "financial_disbursement_naira",
+        "created_by",
+    )
+
+    list_filter = ("reporting_date",)
+
+    search_fields = ("project__title", "progress_notes")
