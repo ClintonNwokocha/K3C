@@ -28,6 +28,7 @@ import {
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import {
+  getClimateAssistantAnswer,
   getClimateIntelligence,
   getClimateIntelligenceProfile,
   getElevationPreview,
@@ -71,6 +72,13 @@ import {
 import { ClimateActionHotspotStyles, ClimateActionSignalOverlay } from "../components/ClimateActionHotspot";
 import { isMilestoneOneDemo } from "../config/demoMode";
 import { PUBLIC_EVENT_NAMES, trackPublicEvent } from "../config/analytics";
+import {
+  ASSISTANT_MAX_QUESTION_LENGTH,
+  buildAssistantRequest,
+  getDefaultSuggestedQuestions,
+  isQuestionTooLong,
+  resolveAssistantBadge,
+} from "../decision-support/climateAssistant";
 
 const KADUNA_CENTER = [10.45, 7.75];
 const KADUNA_ZOOM = 7;
@@ -694,7 +702,13 @@ function BasemapSwitcher({ baseMap, setBaseMap }) {
   );
 }
 
-function BriefingPanel({ question, answer, onQuestionChange, onAsk }) {
+function BriefingPanel({ question, answer, mode, loading, evidence, limitations, suggestedQuestions, onQuestionChange, onAsk, onSuggestedQuestionClick }) {
+  // mode is null until the first answered question this session — the
+  // panel keeps showing the static "Rule-based" badge it always has until
+  // then, so the badge only ever claims "AI-assisted" once the backend has
+  // actually confirmed that's how the current answer was produced.
+  const badgeLabel = mode ? resolveAssistantBadge(mode) : "Rule-based";
+
   return (
     <div className="flex min-w-0 flex-1 flex-col border-l border-[#E6EAEC] pl-5">
       <div className="mb-2 flex items-center justify-between">
@@ -702,13 +716,43 @@ function BriefingPanel({ question, answer, onQuestionChange, onAsk }) {
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#009B35]">Climate briefing</p>
           <p className="text-xs font-bold text-slate-500">Ask about this map</p>
         </div>
-        <span className="rounded-full bg-[#F7F9FA] px-3 py-1 text-[10px] font-black text-slate-500">Rule-based</span>
+        <span
+          className={`rounded-full px-3 py-1 text-[10px] font-black ${
+            mode === "ai" ? "bg-[#E8F7EE] text-[#009B35]" : "bg-[#F7F9FA] text-slate-500"
+          }`}
+        >
+          {loading ? "Thinking…" : badgeLabel}
+        </span>
       </div>
 
-      {answer && (
-        <p className="mb-2 max-h-12 overflow-auto rounded-md bg-[#F7F9FA] px-3 py-2 text-xs leading-5 text-slate-600">
-          {answer}
-        </p>
+      {answer && !loading && (
+        <div className="mb-1 max-h-24 overflow-auto rounded-md bg-[#F7F9FA] px-3 py-2 text-xs leading-5 text-slate-600">
+          <p>{answer}</p>
+          {evidence?.length > 0 && (
+            <p className="mt-1 text-[9px] text-slate-400">
+              Source: {evidence.map((item) => item.source).filter(Boolean).join(", ") || "KCCC Climate Atlas"}
+            </p>
+          )}
+          {limitations?.length > 0 && (
+            <p className="mt-1 text-[9px] italic leading-4 text-slate-400">⚠ {limitations[0]}</p>
+          )}
+        </div>
+      )}
+
+      {suggestedQuestions?.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1">
+          {suggestedQuestions.slice(0, 4).map((suggestion) => (
+            <button
+              key={suggestion}
+              type="button"
+              disabled={loading}
+              onClick={() => onSuggestedQuestionClick(suggestion)}
+              className="rounded-full border border-[#CAD2D7] px-2 py-0.5 text-[9px] font-bold text-slate-500 hover:border-[#009B35] hover:text-[#009B35] disabled:opacity-50"
+            >
+              {suggestion}
+            </button>
+          ))}
+        </div>
       )}
 
       <div className="flex gap-2">
@@ -718,10 +762,16 @@ function BriefingPanel({ question, answer, onQuestionChange, onAsk }) {
           onKeyDown={(event) => {
             if (event.key === "Enter") onAsk();
           }}
+          disabled={loading}
           placeholder="Ask about rainfall, rainfall anomaly, NDVI, land surface temperature..."
-          className="h-9 flex-1 rounded-md border border-[#CAD2D7] px-3 text-xs outline-none focus:border-[#009B35]"
+          className="h-9 flex-1 rounded-md border border-[#CAD2D7] px-3 text-xs outline-none focus:border-[#009B35] disabled:bg-[#F7F9FA]"
         />
-        <button type="button" onClick={onAsk} className="rounded-md bg-[#030454] px-4 text-xs font-black text-white hover:bg-[#009B35]">
+        <button
+          type="button"
+          onClick={() => onAsk()}
+          disabled={loading}
+          className="rounded-md bg-[#030454] px-4 text-xs font-black text-white hover:bg-[#009B35] disabled:opacity-60"
+        >
           Ask
         </button>
       </div>
@@ -924,6 +974,15 @@ export default function PublicClimateAtlasPage() {
 
   const [briefingQuestion, setBriefingQuestion] = useState("");
   const [briefingAnswer, setBriefingAnswer] = useState("");
+  // null = no question asked yet this session (panel shows the static
+  // "Rule-based" badge it always has). "ai" / "rule_based" once a question
+  // has actually been answered by the backend (or by the client-side
+  // network-failure fallback, which also reports "rule_based").
+  const [briefingMode, setBriefingMode] = useState(null);
+  const [briefingLoading, setBriefingLoading] = useState(false);
+  const [briefingEvidence, setBriefingEvidence] = useState([]);
+  const [briefingLimitations, setBriefingLimitations] = useState([]);
+  const [briefingSuggestedQuestions, setBriefingSuggestedQuestions] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const [baseMap, setBaseMap] = useState(isExportMode ? (searchParams.get("basemap") || "satellite") : "satellite");
@@ -1215,6 +1274,24 @@ export default function PublicClimateAtlasPage() {
     [selectedLgaFeature, metricsByName, profilesByName, variable, lulcLookup, floodOccurrenceLookup, elevationLookup, signalLookup],
   );
 
+  // A previously AI-answered/fallback briefing refers to a specific
+  // indicator + LGA/statewide scope — once that scope changes, the stale
+  // answer and badge must not linger and imply they still describe the
+  // newly selected context (see KCCC spec: never silently switch scope).
+  // Reset during render (React's documented pattern for "adjusting state
+  // when a prop changes") rather than in a useEffect, which would cause an
+  // extra cascading render for a change that's already known at render time.
+  const briefingContextKey = `${variable.key}|${selectedLga?.metric?.admin_code || selectedLga?.name || "statewide"}`;
+  const [prevBriefingContextKey, setPrevBriefingContextKey] = useState(briefingContextKey);
+  if (briefingContextKey !== prevBriefingContextKey) {
+    setPrevBriefingContextKey(briefingContextKey);
+    setBriefingMode(null);
+    setBriefingAnswer("");
+    setBriefingEvidence([]);
+    setBriefingLimitations([]);
+    setBriefingSuggestedQuestions(getDefaultSuggestedQuestions(variable.key));
+  }
+
   // Mean NDVI across all returned LGAs â€" drives the briefing panel.
   const meanNdviFromStats = useMemo(() => {
     if (variable.key !== "ndvi" || !remoteStats.length) return null;
@@ -1337,7 +1414,11 @@ export default function PublicClimateAtlasPage() {
     }
   }
 
-  function generateClimateBriefing() {
+  // Deterministic, fully client-side rule-based briefing — preserved as-is.
+  // Used (a) for the empty-question guidance text, and (b) as the true
+  // offline fallback if the backend assistant call itself fails (network
+  // error), since the backend's own rule-based fallback can't run then.
+  function generateClimateBriefingLocal() {
     const q = briefingQuestion.trim().toLowerCase();
 
     if (!q) {
@@ -1508,6 +1589,73 @@ export default function PublicClimateAtlasPage() {
     }
 
     setBriefingAnswer(`${variable.label} is selected for ${config.season}. Data source: ${variable.dataSource}. Period: ${config.period}.`);
+  }
+
+  // Public entry point for the "Ask" button / Enter key — automatically
+  // attaches the Atlas's current selection (indicator, LGA, season,
+  // year/period) as context, so the user never has to repeat it in the
+  // question itself. Calls the backend assistant (AI-assisted when
+  // configured, otherwise its own rule-based fallback); only falls back to
+  // the fully local rule-based engine if the request itself fails
+  // (network error) — the backend's "mode" field is always trusted
+  // otherwise, never inferred client-side.
+  async function askClimateBriefingAssistant(overrideQuestion) {
+    const trimmed = (overrideQuestion ?? briefingQuestion).trim();
+    if (overrideQuestion) setBriefingQuestion(overrideQuestion);
+
+    if (!trimmed) {
+      setBriefingMode(null);
+      setBriefingEvidence([]);
+      setBriefingLimitations([]);
+      setBriefingSuggestedQuestions(getDefaultSuggestedQuestions(variable.key));
+      generateClimateBriefingLocal();
+      return;
+    }
+
+    if (isQuestionTooLong(trimmed)) {
+      setBriefingAnswer(`Question is too long (max ${ASSISTANT_MAX_QUESTION_LENGTH} characters).`);
+      return;
+    }
+
+    const payload = buildAssistantRequest({
+      question: trimmed,
+      indicatorKey: variable.key,
+      year: config.year,
+      seasonLabel: config.season,
+      periodLabel: config.period,
+      adminCode: selectedLga?.metric?.admin_code || null,
+      lgaName: selectedLga?.name || null,
+    });
+
+    trackPublicEvent(PUBLIC_EVENT_NAMES.CLIMATE_ASSISTANT_QUESTION, { indicator: variable.key });
+    setBriefingLoading(true);
+
+    try {
+      const data = await getClimateAssistantAnswer(payload);
+      setBriefingAnswer(data.answer);
+      setBriefingMode(data.mode);
+      setBriefingEvidence(data.evidence || []);
+      setBriefingLimitations(data.limitations || []);
+      setBriefingSuggestedQuestions(
+        data.suggested_questions?.length ? data.suggested_questions : getDefaultSuggestedQuestions(variable.key)
+      );
+      trackPublicEvent(
+        data.mode === "ai" ? PUBLIC_EVENT_NAMES.CLIMATE_ASSISTANT_SUCCESS : PUBLIC_EVENT_NAMES.CLIMATE_ASSISTANT_FALLBACK,
+        { indicator: variable.key }
+      );
+    } catch {
+      // Network/request failure (not a data/AI failure, which the backend
+      // already reports as mode: "rule_based") — degrade to the fully
+      // local rule-based engine so the panel never shows a raw error.
+      generateClimateBriefingLocal();
+      setBriefingMode("rule_based");
+      setBriefingEvidence([]);
+      setBriefingLimitations([]);
+      setBriefingSuggestedQuestions(getDefaultSuggestedQuestions(variable.key));
+      trackPublicEvent(PUBLIC_EVENT_NAMES.CLIMATE_ASSISTANT_FALLBACK, { indicator: variable.key });
+    } finally {
+      setBriefingLoading(false);
+    }
   }
 
   async function handleElevationPointClick(lat, lng) {
@@ -3670,8 +3818,14 @@ export default function PublicClimateAtlasPage() {
           <BriefingPanel
             question={briefingQuestion}
             answer={briefingAnswer}
+            mode={briefingMode}
+            loading={briefingLoading}
+            evidence={briefingEvidence}
+            limitations={briefingLimitations}
+            suggestedQuestions={briefingSuggestedQuestions.length ? briefingSuggestedQuestions : getDefaultSuggestedQuestions(variable.key)}
             onQuestionChange={setBriefingQuestion}
-            onAsk={generateClimateBriefing}
+            onAsk={askClimateBriefingAssistant}
+            onSuggestedQuestionClick={askClimateBriefingAssistant}
           />
         </div>
       </footer>

@@ -181,6 +181,21 @@ REST_FRAMEWORK = {
     },
 }
 
+# Climate Briefing Assistant (Grok/xAI) — backend-only integration. The key
+# never reaches the frontend. If disabled, unconfigured, or the call fails,
+# the assistant falls back to the existing rule-based briefing — see
+# core/services/climate_ai.py and remote_sensing/climate_context.py.
+CLIMATE_AI_ENABLED = os.getenv("CLIMATE_AI_ENABLED", "false").lower() in ("true", "1", "yes")
+XAI_API_KEY = os.getenv("XAI_API_KEY", "")
+# Configurable rather than hard-coded because available Grok model names change.
+XAI_MODEL = os.getenv("XAI_MODEL", "")
+XAI_API_BASE_URL = os.getenv("XAI_API_BASE_URL", "https://api.x.ai/v1")
+CLIMATE_AI_TIMEOUT_SECONDS = float(os.getenv("CLIMATE_AI_TIMEOUT_SECONDS", "8"))
+CLIMATE_AI_MAX_QUESTION_LENGTH = int(os.getenv("CLIMATE_AI_MAX_QUESTION_LENGTH", "400"))
+# Separate, tighter throttle scope for POST /api/climate/assistant/ — each
+# AI-assisted request may call a paid external API (see remote_sensing/throttles.py).
+CLIMATE_AI_THROTTLE_RATE = os.getenv("CLIMATE_AI_THROTTLE_RATE", "20/hour")
+
 DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
 

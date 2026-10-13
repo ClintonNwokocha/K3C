@@ -1,3 +1,4 @@
+import logging
 from collections import Counter
 from decimal import Decimal
 from urllib.parse import urlencode
@@ -7,7 +8,12 @@ from django.db.models import Avg, Max, Min
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 
-from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+    throttle_classes,
+)
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
@@ -15,11 +21,16 @@ from accounts.permissions import IsInternalUser
 from audit.utils import log_screening_access
 from climate_risk.models import ClimateRiskProfile
 from core.models import LGARegistry
+from core.services import climate_ai
 
+from .climate_context import INDICATOR_METADATA, build_rule_based_answer, resolve_climate_context
 from .gee_service import _KADUNA_BBOX, gee_service
 from .lulc_providers import LAND_COVER_PROVIDERS
 from .models import LandCoverDataset, LandCoverSnapshot, RemoteSensingLayer, RemoteSensingLGAMetric
 from .serializers import RemoteSensingLayerSerializer, RemoteSensingLGAMetricSerializer
+from .throttles import ClimateAssistantRateThrottle
+
+logger = logging.getLogger(__name__)
 
 # Official Google Dynamic World v1 class colours.
 # These are the canonical DW palette used in published Google/WRI maps.
@@ -1870,5 +1881,116 @@ def public_historical_surface_water(request):
         "status": "ok",
         "label": "Historical Surface Water Occurrence — 1984–2021 archive",
         "results": RemoteSensingLGAMetricSerializer(metrics, many=True).data,
+    })
+
+
+_ASSISTANT_VALID_SEASONS = {"annual", "wet_season", "dry_season"}
+
+
+@api_view(["POST"])
+@authentication_classes([])
+@permission_classes([AllowAny])
+@throttle_classes([ClimateAssistantRateThrottle])
+def climate_assistant(request):
+    """
+    Public Climate Briefing Assistant — POST /api/climate/assistant/.
+
+    Accepts only a free-text question plus safe contextual identifiers
+    (indicator, year, season, period, admin_code/lga_name). Every climate
+    value in the response is resolved server-side from the KCCC database via
+    climate_context.resolve_climate_context — values supplied by the
+    frontend are never trusted as evidence, only as lookup keys.
+
+    Grok (xAI) is only ever consulted when CLIMATE_AI_ENABLED is true, an
+    API key/model are configured, AND the resolved context has real
+    published data (status == "ok") — insufficient/unpublished data is
+    reported honestly without ever asking the model to fill the gap. Any
+    other condition (AI disabled, misconfigured, timed out, or an invalid
+    response) falls back to the deterministic rule-based briefing, and the
+    response's "mode" field tells the frontend which path was used.
+
+    Never returns internal exception detail, stack traces, or credentials —
+    any unexpected failure degrades to a generic insufficient-data message.
+    """
+    max_question_len = int(getattr(settings, "CLIMATE_AI_MAX_QUESTION_LENGTH", 400))
+
+    question = str(request.data.get("question") or "").strip()
+    if not question:
+        return Response({"status": "error", "message": "A question is required."}, status=400)
+    if len(question) > max_question_len:
+        return Response(
+            {"status": "error", "message": f"Question is too long (max {max_question_len} characters)."},
+            status=400,
+        )
+
+    indicator = str(request.data.get("indicator") or "").strip()
+    if indicator not in INDICATOR_METADATA:
+        return Response({"status": "error", "message": "Unknown or missing indicator."}, status=400)
+
+    season = str(request.data.get("season") or "annual").strip()
+    if season not in _ASSISTANT_VALID_SEASONS:
+        return Response(
+            {"status": "error", "message": f"Invalid season. Valid: {', '.join(sorted(_ASSISTANT_VALID_SEASONS))}"},
+            status=400,
+        )
+
+    year_raw = request.data.get("year")
+    try:
+        year = int(year_raw) if year_raw not in (None, "", "latest") else None
+    except (TypeError, ValueError):
+        return Response({"status": "error", "message": "Invalid year."}, status=400)
+
+    period = str(request.data.get("period") or "").strip()[:60] or None
+    admin_code = str(request.data.get("admin_code") or "").strip()[:50] or None
+    lga_name = str(request.data.get("lga_name") or "").strip()[:150] or None
+
+    fallback_scope = {"type": "lga" if (admin_code or lga_name) else "statewide", "name": lga_name}
+
+    try:
+        context = resolve_climate_context(
+            indicator=indicator,
+            year=year,
+            season=season,
+            period=period,
+            admin_code=admin_code,
+            lga_name=lga_name,
+        )
+
+        rule_based = build_rule_based_answer(question, context)
+        mode = "rule_based"
+        result = rule_based
+
+        # AI is only ever consulted when there is real published data to
+        # ground it in — never to fill a gap the rule-based engine already
+        # reported honestly as insufficient.
+        if context.get("status") == "ok" and climate_ai.is_configured():
+            ai_result = climate_ai.get_ai_response(question, context)
+            if ai_result is not None:
+                mode = "ai"
+                result = {
+                    "answer": ai_result.answer,
+                    "evidence": ai_result.evidence or rule_based["evidence"],
+                    "limitations": ai_result.limitations or rule_based["limitations"],
+                    "suggested_questions": ai_result.suggested_questions or rule_based["suggested_questions"],
+                }
+    except Exception:
+        logger.exception("Climate assistant request failed unexpectedly.")
+        context = {"scope": fallback_scope}
+        mode = "rule_based"
+        result = {
+            "answer": "Insufficient published KCCC data is available for this selection.",
+            "evidence": [],
+            "limitations": [],
+            "suggested_questions": [],
+        }
+
+    return Response({
+        "answer": result["answer"],
+        "scope": context.get("scope", fallback_scope),
+        "indicator": indicator,
+        "evidence": result["evidence"],
+        "limitations": result["limitations"],
+        "suggested_questions": result["suggested_questions"],
+        "mode": mode,
     })
 

@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
     ai_hotspots,
     climate_action_screening,
+    climate_assistant,
     climate_intelligence,
     climate_intelligence_profile,
     dashboard_kpis,
@@ -40,6 +41,10 @@ urlpatterns = [
     path("remote-sensing/climate-intelligence/", climate_intelligence, name="remote-sensing-climate-intelligence"),
     # Climate Intelligence Engine E5 — single-LGA focused profile.
     path("remote-sensing/climate-intelligence/profile/", climate_intelligence_profile, name="remote-sensing-climate-intelligence-profile"),
+
+    # Climate Briefing Assistant — public, AI-assisted with rule-based fallback.
+    # Resolves to /api/climate/assistant/ since this app's urls.py is included at /api/.
+    path("climate/assistant/", climate_assistant, name="climate-assistant"),
 
     # Internal authenticated endpoint — Climate Action Screening Matrix and Map Lens.
     # Requires JWT + internal staff role (ADMIN, ANALYST, SECTOR_FOCAL_POINT).

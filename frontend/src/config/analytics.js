@@ -54,6 +54,13 @@ export const PUBLIC_EVENT_NAMES = {
   INDICATOR_SELECTED: "indicator_selected",
   REPORT_DOWNLOADED: "report_downloaded",
   PROJECT_VIEWED: "project_viewed",
+  // Climate Briefing Assistant — aggregate interaction counts only. The
+  // question text itself is never sent here (no approved policy to store
+  // full user questions), only the fact that one was asked and how it
+  // resolved (ai vs rule_based fallback).
+  CLIMATE_ASSISTANT_QUESTION: "climate_assistant_question",
+  CLIMATE_ASSISTANT_SUCCESS: "climate_assistant_success",
+  CLIMATE_ASSISTANT_FALLBACK: "climate_assistant_fallback",
 };
 
 export function isAnalyticsConfigured() {

@@ -572,3 +572,11 @@ export async function getClimateIntelligenceProfile(params = {}) {
   const response = await api.get("/remote-sensing/climate-intelligence/profile/", { params });
   return response.data;
 }
+
+// Climate Briefing Assistant — backend resolves all climate values itself
+// (indicator/year/season/admin_code/lga_name are lookup keys only, never
+// trusted evidence). Never calls xAI/Grok directly from the browser.
+export async function getClimateAssistantAnswer(payload) {
+  const response = await api.post("/climate/assistant/", payload);
+  return response.data;
+}
