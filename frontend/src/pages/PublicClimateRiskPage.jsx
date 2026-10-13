@@ -22,6 +22,7 @@ import {
   getRemoteSensingLulcPreview,
 } from "../services/api";
 import { getAtlasLayerConfig } from "../config/climateAtlasLayers";
+import { classifyNdvi, getPublicNdviError } from "../utils/publicNdvi";
 import climateRiskDryland from "../assets/climate-risk-dryland.jpg";
 import {
   computeClimateActionSignal,
@@ -266,15 +267,6 @@ function formatSignedMetric(value, digits = 1, suffix = "") {
     maximumFractionDigits: digits,
     minimumFractionDigits: digits,
   })}${suffix}`;
-}
-
-function classifyNdvi(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return "Not yet available";
-  if (n >= 0.55) return "Healthy vegetation";
-  if (n >= 0.35) return "Moderate vegetation";
-  if (n >= 0.2) return "Sparse vegetation";
-  return "Low vegetation";
 }
 
 function classifyRainfallAnomaly(value) {
@@ -949,13 +941,9 @@ export default function PublicClimateRiskPage() {
         getRemoteSensingLulcPreview({ year: 2025, window: "late_wet_season", admin_level: "lga" }),
       ]);
 
-      if (
-        annualResult.status === "rejected" &&
-        wetResult.status === "rejected" &&
-        dryResult.status === "rejected"
-      ) {
-        setApiError("Could not load vegetation data. Please try again later.");
-      }
+      setApiError(getPublicNdviError(
+        [annualResult, wetResult, dryResult], layerCatalogResult,
+      ));
 
       setAnnualData(annualResult.status === "fulfilled" ? annualResult.value : null);
       setWetData(wetResult.status === "fulfilled" ? wetResult.value : null);
@@ -1443,7 +1431,7 @@ export default function PublicClimateRiskPage() {
             <p>
               {lgaOptions.length
                 ? `${lgaOptions.length} assessed LGAs available`
-                : "LGA list loading"}
+                : isLoading ? "LGA list loading" : "No public NDVI LGAs available"}
             </p>
             {selectedIndicatorLga && (
               <a
@@ -1464,6 +1452,12 @@ export default function PublicClimateRiskPage() {
             status={vegetationStatus}
             source={sourceForScope(annualData, selectedIndicatorLgaCode)?.data_source}
           >
+            {!isLoading && !apiError &&
+              !countWithData(annualData) && !countWithData(wetData) && !countWithData(dryData) && (
+                <p className="mt-3 text-xs text-slate-500">
+                  No public NDVI data is available for 2025 at LGA level.
+                </p>
+              )}
             <div className="mt-3">
               <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-slate-500">
                 Seasonal NDVI comparison

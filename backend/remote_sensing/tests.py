@@ -1568,6 +1568,65 @@ class LSTComputeTests(TestCase):
         self.assertAlmostEqual(meta["mean_valid_observations_per_pixel"], 58.3456, places=4)
 
 
+class PublicClimateRiskNdviTests(TestCase):
+    """The public briefing's exact seasonal requests preserve publication gates."""
+
+    seasons = ("annual", "wet_season", "dry_season")
+
+    def _get_stats(self, season):
+        return self.client.get(
+            "/api/climate/lga-stats/",
+            {"layer": "ndvi", "year": 2025, "season": season, "admin_level": "lga"},
+        )
+
+    def test_missing_layer_is_resource_404_and_absent_from_public_catalogue(self):
+        self.assertEqual(self.client.get("/api/layers/").json()["results"], [])
+        for season in self.seasons:
+            with self.subTest(season=season):
+                response = self._get_stats(season)
+                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.json()["detail"], "No RemoteSensingLayer matches the given query.")
+
+    def test_public_data_loads_for_each_season_without_authentication(self):
+        layer = RemoteSensingLayer.objects.create(key="ndvi", label="NDVI")
+        for season in self.seasons:
+            with self.subTest(season=season):
+                metric = RemoteSensingLGAMetric.objects.create(
+                    layer=layer, admin_code="TEST001", admin_name="Test LGA",
+                    year=2025, season=season, mean_value=Decimal("0.45"),
+                )
+                response = self._get_stats(season)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["summary"]["count"], 1)
+                self.assertEqual(response.json()["results"][0]["id"], metric.id)
+                self.assertEqual(response.json()["summary"]["mean_value"], 0.45)
+
+    def test_public_layer_without_valid_observations_returns_empty_results(self):
+        layer = RemoteSensingLayer.objects.create(key="ndvi", label="NDVI")
+        RemoteSensingLGAMetric.objects.create(
+            layer=layer, admin_code="TEST001", year=2025, season="annual", mean_value=None,
+        )
+        for season in self.seasons:
+            with self.subTest(season=season):
+                response = self._get_stats(season)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["results"], [])
+                self.assertIsNone(response.json()["summary"]["mean_value"])
+
+    def test_private_or_inactive_data_remains_unavailable(self):
+        layer = RemoteSensingLayer.objects.create(key="ndvi", label="NDVI")
+        RemoteSensingLGAMetric.objects.create(
+            layer=layer, admin_code="TEST001", year=2025, season="annual", mean_value=Decimal("0.45"),
+        )
+        for is_public, is_active in ((False, True), (True, False)):
+            with self.subTest(is_public=is_public, is_active=is_active):
+                layer.is_public, layer.is_active = is_public, is_active
+                layer.save()
+                self.assertEqual(self.client.get("/api/layers/").json()["results"], [])
+                for season in self.seasons:
+                    self.assertEqual(self._get_stats(season).status_code, 404)
+
+
 class LgaStatsNdviLandsatAccessTests(TestCase):
     """
     Regression tests for public lga_stats access to historical Landsat NDVI.
