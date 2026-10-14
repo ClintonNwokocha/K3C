@@ -15,6 +15,8 @@ class ClimateProjectAdmin(admin.ModelAdmin):
         "funding_source",
         "expected_ghg_reduction_tco2e",
         "expected_beneficiaries",
+        "primary_ghg_sector",
+        "ghg_impact_type",
         "latitude",
         "longitude",
         "is_active",
@@ -26,6 +28,8 @@ class ClimateProjectAdmin(admin.ModelAdmin):
         "status",
         "priority",
         "funding_source",
+        "primary_ghg_sector",
+        "ghg_impact_type",
         "is_active",
     )
 
@@ -98,6 +102,28 @@ class ClimateProjectAdmin(admin.ModelAdmin):
                     "start_date",
                     "end_date",
                 )
+            },
+        ),
+        (
+            "Climate & GHG Linkage",
+            {
+                "fields": (
+                    "climate_action_context",
+                    "primary_ghg_sector",
+                    "ghg_impact_type",
+                    "expected_annual_ghg_impact_tco2e",
+                    "verified_annual_ghg_impact_tco2e",
+                    "ghg_methodology",
+                    "ghg_monitoring_indicator",
+                ),
+                "description": (
+                    "Links this project to the climate signal that motivated it and "
+                    "to a GHG inventory sector / mitigation mechanism, if one is "
+                    "defensible. Leave as 'Not Assessed' / blank rather than "
+                    "guessing — these fields never drive the statewide GHG "
+                    "inventory and must never be inferred from budget or "
+                    "completion percentage."
+                ),
             },
         ),
         (

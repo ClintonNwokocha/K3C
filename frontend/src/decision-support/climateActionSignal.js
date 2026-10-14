@@ -80,7 +80,7 @@ export const METHODOLOGY_NOTE =
 // adverse/severe groupings below match that same file's existing approved
 // _overall_status()/_build_ci_summary() bucketing — not a new classification.
 
-function classifyNdvi(value) {
+export function classifyNdvi(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   if (n >= 0.6) return "healthy vegetation";
@@ -88,7 +88,7 @@ function classifyNdvi(value) {
   return "sparse/stressed vegetation";
 }
 
-function classifyRainfallAnomaly(value) {
+export function classifyRainfallAnomaly(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   if (n > 10.0) return "wetter than baseline";
@@ -96,7 +96,7 @@ function classifyRainfallAnomaly(value) {
   return "drier than baseline";
 }
 
-function classifySpi(value) {
+export function classifySpi(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   if (n <= -2.0) return "extreme drought condition";
@@ -108,7 +108,7 @@ function classifySpi(value) {
   return "extremely wet";
 }
 
-function classifyLst(value) {
+export function classifyLst(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   if (n < 28.0) return "relatively cooler surface conditions";

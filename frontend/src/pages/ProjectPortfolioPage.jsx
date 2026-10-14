@@ -12,11 +12,14 @@ import {
   CommandTabs,
 } from "../components/CommandUI";
 import { canManageProjectPortfolio } from "../utils/permissions";
+import { readProjectPathwayContext, matchesContributingProject } from "../utils/projectPathwayContext.js";
+import ProjectPathwayNotice from "../components/ProjectPathwayNotice";
 import {
   createClimateProject,
   createProjectProgressUpdate,
   getClimateProjects,
   getClimateRiskProfiles,
+  getProjectGhgSectorSummary,
   getProjectProgressUpdates,
   updateClimateProject,
 } from "../services/api";
@@ -84,6 +87,23 @@ const priorityOptions = [
   { value: "very_high", label: "Very High" },
 ];
 
+const ghgSectorOptions = [
+  { value: "energy", label: "Energy" },
+  { value: "agriculture", label: "Agriculture" },
+  { value: "lulucf", label: "LULUCF" },
+  { value: "ippu", label: "IPPU" },
+  { value: "waste", label: "Waste" },
+  { value: "not_assessed", label: "Not Assessed" },
+];
+
+const ghgImpactTypeOptions = [
+  { value: "emission_reduction", label: "Emission Reduction" },
+  { value: "avoided_emissions", label: "Avoided Emissions" },
+  { value: "carbon_removal", label: "Carbon Removal" },
+  { value: "mixed_reduction_removal", label: "Mixed Reduction + Removal" },
+  { value: "not_assessed", label: "Not Assessed" },
+];
+
 const initialForm = {
   title: "",
   project_code: "",
@@ -107,6 +127,13 @@ const initialForm = {
   location_notes: "",
   sdg_goals: [],
   ndc_linkage_reference: "",
+  climate_action_context: "",
+  primary_ghg_sector: "not_assessed",
+  ghg_impact_type: "not_assessed",
+  expected_annual_ghg_impact_tco2e: "",
+  verified_annual_ghg_impact_tco2e: "",
+  ghg_methodology: "",
+  ghg_monitoring_indicator: "",
   is_active: true,
 };
 
@@ -131,6 +158,15 @@ function formatNumber(value, maximumFractionDigits = 2) {
 
 function formatMoney(value, maximumFractionDigits = 0) {
   return `₦${formatNumber(value, maximumFractionDigits)}`;
+}
+
+// Unlike other project metrics, GHG impact fields are nullable by design:
+// null means "never quantified", which must never render the same as a
+// real 0. Callers should not fall back to formatNumber() for these fields.
+function formatNullableGhgValue(value) {
+  return value === null || value === undefined
+    ? null
+    : `${formatNumber(value, 3)} tCO₂e/year`;
 }
 
 function getStatusClass(status) {
@@ -184,6 +220,21 @@ function buildFormFromProject(project) {
     location_notes: project.location_notes || "",
     sdg_goals: Array.isArray(project.sdg_goals) ? project.sdg_goals : [],
     ndc_linkage_reference: project.ndc_linkage_reference || "",
+    climate_action_context: project.climate_action_context || "",
+    primary_ghg_sector: project.primary_ghg_sector || "not_assessed",
+    ghg_impact_type: project.ghg_impact_type || "not_assessed",
+    expected_annual_ghg_impact_tco2e:
+      project.expected_annual_ghg_impact_tco2e !== null &&
+      project.expected_annual_ghg_impact_tco2e !== undefined
+        ? String(project.expected_annual_ghg_impact_tco2e)
+        : "",
+    verified_annual_ghg_impact_tco2e:
+      project.verified_annual_ghg_impact_tco2e !== null &&
+      project.verified_annual_ghg_impact_tco2e !== undefined
+        ? String(project.verified_annual_ghg_impact_tco2e)
+        : "",
+    ghg_methodology: project.ghg_methodology || "",
+    ghg_monitoring_indicator: project.ghg_monitoring_indicator || "",
     is_active: project.is_active !== false,
   };
 }
@@ -726,6 +777,79 @@ function SelectedProjectDetail({
         </div>
       )}
 
+      <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+        <p className="font-black text-[#030454]">Climate & GHG Linkage</p>
+
+        <div className="mt-3 grid gap-4 md:grid-cols-3">
+          <InfoTile
+            label="Primary GHG Sector"
+            value={
+              selectedProject.primary_ghg_sector_display ||
+              getOptionLabel(ghgSectorOptions, selectedProject.primary_ghg_sector)
+            }
+            muted
+          />
+
+          <InfoTile
+            label="GHG Impact Type"
+            value={
+              selectedProject.ghg_impact_type_display ||
+              getOptionLabel(ghgImpactTypeOptions, selectedProject.ghg_impact_type)
+            }
+            muted
+          />
+
+          <InfoTile
+            label="Expected Annual GHG Impact"
+            value={
+              formatNullableGhgValue(selectedProject.expected_annual_ghg_impact_tco2e) ||
+              "Not assessed"
+            }
+          />
+
+          <InfoTile
+            label="Verified Annual GHG Impact"
+            value={
+              formatNullableGhgValue(selectedProject.verified_annual_ghg_impact_tco2e) ||
+              "Not independently verified"
+            }
+          />
+        </div>
+
+        {selectedProject.climate_action_context && (
+          <div className="mt-4">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              Climate Action Context
+            </p>
+            <p className="mt-1 leading-6 text-slate-600">
+              {selectedProject.climate_action_context}
+            </p>
+          </div>
+        )}
+
+        {selectedProject.ghg_methodology && (
+          <div className="mt-4">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              Methodology / Evidence
+            </p>
+            <p className="mt-1 leading-6 text-slate-600">
+              {selectedProject.ghg_methodology}
+            </p>
+          </div>
+        )}
+
+        {selectedProject.ghg_monitoring_indicator && (
+          <div className="mt-4">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+              Monitoring Indicator
+            </p>
+            <p className="mt-1 leading-6 text-slate-600">
+              {selectedProject.ghg_monitoring_indicator}
+            </p>
+          </div>
+        )}
+      </div>
+
       {selectedProject.climate_risk_relevance && (
         <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4 text-sm">
           <p className="font-black text-[#030454]">Climate Intelligence Relevance</p>
@@ -754,6 +878,76 @@ function SelectedProjectDetail({
   );
 }
 
+function GhgSectorPipelinePanel({ summary, loading, error }) {
+  return (
+    <CommandSection
+      title="GHG sector mitigation pipeline"
+      description="How registered projects roll up into the five GHG inventory sectors. Modelled/self-reported project figures only — never subtracted from the statewide GHG inventory."
+    >
+      {loading && (
+        <p className="text-sm text-slate-500">Loading GHG sector pipeline...</p>
+      )}
+
+      {!loading && error && (
+        <p className="text-sm text-red-600">
+          Project mitigation summary is currently unavailable.
+        </p>
+      )}
+
+      {!loading && !error && summary && (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-slate-500">
+                  <th className="px-3 py-2 font-bold">Sector</th>
+                  <th className="px-3 py-2 font-bold">Projects</th>
+                  <th className="px-3 py-2 font-bold">Concept</th>
+                  <th className="px-3 py-2 font-bold">Ongoing</th>
+                  <th className="px-3 py-2 font-bold">Completed</th>
+                  <th className="px-3 py-2 font-bold">Expected (tCO₂e/yr)</th>
+                  <th className="px-3 py-2 font-bold">Verified (tCO₂e/yr)</th>
+                  <th className="px-3 py-2 font-bold">Not Yet Quantified</th>
+                </tr>
+              </thead>
+              <tbody>
+                {summary.sectors.map((row) => (
+                  <tr key={row.sector} className="border-b border-slate-100 last:border-0">
+                    <td className="px-3 py-3 font-black text-[#030454]">
+                      {row.sector_display}
+                    </td>
+                    <td className="px-3 py-3">{row.project_count}</td>
+                    <td className="px-3 py-3">{row.concept_count}</td>
+                    <td className="px-3 py-3">{row.ongoing_count}</td>
+                    <td className="px-3 py-3">{row.completed_count}</td>
+                    <td className="px-3 py-3">
+                      {row.expected_annual_impact_tco2e != null
+                        ? formatNumber(row.expected_annual_impact_tco2e, 3)
+                        : "Not assessed"}
+                    </td>
+                    <td className="px-3 py-3">
+                      {row.verified_annual_impact_tco2e != null
+                        ? formatNumber(row.verified_annual_impact_tco2e, 3)
+                        : "Not verified"}
+                    </td>
+                    <td className="px-3 py-3">{row.unassessed_impact_project_count}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <p className="mt-3 text-xs text-slate-500">
+            {summary.unassessed_sector_project_count} project
+            {summary.unassessed_sector_project_count === 1 ? "" : "s"} have no GHG
+            sector assigned yet and are excluded from the sectors above.
+          </p>
+        </>
+      )}
+    </CommandSection>
+  );
+}
+
 function PortfolioOverview({
   projects,
   selectedProject,
@@ -762,58 +956,75 @@ function PortfolioOverview({
   onClearSelectedProject,
   onProgressAdded,
   setActiveTab,
+  ghgSummary,
+  ghgSummaryLoading,
+  ghgSummaryError,
 }) {
   const statusCounts = useMemo(() => getStatusCounts(projects), [projects]);
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-      <CommandSection
-        title="Implementation snapshot"
-        description="A quick leadership-level view of project movement across implementation states."
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          {statusOptions.map((item) => (
-            <button
-              key={item.value}
-              type="button"
-              onClick={() => setActiveTab("board")}
-              className="rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-[#009B35]/60 hover:bg-[#009B35]/5"
+    <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <CommandSection
+          title="Implementation snapshot"
+          description="A quick leadership-level view of project movement across implementation states."
+        >
+          <div className="grid gap-3 sm:grid-cols-2">
+            {statusOptions.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => setActiveTab("board")}
+                className="rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-[#009B35]/60 hover:bg-[#009B35]/5"
+              >
+                <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                  {item.label}
+                </p>
+
+                <p className="mt-2 text-2xl font-black text-[#030454]">
+                  {statusCounts[item.value] || 0}
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-3">
+            <CommandButton
+              variant="outline"
+              onClick={() => setActiveTab("map")}
             >
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                {item.label}
-              </p>
+              Open Map
+            </CommandButton>
 
-              <p className="mt-2 text-2xl font-black text-[#030454]">
-                {statusCounts[item.value] || 0}
-              </p>
-            </button>
-          ))}
-        </div>
+            <CommandButton
+              variant="outline"
+              onClick={() => setActiveTab("board")}
+            >
+              Open Board
+            </CommandButton>
 
-        <div className="mt-5 flex flex-wrap gap-3">
-          <CommandButton variant="outline" onClick={() => setActiveTab("map")}>
-            Open Map
-          </CommandButton>
+            <CommandButton
+              variant="outline"
+              onClick={() => setActiveTab("register")}
+            >
+              Open Register
+            </CommandButton>
+          </div>
+        </CommandSection>
 
-          <CommandButton variant="outline" onClick={() => setActiveTab("board")}>
-            Open Board
-          </CommandButton>
+        <SelectedProjectDetail
+          selectedProject={selectedProject}
+          canManage={canManage}
+          onEditProject={onEditProject}
+          onClear={onClearSelectedProject}
+          onProgressAdded={onProgressAdded}
+        />
+      </div>
 
-          <CommandButton
-            variant="outline"
-            onClick={() => setActiveTab("register")}
-          >
-            Open Register
-          </CommandButton>
-        </div>
-      </CommandSection>
-
-      <SelectedProjectDetail
-        selectedProject={selectedProject}
-        canManage={canManage}
-        onEditProject={onEditProject}
-        onClear={onClearSelectedProject}
-        onProgressAdded={onProgressAdded}
+      <GhgSectorPipelinePanel
+        summary={ghgSummary}
+        loading={ghgSummaryLoading}
+        error={ghgSummaryError}
       />
     </div>
   );
@@ -1236,6 +1447,127 @@ function ProjectFormSection({
               placeholder="e.g. Unconditional target — Agriculture sector mitigation"
             />
           </div>
+
+          <p className="md:col-span-3 mt-2 border-t border-slate-100 pt-4 text-[11px] font-black uppercase tracking-[0.14em] text-[#009B35]">
+            Climate & GHG Linkage
+          </p>
+
+          <div className="md:col-span-3">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Climate Action Context
+            </label>
+            <textarea
+              rows="2"
+              value={form.climate_action_context}
+              onChange={(event) =>
+                updateForm("climate_action_context", event.target.value)
+              }
+              className={inputClass}
+              placeholder="e.g. Vegetation stress and drought conditions in Kachia"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Primary GHG Sector
+            </label>
+            <select
+              value={form.primary_ghg_sector}
+              onChange={(event) =>
+                updateForm("primary_ghg_sector", event.target.value)
+              }
+              className={inputClass}
+            >
+              {ghgSectorOptions.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              GHG Impact Type
+            </label>
+            <select
+              value={form.ghg_impact_type}
+              onChange={(event) =>
+                updateForm("ghg_impact_type", event.target.value)
+              }
+              className={inputClass}
+            >
+              {ghgImpactTypeOptions.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Expected Annual GHG Impact (tCO₂e/year)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.001"
+              value={form.expected_annual_ghg_impact_tco2e}
+              onChange={(event) =>
+                updateForm("expected_annual_ghg_impact_tco2e", event.target.value)
+              }
+              className={inputClass}
+              placeholder="Leave blank if not assessed"
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Verified Annual GHG Impact (tCO₂e/year)
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="0.001"
+              value={form.verified_annual_ghg_impact_tco2e}
+              onChange={(event) =>
+                updateForm("verified_annual_ghg_impact_tco2e", event.target.value)
+              }
+              className={inputClass}
+              placeholder="Leave blank unless independently verified"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Methodology / Evidence
+            </label>
+            <textarea
+              rows="2"
+              value={form.ghg_methodology}
+              onChange={(event) =>
+                updateForm("ghg_methodology", event.target.value)
+              }
+              className={inputClass}
+              placeholder="Basis for the expected/verified figures above, if any..."
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block text-sm font-bold text-[#030454]">
+              Monitoring Indicator
+            </label>
+            <textarea
+              rows="2"
+              value={form.ghg_monitoring_indicator}
+              onChange={(event) =>
+                updateForm("ghg_monitoring_indicator", event.target.value)
+              }
+              className={inputClass}
+              placeholder="How this project's GHG performance is tracked, if at all..."
+            />
+          </div>
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3">
@@ -1510,12 +1842,24 @@ export default function ProjectPortfolioPage({
   sharedLgaId,
   sharedLgaName,
 }) {
+  const [pathwayContext] = useState(() => readProjectPathwayContext(window.location.search));
   const [projectsData, setProjectsData] = useState(null);
   const [lgaOptions, setLgaOptions] = useState([]);
-  const [form, setForm] = useState(initialForm);
+  const [ghgSummary, setGhgSummary] = useState(null);
+  const [ghgSummaryLoading, setGhgSummaryLoading] = useState(true);
+  const [ghgSummaryError, setGhgSummaryError] = useState("");
+
+  const [form, setForm] = useState(() => ({
+    ...initialForm,
+    project_type: pathwayContext.projectType || initialForm.project_type,
+    sector: pathwayContext.sector || initialForm.sector,
+    climate_risk_relevance: pathwayContext.recommendation
+      ? `Suggested action: ${pathwayContext.recommendation}; ${pathwayContext.lga}; ${pathwayContext.indicator}; ${pathwayContext.year}; ${pathwayContext.period}; ${pathwayContext.season}. Requires assessment.`
+      : initialForm.climate_risk_relevance,
+  }));
   const [editingProject, setEditingProject] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(pathwayContext.register ? "form" : "overview");
 
   // Lazy initializer only: this page remounts fresh whenever the user
   // navigates to "projects" (App.jsx swaps the rendered page component
@@ -1523,7 +1867,7 @@ export default function ProjectPortfolioPage({
   // needing an effect that could fight the user's own filter changes.
   const [filters, setFilters] = useState(() => ({
     project_type: "all",
-    sector: "all",
+    sector: pathwayContext.sector || "all",
     status: "all",
     priority: "all",
     lga: sharedLgaId ? String(sharedLgaId) : "",
@@ -1623,6 +1967,52 @@ export default function ProjectPortfolioPage({
     };
   }, []);
 
+  // Only reachable once the user is authenticated (this whole page sits
+  // behind the internal command-console login), matching the backend's
+  // IsAuthenticated-only gate on /portfolio/projects/ghg-summary/.
+  useEffect(() => {
+    let cancelled = false;
+
+    getProjectGhgSectorSummary()
+      .then((data) => {
+        if (!cancelled) {
+          setGhgSummary(data);
+          setGhgSummaryError("");
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(err);
+          setGhgSummaryError("Could not load GHG sector mitigation pipeline.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setGhgSummaryLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Used after a project save: refreshes the pipeline without touching
+  // ghgSummaryLoading, so an already-populated panel never flashes back
+  // to "Loading..." — a failure here only sets the error flag, it never
+  // clears a previously-loaded summary.
+  function refreshGhgSummary() {
+    getProjectGhgSectorSummary()
+      .then((data) => {
+        setGhgSummary(data);
+        setGhgSummaryError("");
+      })
+      .catch((err) => {
+        console.error(err);
+        setGhgSummaryError("Could not load GHG sector mitigation pipeline.");
+      });
+  }
+
   useEffect(() => {
     let cancelled = false;
     const key = projectsRequestKey;
@@ -1678,6 +2068,8 @@ export default function ProjectPortfolioPage({
     const fundingSource = filters.funding_source.trim().toLowerCase();
 
     return projects.filter((project) => {
+      if (!matchesContributingProject(project, pathwayContext)) return false;
+      if (!sharedLgaId && pathwayContext.lga && String(project.lga_name || "").toLowerCase() !== pathwayContext.lga.toLowerCase()) return false;
       const matchesSearch =
         !search ||
         String(project.title || "").toLowerCase().includes(search) ||
@@ -1708,6 +2100,8 @@ export default function ProjectPortfolioPage({
     filters.search,
     filters.implementing_agency,
     filters.funding_source,
+    pathwayContext,
+    sharedLgaId,
   ]);
 
   function updateFilter(field, value) {
@@ -1778,6 +2172,14 @@ export default function ProjectPortfolioPage({
       external_link: form.external_link.trim() || null,
       latitude: form.latitude !== "" ? Number(form.latitude) : null,
       longitude: form.longitude !== "" ? Number(form.longitude) : null,
+      expected_annual_ghg_impact_tco2e:
+        form.expected_annual_ghg_impact_tco2e !== ""
+          ? Number(form.expected_annual_ghg_impact_tco2e)
+          : null,
+      verified_annual_ghg_impact_tco2e:
+        form.verified_annual_ghg_impact_tco2e !== ""
+          ? Number(form.verified_annual_ghg_impact_tco2e)
+          : null,
       is_active: true,
     };
 
@@ -1797,6 +2199,7 @@ export default function ProjectPortfolioPage({
       setForm(initialForm);
       setEditingProject(null);
       await loadProjects();
+      refreshGhgSummary();
       setActiveTab("register");
     } catch (err) {
       console.error(err);
@@ -1832,6 +2235,7 @@ export default function ProjectPortfolioPage({
         }
       />
 
+      <ProjectPathwayNotice context={pathwayContext} />
       {sharedLgaId != null && filters.lga === String(sharedLgaId) && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#009B35]/30 bg-[#009B35]/5 px-5 py-3 text-sm text-[#030454]">
           <span>
@@ -1880,6 +2284,9 @@ export default function ProjectPortfolioPage({
           onClearSelectedProject={() => setSelectedProject(null)}
           onProgressAdded={loadProjects}
           setActiveTab={setActiveTab}
+          ghgSummary={ghgSummary}
+          ghgSummaryLoading={ghgSummaryLoading}
+          ghgSummaryError={ghgSummaryError}
         />
       )}
 

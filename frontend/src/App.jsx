@@ -69,7 +69,7 @@ function App() {
   const [foundation, setFoundation] = useState(null);
   const [ghgSummary, setGhgSummary] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [activePage, setActivePage] = useState("dashboard");
+  const [activePage, setActivePage] = useState(() => new URLSearchParams(window.location.search).get("page") === "projects" ? "projects" : "dashboard");
   const [error, setError] = useState("");
   const [authError, setAuthError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -185,7 +185,7 @@ function App() {
 
       const userData = await getCurrentUser();
       setCurrentUser(userData.user);
-      setActivePage("dashboard");
+      setActivePage(new URLSearchParams(window.location.search).get("page") === "projects" ? "projects" : "dashboard");
 
       await loadDashboardData();
     } catch (err) {

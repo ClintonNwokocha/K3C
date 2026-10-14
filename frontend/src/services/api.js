@@ -388,6 +388,11 @@ export async function updateClimateProject(projectId, payload) {
   return response.data;
 }
 
+export async function getProjectGhgSectorSummary() {
+  const response = await api.get("/portfolio/projects/ghg-summary/");
+  return response.data;
+}
+
 export async function importClimateProjectsCsv(file) {
   const formData = new FormData();
   formData.append("file", file);

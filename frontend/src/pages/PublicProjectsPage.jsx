@@ -29,6 +29,9 @@ import { getClimateIntelligenceProfile, getPublicPortalSummary } from "../servic
 import { PUBLIC_EVENT_NAMES, trackPublicEvent } from "../config/analytics";
 import { deriveActionPathways } from "../utils/climatePathways";
 import ClimateActionOpportunitiesPanel from "../components/ClimateActionOpportunitiesPanel";
+import { SECTOR_LABELS } from "../decision-support/climateRecommendations.js";
+import { readProjectPathwayContext, matchesContributingProject } from "../utils/projectPathwayContext.js";
+import ProjectPathwayNotice from "../components/ProjectPathwayNotice";
 
 const KADUNA_CENTER = [10.5105, 7.4165];
 const PROJECT_SLIDE_INTERVAL_MS = 6000;
@@ -1260,6 +1263,10 @@ function ProjectReadMorePanel({ project, onClose }) {
           </div>
           <div className="space-y-5 p-6">
             <p className="text-sm leading-7 text-slate-600">{getProjectDescription(project)}</p>
+            {Object.hasOwn(SECTOR_LABELS, project.sector) && <a
+              href={`/public/ghg-inventory?sector=${encodeURIComponent(project.sector)}&from_lga=${encodeURIComponent(getProjectLga(project))}`}
+              className="inline-block text-sm font-bold text-[#173B91] underline"
+            >View GHG Sector — Kaduna State inventory</a>}
             <div className="grid gap-4 sm:grid-cols-2">
               <SummaryChip label="Project code" value={project.project_code || "Not published"} />
               <SummaryChip
@@ -1298,6 +1305,7 @@ function ProjectReadMorePanel({ project, onClose }) {
 }
 
 export default function PublicProjectsPage() {
+  const [pathwayContext] = useState(() => readProjectPathwayContext(window.location.search));
   // Full page load from e.g. /public/projects?lga=Zaria — read once, stable
   // for the lifetime of this page instance (no client-side router).
   const lgaParam = new URLSearchParams(window.location.search).get("lga") || "";
@@ -1306,7 +1314,7 @@ export default function PublicProjectsPage() {
   const [selectedProject, setSelectedProject] = useState(null);
   const [filters, setFilters] = useState({
     status: "all",
-    sector: "all",
+    sector: SECTOR_LABELS[pathwayContext.sector] || "all",
     lga: lgaParam || "all",
     search: "",
   });
@@ -1358,7 +1366,8 @@ export default function PublicProjectsPage() {
 
     let cancelled = false;
 
-    getClimateIntelligenceProfile({ admin_name: lgaParam, season: "annual" })
+    const seasons = { "Full Year": "annual", "Wet Season": "wet_season", "Dry Season": "dry_season", annual: "annual", wet_season: "wet_season", dry_season: "dry_season" };
+    getClimateIntelligenceProfile({ admin_name: lgaParam, season: seasons[pathwayContext.season] || "annual", ...(/^\d{4}$/.test(pathwayContext.year) ? { year: Number(pathwayContext.year) } : {}) })
       .then((data) => {
         if (cancelled) return;
         const profile = data.profile || null;
@@ -1376,7 +1385,7 @@ export default function PublicProjectsPage() {
     return () => {
       cancelled = true;
     };
-  }, [lgaParam]);
+  }, [lgaParam, pathwayContext.season, pathwayContext.year]);
 
   const projectSummary = useMemo(() => summaryData?.projects || {}, [summaryData]);
 
@@ -1396,7 +1405,11 @@ export default function PublicProjectsPage() {
     );
   }, [projectList]);
 
-  const sectorOptions = useMemo(() => getUniqueOptions(projectList, getProjectSector), [projectList]);
+  const sectorOptions = useMemo(() => {
+    const options = getUniqueOptions(projectList, getProjectSector);
+    const label = SECTOR_LABELS[pathwayContext.sector];
+    return label && !options.includes(label) ? [...options, label] : options;
+  }, [projectList, pathwayContext.sector]);
   const lgaOptions = useMemo(() => {
     const base = getUniqueOptions(projectList, getProjectLga);
     // Keeps a ?lga= selection visible in the filter even when that LGA
@@ -1407,6 +1420,7 @@ export default function PublicProjectsPage() {
   const filteredProjects = useMemo(() => {
     const search = filters.search.trim().toLowerCase();
     return projectList.filter((project) => {
+      if (!matchesContributingProject(project, pathwayContext)) return false;
       const statusKey = getProjectStatusKey(project);
       const sector = getProjectSector(project);
       const lga = getProjectLga(project);
@@ -1423,7 +1437,7 @@ export default function PublicProjectsPage() {
         String(project.project_code || "").toLowerCase().includes(search)
       );
     });
-  }, [projectList, filters]);
+  }, [projectList, filters, pathwayContext]);
 
   return (
     <main className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#030454]">
@@ -1435,6 +1449,7 @@ export default function PublicProjectsPage() {
       />
 
       <PublicErrorBanner message={error} />
+      <ProjectPathwayNotice context={pathwayContext} />
 
       {isLoading ? (
         <PublicLoadingState message="Loading public project portfolio..." />

@@ -23,6 +23,8 @@ import {
 } from "../services/api";
 import { getAtlasLayerConfig } from "../config/climateAtlasLayers";
 import { classifyNdvi, getPublicNdviError } from "../utils/publicNdvi";
+import RecommendedActions from "../components/RecommendedActions";
+import { recommendClimateActions } from "../decision-support/climateRecommendations.js";
 import climateRiskDryland from "../assets/climate-risk-dryland.jpg";
 import {
   computeClimateActionSignal,
@@ -1508,6 +1510,11 @@ export default function PublicClimateRiskPage() {
           </IndicatorSummaryCard>
         </div>
 
+        {selectedIndicatorLga && !isLoading && <div className="mt-6">
+          <RecommendedActions recommendations={[
+            ["spi", selectedSpi], ["ndvi", selectedAnnualNdvi], ["lst", selectedLst], ["rainfall_anomaly", selectedRainfallAnomaly],
+          ].flatMap(([indicator, value]) => recommendClimateActions({ indicator, lga: selectedIndicatorLga.admin_name, adminCode: selectedIndicatorLga.admin_code, year: 2025, period: "Annual", season: "annual", metrics: { [indicator]: { value } } })).filter((action, index, all) => all.findIndex((item) => item.id === action.id) === index)} />
+        </div>}
         <div className="mt-6 flex justify-center">
           <PublicSecondaryButton
             as="a"
