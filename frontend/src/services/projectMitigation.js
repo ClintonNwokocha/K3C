@@ -1,23 +1,71 @@
 import { availableNumber, SECTOR_LABELS } from "../decision-support/climateRecommendations.js";
 
 export const NO_PROJECT_ASSESSMENT = "No project mitigation assessment available";
-const FIELDS = ["contributing_projects", "expected_annual_tco2e", "verified_annual_tco2e", "reductions_avoided_tco2e", "removals_tco2e"];
 
-/** Explicit v1 contract: annual impacts in tCO2e, statewide, no inventory arithmetic. */
+// Real contract: GET /api/portfolio/projects/ghg-summary/ (backend/projects/views.py::project_ghg_sector_summary).
+const NUMERIC_FIELD_MAP = {
+  expected_annual_tco2e: "expected_annual_impact_tco2e",
+  verified_annual_tco2e: "verified_annual_impact_tco2e",
+  reductions_avoided_tco2e: "expected_reduction_avoided_tco2e",
+  removals_tco2e: "expected_removal_tco2e",
+};
+
 export function normalizeProjectMitigation(payload) {
-  if (payload?.scope !== "statewide" || payload?.unit !== "tCO2e/year" || !Array.isArray(payload?.sectors)) {
-    return { status: "unavailable", message: NO_PROJECT_ASSESSMENT, sectors: [] };
+  if (payload?.status !== "ok" || !Array.isArray(payload?.sectors)) {
+    return {
+      status: "unavailable",
+      message: NO_PROJECT_ASSESSMENT,
+      sectors: [],
+    };
   }
-  const sectors = payload.sectors.filter((row) => Object.hasOwn(SECTOR_LABELS, row.sector)).map((row) => ({
-    sector: row.sector,
-    contributing_project_ids: Array.isArray(row.contributing_project_ids) ? row.contributing_project_ids.filter((id) => Number.isSafeInteger(id) && id > 0) : [],
-    ...Object.fromEntries(FIELDS.map((field) => {
-      const n = availableNumber(row[field]);
-      return [field, n !== null && n >= 0 && (field !== "contributing_projects" || Number.isInteger(n)) ? n : null];
-    })),
-  }));
-  const assessed = sectors.some((row) => FIELDS.slice(1).some((field) => row[field] !== null));
-  return { status: assessed ? "available" : "unavailable", message: assessed ? "Annual project assessments; estimates and verified impacts are shown separately." : NO_PROJECT_ASSESSMENT, sectors };
+
+  const sectors = payload.sectors
+    .filter((row) => Object.hasOwn(SECTOR_LABELS, row.sector))
+    .map((row) => {
+      const projectCount = availableNumber(row.project_count);
+      const unassessedCount = availableNumber(row.unassessed_impact_project_count);
+
+      const contributingProjects =
+        projectCount !== null && Number.isInteger(projectCount)
+          ? Math.max(
+              0,
+              projectCount -
+                (Number.isInteger(unassessedCount) ? unassessedCount : 0)
+            )
+          : null;
+
+      return {
+        sector: row.sector,
+
+        // Backend does not return per-project IDs for this rollup.
+        contributing_project_ids: [],
+
+        contributing_projects: contributingProjects,
+
+        ...Object.fromEntries(
+          Object.entries(NUMERIC_FIELD_MAP).map(
+            ([outputField, sourceField]) => {
+              const n = availableNumber(row[sourceField]);
+              return [outputField, n !== null && n >= 0 ? n : null];
+            }
+          )
+        ),
+      };
+    });
+
+  const assessed = sectors.some((row) =>
+    Object.keys(NUMERIC_FIELD_MAP).some(
+      (field) => row[field] !== null
+    )
+  );
+
+  return {
+    status: assessed ? "available" : "unavailable",
+    message: assessed
+      ? "Annual project assessments; estimates and verified impacts are shown separately."
+      : NO_PROJECT_ASSESSMENT,
+    sectors,
+  };
 }
 
 /** Injected request keeps the pending Projects API integration isolated and testable.

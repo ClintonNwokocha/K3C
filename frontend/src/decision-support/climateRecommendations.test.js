@@ -85,10 +85,19 @@ test("explicit LGA inventory payload cannot be relabelled statewide", () => {
   const [row] = buildSectorTransitionRows({ scope: "lga", sector_breakdown: [{ sector: "energy", year: 2025, total_co2e: 123 }] });
   assert.equal(row.latest, null);
 });
-test("project adapter rejects invalid metrics and external endpoint configuration", async () => {
-  const invalid = normalizeProjectMitigation({ scope: "statewide", unit: "tCO2e/year", sectors: [{ sector: "energy", contributing_projects: 1.5, expected_annual_tco2e: -10, verified_annual_tco2e: null }] });
+test("project adapter rejects invalid metrics, missing envelope fields, and external endpoint configuration", async () => {
+  assert.equal(normalizeProjectMitigation(null).status, "unavailable");
+  assert.equal(normalizeProjectMitigation({ sectors: [] }).status, "unavailable");
+  assert.equal(normalizeProjectMitigation({ status: "ok" }).status, "unavailable");
+  const invalid = normalizeProjectMitigation({
+    status: "ok",
+    sectors: [{ sector: "energy", project_count: 1.5, unassessed_impact_project_count: 0, expected_annual_impact_tco2e: -10, verified_annual_impact_tco2e: null }],
+  });
   assert.equal(invalid.status, "unavailable");
   assert.equal(invalid.sectors[0].contributing_projects, null);
+  assert.equal(invalid.sectors[0].expected_annual_tco2e, null);
+  assert.equal(invalid.sectors[0].verified_annual_tco2e, null);
+  assert.deepEqual(invalid.sectors[0].contributing_project_ids, []);
   let called = false;
   await fetchProjectMitigationSummary({ endpoint: "https://external.test/", request: async () => { called = true; } });
   assert.equal(called, false);
@@ -109,14 +118,26 @@ test("missing endpoint and 404 return an honest unavailable assessment, never in
   const missing = await fetchProjectMitigationSummary({ endpoint: "/pending/", request: async () => { throw { response: { status: 404 } }; } });
   assert.equal(missing.status, "unavailable"); assert.deepEqual(missing.sectors, []);
 });
-test("project summary enforces annual unit and scope and retains expected/verified separately", async () => {
-  assert.equal(normalizeProjectMitigation({ scope: "lga", unit: "tCO2e/year", sectors: [] }).status, "unavailable");
-  assert.equal(normalizeProjectMitigation({ scope: "statewide", unit: "MtCO2e", sectors: [] }).status, "unavailable");
-  const payload = { scope: "statewide", unit: "tCO2e/year", sectors: [{ sector: "energy", contributing_projects: 2, contributing_project_ids: [1, 2], expected_annual_tco2e: 10, verified_annual_tco2e: 0, reductions_avoided_tco2e: 8, removals_tco2e: 2 }] };
+test("project summary derives contributing counts from real backend fields and keeps expected/verified separate", async () => {
+  const payload = {
+    status: "ok",
+    sectors: [
+      { sector: "energy", project_count: 5, unassessed_impact_project_count: 2, expected_annual_impact_tco2e: 10, verified_annual_impact_tco2e: 0, expected_reduction_avoided_tco2e: 8, expected_removal_tco2e: 2 },
+      { sector: "agriculture", project_count: 1, unassessed_impact_project_count: 3, expected_annual_impact_tco2e: null, verified_annual_impact_tco2e: null },
+    ],
+  };
   const result = await fetchProjectMitigationSummary({ endpoint: "/summary/", request: async () => ({ data: payload }) });
-  assert.equal(result.status, "available"); assert.equal(result.sectors[0].verified_annual_tco2e, 0);
-  assert.equal(result.sectors[0].expected_annual_tco2e, 10);
-  assert.deepEqual(result.sectors[0].contributing_project_ids, [1, 2]);
+  assert.equal(result.status, "available");
+  const energy = result.sectors.find((s) => s.sector === "energy");
+  assert.equal(energy.contributing_projects, 3);
+  assert.equal(energy.expected_annual_tco2e, 10);
+  assert.equal(energy.verified_annual_tco2e, 0);
+  assert.equal(energy.reductions_avoided_tco2e, 8);
+  assert.equal(energy.removals_tco2e, 2);
+  assert.deepEqual(energy.contributing_project_ids, []);
+  // unassessed_impact_project_count exceeding project_count must floor at 0, never go negative.
+  const agriculture = result.sectors.find((s) => s.sector === "agriculture");
+  assert.equal(agriculture.contributing_projects, 0);
   assert.equal(buildSectorTransitionRows({ sector_breakdown: [{ sector: "energy", year: 2025, total_co2e: 100 }], project_summary: payload })[0].latest, 100);
 });
 test("routing carries action context, never LGA inventory filters, and registration does not create a project", () => {
