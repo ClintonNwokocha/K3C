@@ -20,6 +20,7 @@ from .performance import (
     ON_TRACK,
     compute_performance_status,
 )
+from .views import _impact_is_unassessed, _sum_decimal
 
 
 def make_user(username, role, assigned_sector=UserProfile.Sector.NONE):
@@ -574,3 +575,413 @@ class ProjectImportTests(ProjectsAPITestCase):
         )
         response = self.client.post(self.url, {"file": upload}, format="multipart")
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ---------------------------------------------------------------------------
+# _sum_decimal: pure aggregation helper, no DB — None must mean "never
+# quantified", never silently collapse to 0.
+# ---------------------------------------------------------------------------
+class SumDecimalHelperTests(TestCase):
+    def test_empty_list_is_none(self):
+        self.assertIsNone(_sum_decimal([]))
+
+    def test_all_none_is_none(self):
+        self.assertIsNone(_sum_decimal([None, None]))
+
+    def test_single_real_zero_is_zero_not_none(self):
+        self.assertEqual(_sum_decimal([Decimal("0")]), 0.0)
+
+    def test_real_value_mixed_with_none_sums_only_real_values(self):
+        self.assertEqual(_sum_decimal([Decimal("100"), None]), 100.0)
+
+    def test_two_real_zeros_is_zero(self):
+        self.assertEqual(_sum_decimal([Decimal("0"), Decimal("0")]), 0.0)
+
+
+class ImpactUnassessedHelperTests(TestCase):
+    def test_not_assessed_impact_type_is_unassessed_even_with_values(self):
+        self.assertTrue(
+            _impact_is_unassessed(
+                ClimateProject.GHGImpactType.NOT_ASSESSED, Decimal("10"), Decimal("5")
+            )
+        )
+
+    def test_assessed_impact_type_with_no_values_is_unassessed(self):
+        self.assertTrue(
+            _impact_is_unassessed(
+                ClimateProject.GHGImpactType.EMISSION_REDUCTION, None, None
+            )
+        )
+
+    def test_assessed_impact_type_with_a_value_is_assessed(self):
+        self.assertFalse(
+            _impact_is_unassessed(
+                ClimateProject.GHGImpactType.EMISSION_REDUCTION, Decimal("10"), None
+            )
+        )
+
+
+# ---------------------------------------------------------------------------
+# Climate & GHG linkage fields: controlled values, optionality, validation
+# ---------------------------------------------------------------------------
+class ClimateGhgLinkageFieldTests(ProjectsAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(user=self.admin)
+
+    def base_payload(self, **overrides):
+        payload = {
+            "title": "GHG Linked Project",
+            "project_type": "mitigation",
+            "sector": "energy",
+            "status": "proposed",
+            "priority": "medium",
+            "estimated_budget_naira": "0",
+            "expected_ghg_reduction_tco2e": "0",
+            "expected_beneficiaries": "0",
+        }
+        payload.update(overrides)
+        return payload
+
+    def test_valid_primary_ghg_sector_accepted(self):
+        response = self.client.post(
+            "/api/portfolio/projects/",
+            self.base_payload(primary_ghg_sector="energy"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["project"]["primary_ghg_sector"], "energy")
+
+    def test_invalid_primary_ghg_sector_rejected(self):
+        response = self.client.post(
+            "/api/portfolio/projects/",
+            self.base_payload(primary_ghg_sector="transport"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("primary_ghg_sector", response.data)
+
+    def test_valid_ghg_impact_type_accepted(self):
+        response = self.client.post(
+            "/api/portfolio/projects/",
+            self.base_payload(ghg_impact_type="carbon_removal"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["project"]["ghg_impact_type"], "carbon_removal")
+
+    def test_invalid_ghg_impact_type_rejected(self):
+        response = self.client.post(
+            "/api/portfolio/projects/",
+            self.base_payload(ghg_impact_type="offsetting"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("ghg_impact_type", response.data)
+
+    def test_adaptation_only_project_can_remain_not_assessed(self):
+        response = self.client.post(
+            "/api/portfolio/projects/",
+            self.base_payload(project_type="adaptation", sector="water"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        project = response.data["project"]
+        self.assertEqual(project["primary_ghg_sector"], "not_assessed")
+        self.assertEqual(project["ghg_impact_type"], "not_assessed")
+        self.assertIsNone(project["expected_annual_ghg_impact_tco2e"])
+        self.assertIsNone(project["verified_annual_ghg_impact_tco2e"])
+
+    def test_negative_expected_annual_ghg_impact_rejected(self):
+        response = self.client.post(
+            "/api/portfolio/projects/",
+            self.base_payload(expected_annual_ghg_impact_tco2e="-5"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("expected_annual_ghg_impact_tco2e", response.data)
+
+    def test_negative_verified_annual_ghg_impact_rejected(self):
+        response = self.client.post(
+            "/api/portfolio/projects/",
+            self.base_payload(verified_annual_ghg_impact_tco2e="-1"),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("verified_annual_ghg_impact_tco2e", response.data)
+
+    def test_existing_project_created_before_field_existed_migrates_safely(self):
+        # make_project() passes none of the new fields, simulating a row
+        # that existed before this migration — it must load with safe
+        # defaults, never raise, and never show a fabricated number.
+        project = make_project(lga=self.lga)
+        response = self.client.get(f"/api/portfolio/projects/{project.id}/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data["project"]
+        self.assertEqual(data["primary_ghg_sector"], "not_assessed")
+        self.assertEqual(data["ghg_impact_type"], "not_assessed")
+        self.assertIsNone(data["expected_annual_ghg_impact_tco2e"])
+        self.assertIsNone(data["verified_annual_ghg_impact_tco2e"])
+        self.assertEqual(data["climate_action_context"], "")
+
+    def test_serializer_exposes_all_ghg_linkage_fields(self):
+        response = self.client.post(
+            "/api/portfolio/projects/",
+            self.base_payload(
+                climate_action_context="Vegetation stress and drought conditions in Kachia",
+                primary_ghg_sector="agriculture",
+                ghg_impact_type="avoided_emissions",
+                expected_annual_ghg_impact_tco2e="120.5",
+                verified_annual_ghg_impact_tco2e="0",
+                ghg_methodology="IPCC Tier 1 default factors",
+                ghg_monitoring_indicator="Hectares under improved practice",
+            ),
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        project = response.data["project"]
+        self.assertEqual(
+            project["climate_action_context"],
+            "Vegetation stress and drought conditions in Kachia",
+        )
+        self.assertEqual(project["primary_ghg_sector"], "agriculture")
+        self.assertEqual(project["primary_ghg_sector_display"], "Agriculture")
+        self.assertEqual(project["ghg_impact_type"], "avoided_emissions")
+        self.assertEqual(project["ghg_impact_type_display"], "Avoided Emissions")
+        self.assertEqual(
+            Decimal(str(project["expected_annual_ghg_impact_tco2e"])), Decimal("120.500")
+        )
+        self.assertEqual(
+            Decimal(str(project["verified_annual_ghg_impact_tco2e"])), Decimal("0.000")
+        )
+        self.assertEqual(project["ghg_methodology"], "IPCC Tier 1 default factors")
+        self.assertEqual(
+            project["ghg_monitoring_indicator"], "Hectares under improved practice"
+        )
+
+    def test_no_fabricated_defaults_when_only_budget_and_completion_known(self):
+        # A project with a real budget and a reported physical completion
+        # must NOT acquire any GHG numbers just because those other fields
+        # are populated.
+        project = make_project(
+            lga=self.lga, estimated_budget_naira=Decimal("5000000.00")
+        )
+        ProjectProgressUpdate.objects.create(
+            project=project,
+            reporting_date=date(2026, 1, 1),
+            physical_completion_pct=Decimal("80"),
+        )
+        response = self.client.get(f"/api/portfolio/projects/{project.id}/")
+        data = response.data["project"]
+        self.assertIsNone(data["expected_annual_ghg_impact_tco2e"])
+        self.assertIsNone(data["verified_annual_ghg_impact_tco2e"])
+        self.assertEqual(data["primary_ghg_sector"], "not_assessed")
+
+
+# ---------------------------------------------------------------------------
+# Project-GHG sector aggregation endpoint
+# ---------------------------------------------------------------------------
+class ProjectGhgSectorSummaryTests(ProjectsAPITestCase):
+    def setUp(self):
+        super().setUp()
+        self.url = "/api/portfolio/projects/ghg-summary/"
+
+    def test_requires_authentication(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_any_authenticated_user_can_read_summary(self):
+        self.client.force_authenticate(user=self.sfp)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_sector_project_counts_and_status_buckets(self):
+        make_project(
+            title="Energy Concept",
+            primary_ghg_sector="energy",
+            status="proposed",
+            lga=self.lga,
+        )
+        make_project(
+            title="Energy Planned",
+            primary_ghg_sector="energy",
+            status="planned",
+            lga=self.lga,
+        )
+        make_project(
+            title="Energy Ongoing",
+            primary_ghg_sector="energy",
+            status="ongoing",
+            lga=self.lga,
+        )
+        make_project(
+            title="Energy Completed",
+            primary_ghg_sector="energy",
+            status="completed",
+            lga=self.lga,
+        )
+        make_project(
+            title="Energy Suspended",
+            primary_ghg_sector="energy",
+            status="suspended",
+            lga=self.lga,
+        )
+        make_project(
+            title="Energy Cancelled",
+            primary_ghg_sector="energy",
+            status="cancelled",
+            lga=self.lga,
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        energy = next(
+            row for row in response.data["sectors"] if row["sector"] == "energy"
+        )
+        self.assertEqual(energy["project_count"], 6)
+        self.assertEqual(energy["concept_count"], 2)  # proposed + planned
+        self.assertEqual(energy["ongoing_count"], 1)
+        self.assertEqual(energy["completed_count"], 1)
+        self.assertEqual(energy["other_status_count"], 2)  # suspended + cancelled
+
+    def test_unassessed_sector_project_count_excludes_real_sectors(self):
+        make_project(title="Unassessed Project", lga=self.lga)  # default not_assessed
+        make_project(
+            title="Energy Project", primary_ghg_sector="energy", lga=self.lga
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        self.assertEqual(response.data["unassessed_sector_project_count"], 1)
+        energy = next(
+            row for row in response.data["sectors"] if row["sector"] == "energy"
+        )
+        self.assertEqual(energy["project_count"], 1)
+
+    def test_unassessed_impact_project_count_for_known_sector(self):
+        # Sector known (energy) but impact type never characterized.
+        make_project(
+            title="Sector Known No Impact Type",
+            primary_ghg_sector="energy",
+            ghg_impact_type="not_assessed",
+            lga=self.lga,
+        )
+        # Sector known, impact type characterized, but never quantified.
+        make_project(
+            title="Sector Known Impact Type No Numbers",
+            primary_ghg_sector="energy",
+            ghg_impact_type="emission_reduction",
+            lga=self.lga,
+        )
+        # Fully assessed and quantified.
+        make_project(
+            title="Fully Assessed",
+            primary_ghg_sector="energy",
+            ghg_impact_type="emission_reduction",
+            expected_annual_ghg_impact_tco2e=Decimal("50"),
+            lga=self.lga,
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        energy = next(
+            row for row in response.data["sectors"] if row["sector"] == "energy"
+        )
+        self.assertEqual(energy["project_count"], 3)
+        self.assertEqual(energy["unassessed_impact_project_count"], 2)
+        self.assertEqual(energy["expected_annual_impact_tco2e"], 50.0)
+
+    def test_reduction_avoided_and_removal_breakdown_separated(self):
+        make_project(
+            title="Reduction Project",
+            primary_ghg_sector="lulucf",
+            ghg_impact_type="emission_reduction",
+            expected_annual_ghg_impact_tco2e=Decimal("100"),
+            verified_annual_ghg_impact_tco2e=Decimal("90"),
+            lga=self.lga,
+        )
+        make_project(
+            title="Avoided Emissions Project",
+            primary_ghg_sector="lulucf",
+            ghg_impact_type="avoided_emissions",
+            expected_annual_ghg_impact_tco2e=Decimal("30"),
+            lga=self.lga,
+        )
+        make_project(
+            title="Removal Project",
+            primary_ghg_sector="lulucf",
+            ghg_impact_type="carbon_removal",
+            expected_annual_ghg_impact_tco2e=Decimal("200"),
+            verified_annual_ghg_impact_tco2e=Decimal("180"),
+            lga=self.lga,
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        lulucf = next(
+            row for row in response.data["sectors"] if row["sector"] == "lulucf"
+        )
+        self.assertEqual(lulucf["expected_reduction_avoided_tco2e"], 130.0)
+        self.assertEqual(lulucf["verified_reduction_avoided_tco2e"], 90.0)
+        self.assertEqual(lulucf["expected_removal_tco2e"], 200.0)
+        self.assertEqual(lulucf["verified_removal_tco2e"], 180.0)
+        # Overall sector total still includes both buckets.
+        self.assertEqual(lulucf["expected_annual_impact_tco2e"], 330.0)
+        self.assertEqual(lulucf["verified_annual_impact_tco2e"], 270.0)
+
+    def test_mixed_impact_type_counted_in_totals_but_not_in_breakdown(self):
+        make_project(
+            title="Mixed Impact Project",
+            primary_ghg_sector="waste",
+            ghg_impact_type="mixed_reduction_removal",
+            expected_annual_ghg_impact_tco2e=Decimal("75"),
+            lga=self.lga,
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        waste = next(
+            row for row in response.data["sectors"] if row["sector"] == "waste"
+        )
+        self.assertEqual(waste["expected_annual_impact_tco2e"], 75.0)
+        self.assertIsNone(waste["expected_reduction_avoided_tco2e"])
+        self.assertIsNone(waste["expected_removal_tco2e"])
+
+    def test_inactive_projects_excluded_from_summary(self):
+        make_project(
+            title="Inactive Energy Project",
+            primary_ghg_sector="energy",
+            is_active=False,
+            lga=self.lga,
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        energy = next(
+            row for row in response.data["sectors"] if row["sector"] == "energy"
+        )
+        self.assertEqual(energy["project_count"], 0)
+
+    def test_totals_aggregate_across_sectors_without_touching_inventory(self):
+        make_project(
+            title="Energy Reduction",
+            primary_ghg_sector="energy",
+            ghg_impact_type="emission_reduction",
+            expected_annual_ghg_impact_tco2e=Decimal("40"),
+            lga=self.lga,
+        )
+        make_project(
+            title="Agriculture Removal",
+            primary_ghg_sector="agriculture",
+            ghg_impact_type="carbon_removal",
+            expected_annual_ghg_impact_tco2e=Decimal("60"),
+            lga=self.lga,
+        )
+
+        self.client.force_authenticate(user=self.admin)
+        response = self.client.get(self.url)
+        totals = response.data["totals"]
+        self.assertEqual(totals["mitigation_linked_project_count"], 2)
+        self.assertEqual(totals["expected_annual_impact_tco2e"], 100.0)
+        self.assertEqual(totals["expected_reduction_avoided_tco2e"], 40.0)
+        self.assertEqual(totals["expected_removal_tco2e"], 60.0)

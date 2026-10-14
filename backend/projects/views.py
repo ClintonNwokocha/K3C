@@ -413,6 +413,182 @@ def import_projects_xlsx(uploaded_file, request):
     return import_projects_rows(rows, fieldnames, request)
 
 
+CONCEPT_STATUSES = {
+    ClimateProject.Status.PROPOSED,
+    ClimateProject.Status.PLANNED,
+}
+ONGOING_STATUSES = {ClimateProject.Status.ONGOING}
+COMPLETED_STATUSES = {ClimateProject.Status.COMPLETED}
+
+REDUCTION_AVOIDED_IMPACT_TYPES = {
+    ClimateProject.GHGImpactType.EMISSION_REDUCTION,
+    ClimateProject.GHGImpactType.AVOIDED_EMISSIONS,
+}
+REMOVAL_IMPACT_TYPES = {ClimateProject.GHGImpactType.CARBON_REMOVAL}
+
+
+def _sum_decimal(values):
+    """
+    None when nothing was ever quantified (not the same as a real zero).
+    Only non-null entries are summed, so a mix of measured zeros and nulls
+    still returns a real total instead of collapsing to None.
+    """
+    assessed_values = [value for value in values if value is not None]
+
+    if not assessed_values:
+        return None
+
+    return float(sum(assessed_values, Decimal("0")))
+
+
+def _impact_is_unassessed(impact_type, expected, verified):
+    return (
+        impact_type == ClimateProject.GHGImpactType.NOT_ASSESSED
+        or (expected is None and verified is None)
+    )
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def project_ghg_sector_summary(request):
+    """
+    Read-only aggregation of registered projects by GHG inventory sector,
+    for the Projects-as-bridge view between Climate Intelligence and GHG.
+    Never subtracts from or otherwise touches the statewide GHG inventory
+    (core app) — this is a projects-only rollup of self-reported
+    expected/verified tCO2e fields.
+    """
+    rows = list(
+        ClimateProject.objects.filter(is_active=True).values(
+            "primary_ghg_sector",
+            "status",
+            "ghg_impact_type",
+            "expected_annual_ghg_impact_tco2e",
+            "verified_annual_ghg_impact_tco2e",
+        )
+    )
+
+    sector_order = [
+        ClimateProject.GHGSector.ENERGY,
+        ClimateProject.GHGSector.AGRICULTURE,
+        ClimateProject.GHGSector.LULUCF,
+        ClimateProject.GHGSector.IPPU,
+        ClimateProject.GHGSector.WASTE,
+    ]
+
+    buckets = {
+        sector: {
+            "project_count": 0,
+            "concept_count": 0,
+            "ongoing_count": 0,
+            "completed_count": 0,
+            "other_status_count": 0,
+            "unassessed_impact_project_count": 0,
+            "expected_values": [],
+            "verified_values": [],
+            "expected_reduction_avoided_values": [],
+            "expected_removal_values": [],
+            "verified_reduction_avoided_values": [],
+            "verified_removal_values": [],
+        }
+        for sector in sector_order
+    }
+
+    unassessed_sector_project_count = 0
+
+    for row in rows:
+        sector = row["primary_ghg_sector"]
+
+        if sector not in buckets:
+            unassessed_sector_project_count += 1
+            continue
+
+        bucket = buckets[sector]
+        bucket["project_count"] += 1
+
+        row_status = row["status"]
+        if row_status in CONCEPT_STATUSES:
+            bucket["concept_count"] += 1
+        elif row_status in ONGOING_STATUSES:
+            bucket["ongoing_count"] += 1
+        elif row_status in COMPLETED_STATUSES:
+            bucket["completed_count"] += 1
+        else:
+            bucket["other_status_count"] += 1
+
+        impact_type = row["ghg_impact_type"]
+        expected = row["expected_annual_ghg_impact_tco2e"]
+        verified = row["verified_annual_ghg_impact_tco2e"]
+
+        if _impact_is_unassessed(impact_type, expected, verified):
+            bucket["unassessed_impact_project_count"] += 1
+
+        bucket["expected_values"].append(expected)
+        bucket["verified_values"].append(verified)
+
+        if impact_type in REDUCTION_AVOIDED_IMPACT_TYPES:
+            bucket["expected_reduction_avoided_values"].append(expected)
+            bucket["verified_reduction_avoided_values"].append(verified)
+        elif impact_type in REMOVAL_IMPACT_TYPES:
+            bucket["expected_removal_values"].append(expected)
+            bucket["verified_removal_values"].append(verified)
+
+    sectors_response = []
+    all_expected = []
+    all_verified = []
+    all_expected_reduction_avoided = []
+    all_expected_removal = []
+    all_verified_reduction_avoided = []
+    all_verified_removal = []
+    mitigation_linked_project_count = 0
+
+    for sector in sector_order:
+        bucket = buckets[sector]
+        mitigation_linked_project_count += bucket["project_count"]
+        all_expected.extend(bucket["expected_values"])
+        all_verified.extend(bucket["verified_values"])
+        all_expected_reduction_avoided.extend(bucket["expected_reduction_avoided_values"])
+        all_expected_removal.extend(bucket["expected_removal_values"])
+        all_verified_reduction_avoided.extend(bucket["verified_reduction_avoided_values"])
+        all_verified_removal.extend(bucket["verified_removal_values"])
+
+        sectors_response.append({
+            "sector": sector,
+            "sector_display": ClimateProject.GHGSector(sector).label,
+            "project_count": bucket["project_count"],
+            "concept_count": bucket["concept_count"],
+            "ongoing_count": bucket["ongoing_count"],
+            "completed_count": bucket["completed_count"],
+            "other_status_count": bucket["other_status_count"],
+            "unassessed_impact_project_count": bucket["unassessed_impact_project_count"],
+            "expected_annual_impact_tco2e": _sum_decimal(bucket["expected_values"]),
+            "verified_annual_impact_tco2e": _sum_decimal(bucket["verified_values"]),
+            "expected_reduction_avoided_tco2e": _sum_decimal(
+                bucket["expected_reduction_avoided_values"]
+            ),
+            "expected_removal_tco2e": _sum_decimal(bucket["expected_removal_values"]),
+            "verified_reduction_avoided_tco2e": _sum_decimal(
+                bucket["verified_reduction_avoided_values"]
+            ),
+            "verified_removal_tco2e": _sum_decimal(bucket["verified_removal_values"]),
+        })
+
+    return Response({
+        "status": "ok",
+        "sectors": sectors_response,
+        "unassessed_sector_project_count": unassessed_sector_project_count,
+        "totals": {
+            "mitigation_linked_project_count": mitigation_linked_project_count,
+            "expected_annual_impact_tco2e": _sum_decimal(all_expected),
+            "verified_annual_impact_tco2e": _sum_decimal(all_verified),
+            "expected_reduction_avoided_tco2e": _sum_decimal(all_expected_reduction_avoided),
+            "expected_removal_tco2e": _sum_decimal(all_expected_removal),
+            "verified_reduction_avoided_tco2e": _sum_decimal(all_verified_reduction_avoided),
+            "verified_removal_tco2e": _sum_decimal(all_verified_removal),
+        },
+    })
+
+
 @api_view(["GET", "POST"])
 @permission_classes([IsAuthenticated])
 def climate_projects(request):

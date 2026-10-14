@@ -38,6 +38,31 @@ class ClimateProject(models.Model):
         HIGH = "high", "High"
         VERY_HIGH = "very_high", "Very High"
 
+    class GHGSector(models.TextChoices):
+        """
+        The five IPCC-style inventory sectors KCCC tracks for project-level
+        mitigation linkage, plus NOT_ASSESSED. Deliberately a separate
+        choice set from Sector above: Sector is the project's own broader
+        operating sector (includes Water, Health, Infrastructure, etc.),
+        while GHGSector is strictly "which GHG inventory sector does this
+        project's mitigation contribution belong to" — most adaptation-only
+        projects have no defensible answer and must stay NOT_ASSESSED.
+        """
+
+        ENERGY = "energy", "Energy"
+        AGRICULTURE = "agriculture", "Agriculture"
+        LULUCF = "lulucf", "LULUCF"
+        IPPU = "ippu", "IPPU"
+        WASTE = "waste", "Waste"
+        NOT_ASSESSED = "not_assessed", "Not Assessed"
+
+    class GHGImpactType(models.TextChoices):
+        EMISSION_REDUCTION = "emission_reduction", "Emission Reduction"
+        AVOIDED_EMISSIONS = "avoided_emissions", "Avoided Emissions"
+        CARBON_REMOVAL = "carbon_removal", "Carbon Removal"
+        MIXED = "mixed_reduction_removal", "Mixed Reduction + Removal"
+        NOT_ASSESSED = "not_assessed", "Not Assessed"
+
     title = models.CharField(max_length=255)
     project_code = models.CharField(max_length=100, blank=True)
 
@@ -161,6 +186,63 @@ class ClimateProject(models.Model):
         help_text="Free-text reference to the NDC target/pledge/sector this project contributes to, if any.",
     )
 
+    # --- Climate & GHG Linkage ---------------------------------------
+    # Connects a project back to the climate signal that motivated it and
+    # forward to its GHG inventory sector / mitigation mechanism. All seven
+    # fields are optional and default to "not assessed" / null: an
+    # adaptation-only project is never forced to carry a GHG classification,
+    # and expected/verified tCO2e values are never inferred from budget,
+    # completion, or any other proxy — only entered when a real estimate or
+    # verification exists.
+    climate_action_context = models.TextField(
+        blank=True,
+        help_text=(
+            "Free-text summary of the climate signal or intervention "
+            "rationale behind this project, e.g. 'Vegetation stress and "
+            "drought conditions in Kachia'."
+        ),
+    )
+
+    primary_ghg_sector = models.CharField(
+        max_length=20,
+        choices=GHGSector.choices,
+        default=GHGSector.NOT_ASSESSED,
+        help_text="GHG inventory sector this project's mitigation contribution belongs to, if any.",
+    )
+
+    ghg_impact_type = models.CharField(
+        max_length=30,
+        choices=GHGImpactType.choices,
+        default=GHGImpactType.NOT_ASSESSED,
+        help_text="Nature of this project's GHG mitigation mechanism, if assessed.",
+    )
+
+    expected_annual_ghg_impact_tco2e = models.DecimalField(
+        max_digits=18,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Modelled/estimated annual GHG impact in tCO2e/year. Leave blank if not assessed — never inferred from budget or completion.",
+    )
+
+    verified_annual_ghg_impact_tco2e = models.DecimalField(
+        max_digits=18,
+        decimal_places=3,
+        null=True,
+        blank=True,
+        help_text="Independently verified annual GHG impact in tCO2e/year. Leave blank unless real verification exists.",
+    )
+
+    ghg_methodology = models.TextField(
+        blank=True,
+        help_text="Methodology or evidence basis for the expected/verified GHG impact figures, if any.",
+    )
+
+    ghg_monitoring_indicator = models.TextField(
+        blank=True,
+        help_text="Indicator(s) used to monitor this project's ongoing GHG performance, if any.",
+    )
+
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -184,6 +266,7 @@ class ClimateProject(models.Model):
             models.Index(fields=["lga"]),
             models.Index(fields=["latitude", "longitude"]),
             models.Index(fields=["funding_source"]),
+            models.Index(fields=["primary_ghg_sector"]),
         ]
 
     def __str__(self):
