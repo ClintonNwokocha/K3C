@@ -135,7 +135,7 @@ function SectorComparisonChart({ rows }) {
               <div className="mb-1.5 flex items-baseline justify-between gap-3 text-sm">
                 <span className="font-bold text-[#030454]">{row.sector_label}</span>
                 <span className="font-mono text-xs font-bold text-slate-500">
-                  {formatNumber(row.total_mtco2e, 3)} MtCO₂e
+                  {row.year ? `${formatNumber(row.total_mtco2e, 3)} MtCO₂e` : "Not Available"}
                   {row.year ? ` · ${row.year}` : ""}
                 </span>
               </div>
@@ -281,8 +281,8 @@ function SectorCard({ sector, pending, onOpenSector, highlighted = false }) {
         <p className="font-black text-[#030454]">{sector.sector_label}</p>
 
         <p className="mt-3 text-2xl font-black text-[#030454]">
-          {formatNumber(sector.total_mtco2e, 3)}
-          <span className="ml-1 text-xs font-semibold text-slate-400">MtCO₂e</span>
+          {sector.year ? formatNumber(sector.total_mtco2e, 3) : "Not Available"}
+          {sector.year && <span className="ml-1 text-xs font-semibold text-slate-400">MtCO₂e</span>}
         </p>
 
         <p className="mt-1 text-xs text-slate-500">
@@ -355,7 +355,7 @@ export default function ExecutiveGHGInventorySummary({ ghgSummary, onOpenSector,
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Latest Approved Emissions"
-          value={`${formatNumber(ghg.latest_total_mtco2e, 2)} MtCO₂e`}
+          value={ghg.latest_year ? `${formatNumber(ghg.latest_total_mtco2e, 2)} MtCO₂e` : "Not Available"}
           helper="Sum of latest approved totals across implemented sectors."
           tone="blue"
         />
@@ -376,7 +376,7 @@ export default function ExecutiveGHGInventorySummary({ ghgSummary, onOpenSector,
 
         <StatCard
           label="Implemented NDC Progress"
-          value={`${formatNumber(ndcPreview.implemented_progress_pct, 1)}%`}
+          value={!ndcPreview.configured ? "Not Configured" : ghg.latest_year ? `${formatNumber(ndcPreview.implemented_progress_pct, 1)}%` : "Not Available"}
           helper="Progress against the unconditional NDC target, implemented sectors only."
           tone="white"
         />

@@ -22,6 +22,8 @@ import {
   PublicSection,
 } from "../components/PublicPortalChrome";
 import { getPublicGHGInventory, getPublicPortalSummary } from "../services/api";
+import GHGSectorTransitionDashboard from "../components/GHGSectorTransitionDashboard";
+import { transitionFromPublicInventory } from "../utils/ghgTransition.js";
 
 const ALL = "all";
 const KADUNA_CENTER = [10.45, 7.75];
@@ -2188,6 +2190,7 @@ export default function PublicGHGInventoryExplorerPage() {
   const initialSector = VALID_SECTOR_PARAMS.has(sectorParam) ? sectorParam : ALL;
 
   const [inventoryData, setInventoryData] = useState(null);
+  const [statewideInventory, setStatewideInventory] = useState(null);
   const [summaryData, setSummaryData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -2210,6 +2213,7 @@ export default function PublicGHGInventoryExplorerPage() {
         if (!isMounted) return null;
 
         setInventoryData(inventory);
+        setStatewideInventory(inventory);
 
         const years = inventory.metadata?.years || inventory.dimensions?.years || [];
         if (years.length > 0) {
@@ -2450,6 +2454,7 @@ export default function PublicGHGInventoryExplorerPage() {
                   </p>
                 </PublicCard>
               )}
+              <GHGSectorTransitionDashboard publicView ghg={transitionFromPublicInventory(statewideInventory)} highlightSector={filters.sector} />
               <FiltersPanel
                 filters={filters}
                 onFilterChange={handleFilterChange}

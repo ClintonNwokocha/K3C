@@ -61,6 +61,8 @@ import {
   getAtlasVariableStatistic,
 } from "../config/climateAtlasLayers";
 import LgaClimateBrief from "../components/LgaClimateBrief";
+import RecommendedActions from "../components/RecommendedActions";
+import { recommendClimateActions } from "../decision-support/climateRecommendations.js";
 import {
   computeClimateActionSignal,
   METHODOLOGY_NOTE as CLIMATE_ACTION_METHODOLOGY_NOTE,
@@ -3692,6 +3694,19 @@ export default function PublicClimateAtlasPage() {
                   </div>
                 )}
               </div>
+            )}
+            {selectedLga && !ciLoading && !remoteStatsLoading && (
+              <RecommendedActions recommendations={recommendClimateActions({
+                indicator: variable.key === "flood_occurrence" ? "flood" : variable.key,
+                lga: selectedLga.name,
+                adminCode: selectedLga.metric?.admin_code,
+                year: config.year, period: config.period, season: config.season,
+                metrics: {
+                  ...(selectedLgaCiItem?.indicators || {}),
+                  [variable.key === "drought_index" ? "spi" : variable.key]: { value: selectedLga.metric?.mean_value },
+                  ...((isFloodPublic || INTERNAL_FLOOD_PREVIEW_PARAM) ? { flood: { value: selectedLga.floodSnap?.mean_value } } : {}),
+                },
+              })} />
             )}
             {ciBriefOpen && ciProfile && !ciProfileLoading && (
               <div className="border-t border-[#173B91]/10">

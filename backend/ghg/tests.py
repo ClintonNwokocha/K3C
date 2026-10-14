@@ -541,6 +541,27 @@ class GHGDashboardSummaryTests(GHGAPITestCase):
         self.assertEqual(ghg["pending_review_count"], 1)
         self.assertEqual(ghg["total_review_queue_count"], 1)
 
+    def test_transition_is_statewide_and_ignores_lga_context(self):
+        self.client.force_authenticate(user=self.admin)
+        normal = self.client.get("/api/ghg/dashboard-summary/").data["ghg"]
+        contextual = self.client.get("/api/ghg/dashboard-summary/?lga=Zaria&from_lga=Zaria").data["ghg"]
+        self.assertEqual(contextual["scope"], "statewide")
+        self.assertEqual(normal["sector_transition"], contextual["sector_transition"])
+        self.assertEqual(normal["sector_breakdown"], contextual["sector_breakdown"])
+        self.assertNotIn("lga_emissions", contextual)
+
+    def test_transition_has_no_inferred_baseline_or_target(self):
+        self.client.force_authenticate(user=self.admin)
+        rows = self.client.get("/api/ghg/dashboard-summary/").data["ghg"]["sector_transition"]
+        self.assertEqual(len(rows), 5)
+        for row in rows:
+            self.assertIsNone(row["baseline_tco2e"])
+            self.assertIsNone(row["target_tco2e"])
+        energy = next(row for row in rows if row["sector"] == "energy")
+        self.assertEqual(energy["history"], [{"year": 2025, "total_co2e": 0.2}])
+        waste = next(row for row in rows if row["sector"] == "waste")
+        self.assertEqual(waste["history"], [])
+
     def test_ndc_preview_uses_active_ndc_constant(self):
         NDCConstant.objects.create(
             kaduna_baseline_mt=Decimal("13.3"),
