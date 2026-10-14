@@ -53,9 +53,9 @@ export const OPPORTUNITY_CATALOG = {
   },
   heat_green: {
     category: "Urban Resilience",
-    ghgSectors: [],
-    ghgRelationship: null,
-    hasMitigationBenefit: false,
+    ghgSectors: ["energy", "lulucf"],
+    ghgRelationship: "Efficient buildings and cool roofs may reduce cooling energy demand; trees may support carbon removals. Both require project-specific evidence and accounting.",
+    hasMitigationBenefit: true,
     exampleInterventions: [
       "Urban shade and tree-canopy planning",
       "Cooling infrastructure review",

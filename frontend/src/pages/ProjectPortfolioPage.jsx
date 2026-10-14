@@ -12,6 +12,8 @@ import {
   CommandTabs,
 } from "../components/CommandUI";
 import { canManageProjectPortfolio } from "../utils/permissions";
+import { readProjectPathwayContext, matchesContributingProject } from "../utils/projectPathwayContext.js";
+import ProjectPathwayNotice from "../components/ProjectPathwayNotice";
 import {
   createClimateProject,
   createProjectProgressUpdate,
@@ -1510,12 +1512,20 @@ export default function ProjectPortfolioPage({
   sharedLgaId,
   sharedLgaName,
 }) {
+  const [pathwayContext] = useState(() => readProjectPathwayContext(window.location.search));
   const [projectsData, setProjectsData] = useState(null);
   const [lgaOptions, setLgaOptions] = useState([]);
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(() => ({
+    ...initialForm,
+    project_type: pathwayContext.projectType || initialForm.project_type,
+    sector: pathwayContext.sector || initialForm.sector,
+    climate_risk_relevance: pathwayContext.recommendation
+      ? `Suggested action: ${pathwayContext.recommendation}; ${pathwayContext.lga}; ${pathwayContext.indicator}; ${pathwayContext.year}; ${pathwayContext.period}; ${pathwayContext.season}. Requires assessment.`
+      : "",
+  }));
   const [editingProject, setEditingProject] = useState(null);
   const [selectedProject, setSelectedProject] = useState(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [activeTab, setActiveTab] = useState(pathwayContext.register ? "form" : "overview");
 
   // Lazy initializer only: this page remounts fresh whenever the user
   // navigates to "projects" (App.jsx swaps the rendered page component
@@ -1523,7 +1533,7 @@ export default function ProjectPortfolioPage({
   // needing an effect that could fight the user's own filter changes.
   const [filters, setFilters] = useState(() => ({
     project_type: "all",
-    sector: "all",
+    sector: pathwayContext.sector || "all",
     status: "all",
     priority: "all",
     lga: sharedLgaId ? String(sharedLgaId) : "",
@@ -1678,6 +1688,8 @@ export default function ProjectPortfolioPage({
     const fundingSource = filters.funding_source.trim().toLowerCase();
 
     return projects.filter((project) => {
+      if (!matchesContributingProject(project, pathwayContext)) return false;
+      if (!sharedLgaId && pathwayContext.lga && String(project.lga_name || "").toLowerCase() !== pathwayContext.lga.toLowerCase()) return false;
       const matchesSearch =
         !search ||
         String(project.title || "").toLowerCase().includes(search) ||
@@ -1708,6 +1720,8 @@ export default function ProjectPortfolioPage({
     filters.search,
     filters.implementing_agency,
     filters.funding_source,
+    pathwayContext,
+    sharedLgaId,
   ]);
 
   function updateFilter(field, value) {
@@ -1832,6 +1846,7 @@ export default function ProjectPortfolioPage({
         }
       />
 
+      <ProjectPathwayNotice context={pathwayContext} />
       {sharedLgaId != null && filters.lga === String(sharedLgaId) && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#009B35]/30 bg-[#009B35]/5 px-5 py-3 text-sm text-[#030454]">
           <span>

@@ -797,6 +797,23 @@ def ghg_dashboard_summary(request):
             for sector in implemented_sectors
         ],
         "ghg": {
+            "scope": "statewide",
+            "sector_transition": [
+                {
+                    "sector": sector,
+                    # NDCConstant is a state-wide reference, not a sector allocation.
+                    # No sector baseline or target model is configured here.
+                    "baseline_tco2e": None,
+                    "baseline_year": None,
+                    "target_tco2e": None,
+                    "target_year": None,
+                    "history": [
+                        {"year": total.year, "total_co2e": float(total.total_co2e)}
+                        for total in approved_totals if total.sector == sector
+                    ],
+                }
+                for sector in implemented_sectors
+            ],
             "latest_year": latest_year,
             "latest_total_tco2e": float(latest_total_tco2e),
             "latest_total_mtco2e": float(latest_total_mtco2e),
@@ -814,6 +831,7 @@ def ghg_dashboard_summary(request):
             "homes_equivalent": float(homes_equivalent),
         },
         "ndc_preview": {
+            "configured": bool(ndc_constant and ndc_constant.kaduna_baseline_mt > 0 and ndc_constant.unconditional_pct > 0),
             "kaduna_baseline_mt": float(ndc_constant.kaduna_baseline_mt) if ndc_constant else 0,
             "unconditional_target_pct": float(ndc_constant.unconditional_pct) if ndc_constant else 0,
             "implemented_reduction_pct": float(implemented_reduction_pct),
