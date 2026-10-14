@@ -58,6 +58,14 @@ class ClimateProjectSerializer(serializers.ModelSerializer):
         source="get_priority_display",
         read_only=True,
     )
+    primary_ghg_sector_display = serializers.CharField(
+        source="get_primary_ghg_sector_display",
+        read_only=True,
+    )
+    ghg_impact_type_display = serializers.CharField(
+        source="get_ghg_impact_type_display",
+        read_only=True,
+    )
     created_by_name = serializers.SerializerMethodField()
     project_image_url = serializers.SerializerMethodField()
     latest_physical_completion_pct = serializers.SerializerMethodField()
@@ -101,6 +109,15 @@ class ClimateProjectSerializer(serializers.ModelSerializer):
             "location_notes",
             "sdg_goals",
             "ndc_linkage_reference",
+            "climate_action_context",
+            "primary_ghg_sector",
+            "primary_ghg_sector_display",
+            "ghg_impact_type",
+            "ghg_impact_type_display",
+            "expected_annual_ghg_impact_tco2e",
+            "verified_annual_ghg_impact_tco2e",
+            "ghg_methodology",
+            "ghg_monitoring_indicator",
             "created_by",
             "created_by_name",
             "is_active",
@@ -192,6 +209,13 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
             "location_notes",
             "sdg_goals",
             "ndc_linkage_reference",
+            "climate_action_context",
+            "primary_ghg_sector",
+            "ghg_impact_type",
+            "expected_annual_ghg_impact_tco2e",
+            "verified_annual_ghg_impact_tco2e",
+            "ghg_methodology",
+            "ghg_monitoring_indicator",
             "is_active",
         ]
 
@@ -248,6 +272,22 @@ class ClimateProjectCreateUpdateSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError(
                 "Expected beneficiaries cannot be negative."
+            )
+
+        return value
+
+    def validate_expected_annual_ghg_impact_tco2e(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError(
+                "Expected annual GHG impact cannot be negative."
+            )
+
+        return value
+
+    def validate_verified_annual_ghg_impact_tco2e(self, value):
+        if value is not None and value < 0:
+            raise serializers.ValidationError(
+                "Verified annual GHG impact cannot be negative."
             )
 
         return value
