@@ -101,6 +101,18 @@ Vegetation is at or near full canopy closure in Sep–Oct in Kaduna's Guinea Sav
 | drought_index | yes | yes | yes | yes | Precipitation-only SPI |
 | lulc | no | no | no | no | Phase 1 experimental — unpublished |
 
+## Release Log
+
+Records of when layers were made public, so that every release is traceable. Use the `release_layer` management
+command for future releases: it runs as a dry run by default, enforces the allow-list and writes an audit record.
+
+| Date | Layers released | Environment | Approval | Method | Safety copy |
+|---|---|---|---|---|---|
+| 2026-10-13 | `rainfall`, `rainfall_anomaly`, `drought_index`, `lst`, `ndvi`, `ndvi_landsat` | staging | Project owner (confirmed in writing on 2026-10-15) | Direct database update on the staging server by the developer; **no `release_layer` audit record exists** | Full database dump taken immediately before the release |
+
+Not released: `lulc` (Phase 1 experimental), `elevation`, `flood_occurrence`, and the layers that are not active
+(`temperature_anomaly`, `flood_hazard`, `tree_cover`, `forest_change`).
+
 ## Known Release Risks
 
 - The public remote-sensing catalog is broader than the Atlas selector.
