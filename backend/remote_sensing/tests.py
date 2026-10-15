@@ -7364,6 +7364,9 @@ class ClimateAssistantViewTests(TestCase):
 
 
 class ClimateAiServiceTests(SimpleTestCase):
+    def setUp(self):
+        climate_ai._cooldown_until.clear()
+
     def test_is_configured_false_when_disabled(self):
         with override_settings(CLIMATE_AI_ENABLED=False, XAI_API_KEY="key", XAI_MODEL="grok-test"):
             self.assertFalse(climate_ai.is_configured())
@@ -7417,3 +7420,49 @@ class ClimateAiServiceTests(SimpleTestCase):
         with patch("core.services.climate_ai._post_json", side_effect=OSError("network down")):
             result = climate_ai.get_ai_response("question", {"status": "ok"})
         self.assertIsNone(result)
+
+
+@override_settings(CLIMATE_AI_ENABLED=True, XAI_API_KEY="key", XAI_MODEL="", XAI_MODELS="model-a,model-b")
+class ClimateAiModelPoolTests(SimpleTestCase):
+    def setUp(self):
+        climate_ai._cooldown_until.clear()
+
+    @staticmethod
+    def _ok(answer="Fine."):
+        return {"choices": [{"message": {"content": json.dumps({"answer": answer})}}]}
+
+    def test_first_model_is_used_and_recorded(self):
+        with patch("core.services.climate_ai._post_json", return_value=self._ok()) as post:
+            result = climate_ai.get_ai_response("q", {"status": "ok"})
+        self.assertEqual(result.model, "model-a")
+        self.assertEqual(post.call_args[0][2]["model"], "model-a")
+
+    def test_falls_back_to_next_model_and_skips_failed_one(self):
+        side = [OSError("rate limited"), self._ok("From B.")]
+        with patch("core.services.climate_ai._post_json", side_effect=side):
+            result = climate_ai.get_ai_response("q", {"status": "ok"})
+        self.assertEqual((result.model, result.answer), ("model-b", "From B."))
+        with patch("core.services.climate_ai._post_json", return_value=self._ok()) as post:
+            climate_ai.get_ai_response("q", {"status": "ok"})
+        self.assertEqual(post.call_args[0][2]["model"], "model-b")  # model-a is cooling down
+
+    def test_returns_none_when_every_model_fails(self):
+        with patch("core.services.climate_ai._post_json", side_effect=OSError("down")):
+            self.assertIsNone(climate_ai.get_ai_response("q", {"status": "ok"}))
+
+    def test_request_sends_user_agent(self):
+        with patch("core.services.climate_ai._post_json", return_value=self._ok()) as post:
+            climate_ai.get_ai_response("q", {"status": "ok"})
+        self.assertIn("User-Agent", post.call_args[0][1])
+
+    def test_reasoning_models_get_low_effort(self):
+        with override_settings(XAI_MODELS="openai/gpt-oss-120b"):
+            with patch("core.services.climate_ai._post_json", return_value=self._ok()) as post:
+                climate_ai.get_ai_response("q", {"status": "ok"})
+        self.assertEqual(post.call_args[0][2]["reasoning_effort"], "low")
+
+    def test_think_block_and_surrounding_text_are_tolerated(self):
+        content = '<think>hmm</think> Here you go: {"answer": "Clean."} thanks'
+        result = climate_ai._parse_model_json(content)
+        self.assertEqual(result.answer, "Clean.")
+
