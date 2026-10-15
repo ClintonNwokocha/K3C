@@ -1958,6 +1958,7 @@ def climate_assistant(request):
 
         rule_based = build_rule_based_answer(question, context)
         mode = "rule_based"
+        ai_model = ""
         result = rule_based
 
         # AI is only ever consulted when there is real published data to
@@ -1967,6 +1968,7 @@ def climate_assistant(request):
             ai_result = climate_ai.get_ai_response(question, context)
             if ai_result is not None:
                 mode = "ai"
+                ai_model = ai_result.model
                 result = {
                     "answer": ai_result.answer,
                     "evidence": ai_result.evidence or rule_based["evidence"],
@@ -1977,6 +1979,7 @@ def climate_assistant(request):
         logger.exception("Climate assistant request failed unexpectedly.")
         context = {"scope": fallback_scope}
         mode = "rule_based"
+        ai_model = ""
         result = {
             "answer": "Insufficient published KCCC data is available for this selection.",
             "evidence": [],
@@ -1992,5 +1995,6 @@ def climate_assistant(request):
         "limitations": result["limitations"],
         "suggested_questions": result["suggested_questions"],
         "mode": mode,
+        "model": ai_model if mode == "ai" else "",
     })
 

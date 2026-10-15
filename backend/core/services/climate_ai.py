@@ -1,4 +1,4 @@
-"""Backend-only Grok (xAI) integration for the Climate Briefing Assistant.
+"""Backend-only LLM (OpenAI-compatible: Groq, xAI, ...) integration for the Climate Briefing Assistant.
 
 No credentials ever reach the frontend — this module is the only place that
 holds the xAI API key, and it is only ever called from server-side views.
@@ -17,6 +17,8 @@ warrant adding one.
 """
 import json
 import logging
+import re
+import time
 import urllib.error
 import urllib.request
 from dataclasses import dataclass, field
@@ -58,13 +60,29 @@ class AIResult:
     evidence: list = field(default_factory=list)
     limitations: list = field(default_factory=list)
     suggested_questions: list = field(default_factory=list)
+    model: str = ""
+
+
+_USER_AGENT = "KCCC-Climate-Assistant/1.0"  # some providers (Groq/Cloudflare) reject urllib's default agent
+_COOLDOWN_SECONDS = 300
+_cooldown_until: dict = {}  # model -> monotonic time before which it is skipped (per worker)
+
+
+def _models() -> list:
+    """Models to try, in priority order: XAI_MODELS (comma list) then XAI_MODEL."""
+    configured = getattr(settings, "XAI_MODELS", "") or ""
+    models = [m.strip() for m in configured.split(",") if m.strip()]
+    single = getattr(settings, "XAI_MODEL", "") or ""
+    if single and single not in models:
+        models.append(single)
+    return models
 
 
 def is_configured() -> bool:
     return bool(
         getattr(settings, "CLIMATE_AI_ENABLED", False)
         and getattr(settings, "XAI_API_KEY", "")
-        and getattr(settings, "XAI_MODEL", "")
+        and _models()
     )
 
 
@@ -91,7 +109,7 @@ def _parse_model_json(content) -> AIResult | None:
     if not isinstance(content, str):
         return None
 
-    text = content.strip()
+    text = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
     if text.startswith("```"):
         text = text.strip("`")
         if text[:4].lower() == "json":
@@ -101,7 +119,11 @@ def _parse_model_json(content) -> AIResult | None:
     try:
         parsed = json.loads(text)
     except (json.JSONDecodeError, TypeError, ValueError):
-        return None
+        start, end = text.find("{"), text.rfind("}")
+        try:
+            parsed = json.loads(text[start:end + 1]) if 0 <= start < end else None
+        except (json.JSONDecodeError, TypeError, ValueError):
+            return None
 
     if not isinstance(parsed, dict):
         return None
@@ -139,12 +161,29 @@ def _parse_model_json(content) -> AIResult | None:
     )
 
 
+def _call_model(model: str, url: str, headers: dict, question: str, context: dict, timeout: float):
+    body = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": _build_user_payload(question, context)},
+        ],
+        "temperature": 0.2,
+        "max_tokens": int(getattr(settings, "CLIMATE_AI_MAX_TOKENS", 2500)),
+    }
+    if "gpt-oss" in model:  # reasoning models: keep the thinking short so the answer fits
+        body["reasoning_effort"] = "low"
+    api_response = _post_json(url, headers, body, timeout)
+    return _parse_model_json(_extract_message_content(api_response))
+
+
 def get_ai_response(question: str, context: dict) -> AIResult | None:
-    """Calls Grok with the grounded system prompt and the supplied
-    KCCC-authoritative context. Returns None (never raises) if AI is
-    disabled/unconfigured, the request fails or times out, or the response
-    doesn't parse as the expected JSON shape — callers must treat None as
-    "fall back to the rule-based briefing"."""
+    """Calls the configured model(s) with the grounded system prompt and the
+    KCCC-authoritative context. Models are tried in priority order; one that
+    fails (rate limit, error, invalid output) is skipped for a few minutes.
+    Returns None (never raises) if AI is disabled/unconfigured or every model
+    fails — callers must treat None as "fall back to the rule-based briefing".
+    The model that answered is recorded in AIResult.model."""
     if not is_configured():
         return None
 
@@ -153,29 +192,29 @@ def get_ai_response(question: str, context: dict) -> AIResult | None:
     headers = {
         "Authorization": f"Bearer {settings.XAI_API_KEY}",
         "Content-Type": "application/json",
-    }
-    body = {
-        "model": settings.XAI_MODEL,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": _build_user_payload(question, context)},
-        ],
-        "temperature": 0.2,
-        "max_tokens": 900,
+        "User-Agent": _USER_AGENT,
     }
     timeout = float(getattr(settings, "CLIMATE_AI_TIMEOUT_SECONDS", 8))
+    now = time.monotonic()
 
-    try:
-        api_response = _post_json(url, headers, body, timeout)
-    except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
-        logger.warning("Climate AI request failed (%s); falling back to rule-based briefing.", type(exc).__name__)
-        return None
-    except Exception:
-        logger.warning("Climate AI request raised unexpectedly; falling back to rule-based briefing.", exc_info=True)
-        return None
+    for model in _models():
+        if _cooldown_until.get(model, 0) > now:
+            continue
+        try:
+            result = _call_model(model, url, headers, question, context, timeout)
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError) as exc:
+            logger.warning("Climate AI model %s failed (%s); trying the next one.", model, type(exc).__name__)
+            _cooldown_until[model] = time.monotonic() + _COOLDOWN_SECONDS
+            continue
+        except Exception:
+            logger.warning("Climate AI model %s raised unexpectedly; trying the next one.", model, exc_info=True)
+            _cooldown_until[model] = time.monotonic() + _COOLDOWN_SECONDS
+            continue
+        if result is None:
+            logger.warning("Climate AI model %s returned an unparseable/invalid response; trying the next one.", model)
+            continue
+        result.model = model
+        return result
 
-    content = _extract_message_content(api_response)
-    result = _parse_model_json(content)
-    if result is None:
-        logger.warning("Climate AI returned an unparseable/invalid response; falling back to rule-based briefing.")
-    return result
+    logger.warning("Climate AI: no model produced a usable answer; falling back to rule-based briefing.")
+    return None
