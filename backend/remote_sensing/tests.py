@@ -1292,11 +1292,11 @@ class LSTRegistryTests(TestCase):
         self.assertEqual(reg.gee_collection, "MODIS/061/MOD11A1")
 
     def test_registry_scale_and_year_range(self):
-        """lst must default to 1000 m scale, valid_year_min=2001, valid_year_max=2025."""
+        """lst must default to 1000 m scale, valid_year_min=2001, open-ended valid_year_max."""
         reg = LAYER_REGISTRY["lst"]
         self.assertEqual(reg.default_scale, 1000)
         self.assertEqual(reg.valid_year_min, 2001)
-        self.assertEqual(reg.valid_year_max, 2025)
+        self.assertIsNone(reg.valid_year_max)
 
     def test_registry_method_version(self):
         """lst metadata_extras must carry method_version=mod11a1_daytime_lst_v1."""
