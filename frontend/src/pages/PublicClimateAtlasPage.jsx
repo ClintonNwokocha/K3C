@@ -1627,6 +1627,7 @@ export default function PublicClimateAtlasPage() {
       periodLabel: config.period,
       adminCode: selectedLga?.metric?.admin_code || null,
       lgaName: selectedLga?.name || null,
+      mapLegend: legendState,
     });
 
     trackPublicEvent(PUBLIC_EVENT_NAMES.CLIMATE_ASSISTANT_QUESTION, { indicator: variable.key });

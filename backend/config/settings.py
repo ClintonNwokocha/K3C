@@ -192,6 +192,8 @@ XAI_MODEL = os.getenv("XAI_MODEL", "")
 # Optional comma-separated priority list; tried in order, falling back on failure.
 XAI_MODELS = os.getenv("XAI_MODELS", "")
 CLIMATE_AI_MAX_TOKENS = int(os.getenv("CLIMATE_AI_MAX_TOKENS", "2500"))
+# Identical questions about identical data are answered from cache for this long (0 = off).
+CLIMATE_AI_CACHE_SECONDS = int(os.getenv("CLIMATE_AI_CACHE_SECONDS", "3600"))
 XAI_API_BASE_URL = os.getenv("XAI_API_BASE_URL", "https://api.x.ai/v1")
 CLIMATE_AI_TIMEOUT_SECONDS = float(os.getenv("CLIMATE_AI_TIMEOUT_SECONDS", "8"))
 CLIMATE_AI_MAX_QUESTION_LENGTH = int(os.getenv("CLIMATE_AI_MAX_QUESTION_LENGTH", "400"))

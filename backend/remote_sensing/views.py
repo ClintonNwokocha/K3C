@@ -23,7 +23,12 @@ from climate_risk.models import ClimateRiskProfile
 from core.models import LGARegistry
 from core.services import climate_ai
 
-from .climate_context import INDICATOR_METADATA, build_rule_based_answer, resolve_climate_context
+from .climate_context import (
+    INDICATOR_METADATA,
+    build_rule_based_answer,
+    resolve_climate_context,
+    sanitize_map_legend,
+)
 from .gee_service import _KADUNA_BBOX, gee_service
 from .lulc_providers import LAND_COVER_PROVIDERS
 from .models import LandCoverDataset, LandCoverSnapshot, RemoteSensingLayer, RemoteSensingLGAMetric
@@ -1955,6 +1960,11 @@ def climate_assistant(request):
             admin_code=admin_code,
             lga_name=lga_name,
         )
+
+        if context.get("status") == "ok":
+            legend = sanitize_map_legend(request.data.get("map_legend"))
+            if legend:
+                context["map_legend"] = legend
 
         rule_based = build_rule_based_answer(question, context)
         mode = "rule_based"
