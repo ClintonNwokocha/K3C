@@ -72,6 +72,15 @@ test("builds a statewide payload with no admin_code/lga_name when none selected"
   assert.strictEqual("lga_name" in payload, false, "lga_name must be omitted, not sent as empty/null");
 });
 
+test("sends the visible map legend, and omits it when there is none", () => {
+  const legend = { type: "gradient", caption: "Annual rainfall (mm)", labels: ["900", "1,500"], colors: ["#fff", "#00f"], extra: "ignored" };
+  const withLegend = buildAssistantRequest({ question: "q", indicatorKey: "rainfall", year: 2025, seasonLabel: "Full Year", mapLegend: legend });
+  assert.deepStrictEqual(withLegend.map_legend.labels, ["900", "1,500"]);
+  assert.strictEqual("extra" in withLegend.map_legend, false, "only known legend fields are sent");
+  const without = buildAssistantRequest({ question: "q", indicatorKey: "rainfall", year: 2025, seasonLabel: "Full Year" });
+  assert.strictEqual("map_legend" in without, false);
+});
+
 test("builds an LGA-scoped payload when admin_code and lga_name are selected", () => {
   const payload = buildAssistantRequest({
     question: "What does this mean for farming?",

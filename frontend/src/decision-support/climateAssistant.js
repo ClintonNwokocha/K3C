@@ -60,6 +60,7 @@ export function buildAssistantRequest({
   periodLabel,
   adminCode,
   lgaName,
+  mapLegend,
 }) {
   const payload = {
     question: String(question || "").trim(),
@@ -70,6 +71,16 @@ export function buildAssistantRequest({
   if (periodLabel) payload.period = periodLabel;
   if (adminCode) payload.admin_code = adminCode;
   if (lgaName) payload.lga_name = lgaName;
+  // The legend the visitor is looking at, so colour/class questions are answered from it (never guessed).
+  if (mapLegend) {
+    payload.map_legend = {
+      type: mapLegend.type,
+      caption: mapLegend.caption,
+      labels: mapLegend.labels,
+      colors: mapLegend.colors,
+      rows: mapLegend.rows,
+    };
+  }
   return payload;
 }
 

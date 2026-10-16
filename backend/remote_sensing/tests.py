@@ -7366,6 +7366,7 @@ class ClimateAssistantViewTests(TestCase):
 class ClimateAiServiceTests(SimpleTestCase):
     def setUp(self):
         climate_ai._cooldown_until.clear()
+        cache.clear()
 
     def test_is_configured_false_when_disabled(self):
         with override_settings(CLIMATE_AI_ENABLED=False, XAI_API_KEY="key", XAI_MODEL="grok-test"):
@@ -7426,6 +7427,7 @@ class ClimateAiServiceTests(SimpleTestCase):
 class ClimateAiModelPoolTests(SimpleTestCase):
     def setUp(self):
         climate_ai._cooldown_until.clear()
+        cache.clear()
 
     @staticmethod
     def _ok(answer="Fine."):
@@ -7443,7 +7445,7 @@ class ClimateAiModelPoolTests(SimpleTestCase):
             result = climate_ai.get_ai_response("q", {"status": "ok"})
         self.assertEqual((result.model, result.answer), ("model-b", "From B."))
         with patch("core.services.climate_ai._post_json", return_value=self._ok()) as post:
-            climate_ai.get_ai_response("q", {"status": "ok"})
+            climate_ai.get_ai_response("another question", {"status": "ok"})  # different question, so not cached
         self.assertEqual(post.call_args[0][2]["model"], "model-b")  # model-a is cooling down
 
     def test_returns_none_when_every_model_fails(self):
@@ -7466,3 +7468,83 @@ class ClimateAiModelPoolTests(SimpleTestCase):
         result = climate_ai._parse_model_json(content)
         self.assertEqual(result.answer, "Clean.")
 
+    def test_rate_limited_model_rests_only_briefly(self):
+        import urllib.error
+        from email.message import Message
+        err = urllib.error.HTTPError("u", 429, "Too Many Requests", Message(), None)
+        self.assertLessEqual(climate_ai._cooldown_for(err), 60)
+        self.assertEqual(climate_ai._cooldown_for(OSError("down")), climate_ai._COOLDOWN_SECONDS)
+
+    def test_identical_question_is_answered_from_cache(self):
+        with patch("core.services.climate_ai._post_json", return_value=self._ok("Once.")) as post:
+            first = climate_ai.get_ai_response("Same  question?", {"status": "ok", "year": 2025})
+            second = climate_ai.get_ai_response("same question?", {"status": "ok", "year": 2025})
+            other = climate_ai.get_ai_response("same question?", {"status": "ok", "year": 2024})
+        self.assertEqual(post.call_count, 2)  # second was cached; different data is not
+        self.assertEqual((first.answer, second.answer, other.answer), ("Once.", "Once.", "Once."))
+
+
+class ClimateAssistantMapInsightTests(TestCase):
+    """The assistant must be given comparative facts (ranking, state mean, history), not just one number."""
+    URL = "/api/climate/assistant/"
+
+    @classmethod
+    def setUpTestData(cls):
+        layer = _ci_make_layer("rainfall", "Rainfall Total")
+        lgas = [("M001", "Alpha"), ("M002", "Bravo"), ("M003", "Charlie"), ("M004", "Delta"), ("M005", "Echo")]
+        for i, (code, name) in enumerate(lgas):
+            for year in range(2016, 2026):
+                # Alpha is the wettest, Echo the driest; every LGA gets 10 mm wetter each year
+                _ci_make_metric(layer, code, name, year, "annual", 1500.0 - i * 100 + (year - 2016) * 10, "mm")
+
+    def setUp(self):
+        self.client = APIClient()
+        cache.clear()
+
+    def _context(self, **kw):
+        from remote_sensing.climate_context import resolve_climate_context
+        args = dict(indicator="rainfall", year=2025, season="annual", period=None, admin_code=None, lga_name=None)
+        args.update(kw)
+        return resolve_climate_context(**args)
+
+    def test_statewide_context_lists_every_lga_and_extremes(self):
+        insight = self._context()["map_insight"]
+        self.assertEqual(insight["lga_count"], 5)
+        self.assertEqual(insight["highest"][0]["lga"], "Alpha")
+        self.assertEqual(insight["lowest"][0]["lga"], "Echo")
+        self.assertEqual(set(insight["all_lgas"]), {"Alpha", "Bravo", "Charlie", "Delta", "Echo"})
+        self.assertEqual(insight["statewide_trend_per_decade"], 100.0)  # +10 mm a year
+
+    def test_lga_context_has_rank_difference_and_history(self):
+        sel = self._context(admin_code="M002", lga_name="Bravo")["map_insight"]["selected_lga"]
+        self.assertEqual((sel["rank"], sel["out_of"]), (2, 5))
+        self.assertGreater(sel["difference_from_statewide_mean"], 0)
+        self.assertEqual(len(sel["recent_years"]), 10)
+        self.assertEqual(sel["trend_per_decade"], 100.0)
+
+    def test_rule_based_answer_mentions_rank(self):
+        from remote_sensing.climate_context import build_rule_based_answer
+        answer = build_rule_based_answer("q", self._context(admin_code="M005", lga_name="Echo"))["answer"]
+        self.assertIn("ranks 5 of 5", answer)
+        self.assertNotIn("statewide", answer.lower())  # an LGA answer never speaks for the whole state
+
+    def test_legend_is_cleaned_and_reaches_the_ai_context(self):
+        from remote_sensing.climate_context import sanitize_map_legend
+        legend = sanitize_map_legend({"type": "gradient", "caption": "mm", "labels": ["a"] * 30, "rows": [["#fff", "0-10", "low"], "bad"], "evil": "x"})
+        self.assertEqual(len(legend["labels"]), 12)
+        self.assertEqual(legend["rows"], [["#fff", "0-10", "low"]])
+        self.assertNotIn("evil", legend)
+        self.assertIsNone(sanitize_map_legend("not a dict"))
+
+        captured = {}
+
+        def fake(question, context):
+            captured.update(context)
+            return None
+
+        with override_settings(CLIMATE_AI_ENABLED=True, XAI_API_KEY="k", XAI_MODEL="m"):
+            with patch("remote_sensing.views.climate_ai.get_ai_response", side_effect=fake):
+                self.client.post(self.URL, {"question": "colours?", "indicator": "rainfall", "year": 2025, "season": "annual",
+                                            "map_legend": {"type": "gradient", "labels": ["900", "1,500"]}}, format="json")
+        self.assertEqual(captured["map_legend"]["labels"], ["900", "1,500"])
+        self.assertIn("map_insight", captured)

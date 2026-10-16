@@ -188,6 +188,93 @@ def _build_metric_entry(metric, indicator: str) -> dict:
     return entry
 
 
+_HISTORY_YEARS = 10
+
+
+def _rounded(value, places=2):
+    return None if value is None else round(float(value), places)
+
+
+def _trend_per_decade(series):
+    """Least-squares slope of (year, value) pairs, expressed per 10 years. None if fewer than 5 points."""
+    pts = [(y, v) for y, v in series if v is not None]
+    if len(pts) < 5:
+        return None
+    n = len(pts)
+    mx = sum(y for y, _ in pts) / n
+    my = sum(v for _, v in pts) / n
+    den = sum((y - mx) ** 2 for y, _ in pts)
+    if den == 0:
+        return None
+    return round(10 * sum((y - mx) * (v - my) for y, v in pts) / den, 3)
+
+
+def build_map_insight(*, layer, indicator, year, season, admin_code, admin_name):
+    """Compact comparative facts behind the map: how every LGA scores this year,
+    where the selected LGA ranks, and how the recent years have moved. Everything
+    is read from stored metrics — nothing is computed from outside data."""
+    base = RemoteSensingLGAMetric.objects.filter(
+        layer=layer, admin_level="lga", season=season, mean_value__isnull=False
+    )
+    this_year = {
+        r.admin_code: (r.admin_name, _decimal_to_float(r.mean_value))
+        for r in base.filter(year=year)
+    }
+    if not this_year:
+        return None
+
+    ranked = sorted(this_year.items(), key=lambda kv: kv[1][1], reverse=True)  # highest first
+    values = [v for _, (_, v) in ranked]
+    n = len(values)
+    mean = sum(values) / n
+    median = sorted(values)[n // 2] if n % 2 else sum(sorted(values)[n // 2 - 1: n // 2 + 1]) / 2
+    insight = {
+        "year": year,
+        "season": season,
+        "lga_count": n,
+        "statewide_mean": _rounded(mean),
+        "statewide_median": _rounded(median),
+        "highest": [{"lga": nm, "value": _rounded(v)} for _, (nm, v) in ranked[:5]],
+        "lowest": [{"lga": nm, "value": _rounded(v)} for _, (nm, v) in ranked[-5:][::-1]],
+        "all_lgas": {nm: _rounded(v) for _, (nm, v) in ranked},
+        "ranking_note": "rank 1 = highest value",
+    }
+
+    # recent history, statewide mean per year (and the selected LGA's own series)
+    hist_years = sorted(set(base.values_list("year", flat=True)))[-_HISTORY_YEARS:]
+    state_series, lga_series = [], []
+    for y in hist_years:
+        rows = list(base.filter(year=y).values_list("admin_code", "mean_value"))
+        if rows:
+            state_series.append((y, sum(_decimal_to_float(v) for _, v in rows) / len(rows)))
+        if admin_code:
+            for code, v in rows:
+                if code == admin_code:
+                    lga_series.append((y, _decimal_to_float(v)))
+    insight["statewide_recent_years"] = {str(y): _rounded(v) for y, v in state_series}
+    insight["statewide_trend_per_decade"] = _trend_per_decade(state_series)
+
+    if admin_code and admin_code in this_year:
+        name, value = this_year[admin_code]
+        rank = [code for code, _ in ranked].index(admin_code) + 1
+        insight["selected_lga"] = {
+            "lga": name,
+            "value": _rounded(value),
+            "rank": rank,
+            "out_of": n,
+            "difference_from_statewide_mean": _rounded(value - mean),
+            "difference_from_statewide_mean_pct": _rounded((value - mean) / mean * 100) if mean else None,
+            "recent_years": {str(y): _rounded(v) for y, v in lga_series},
+            "trend_per_decade": _trend_per_decade(lga_series),
+            "recent_years_mean": _rounded(sum(v for _, v in lga_series) / len(lga_series)) if lga_series else None,
+        }
+    insight["trend_note"] = (
+        "Trends are least-squares slopes over the recent years listed; short records are indicative only."
+    )
+    return insight
+
+
+
 def resolve_climate_context(
     *,
     indicator: str,
@@ -234,6 +321,7 @@ def resolve_climate_context(
         layer=layer, admin_level="lga", season=season, mean_value__isnull=False
     )
 
+    resolved_code = None
     if scope_requested:
         lga_qs = base_qs.filter(admin_code=admin_code) if admin_code else base_qs.filter(admin_name__iexact=lga_name)
         probe = lga_qs.first()
@@ -298,6 +386,11 @@ def resolve_climate_context(
             primary["condition"] = classifier(mean_value)
         adjacent = []
 
+    map_insight = build_map_insight(
+        layer=layer, indicator=indicator, year=target_year, season=season,
+        admin_code=resolved_code, admin_name=scope.get("name"),
+    )
+
     return {
         "status": "ok",
         "indicator": indicator,
@@ -315,6 +408,7 @@ def resolve_climate_context(
         "baseline_reference": RAINFALL_BASELINE_YEARS if indicator in ("rainfall_anomaly", "drought_index") else None,
         "methodology_note": meta["note"],
         "adjacent_indicators": adjacent,
+        "map_insight": map_insight,
         "publication_status": "published",
     }
 
@@ -526,6 +620,45 @@ def _build_limitations(context: dict, scope: dict) -> list[str]:
     return limitations
 
 
+def sanitize_map_legend(raw):
+    """Accepts the legend the visitor is looking at (sent by the page) and keeps only short plain strings.
+    It is context for explaining the map, never evidence for a value."""
+    if not isinstance(raw, dict):
+        return None
+
+    def text(v, n):
+        return str(v)[:n] if isinstance(v, (str, int, float)) else ""
+
+    legend = {
+        "type": text(raw.get("type"), 40),
+        "caption": text(raw.get("caption"), 240),
+        "labels": [text(v, 40) for v in (raw.get("labels") or [])[:12]] if isinstance(raw.get("labels"), list) else [],
+        "colors": [text(v, 20) for v in (raw.get("colors") or [])[:12]] if isinstance(raw.get("colors"), list) else [],
+        "rows": [
+            [text(c, 60) for c in row[:3]]
+            for row in (raw.get("rows") or [])[:10] if isinstance(row, (list, tuple))
+        ] if isinstance(raw.get("rows"), list) else [],
+    }
+    return legend if any(legend.values()) else None
+
+
+def _insight_sentence(context):
+    insight = context.get("map_insight") or {}
+    sel = insight.get("selected_lga")
+    unit = context.get("unit") or ""
+    if sel:
+        pct = sel.get("difference_from_statewide_mean_pct")
+        side = "above" if (pct or 0) >= 0 else "below"
+        text = f" {sel['lga']} ranks {sel['rank']} of {sel['out_of']} LGAs (1 = highest)"
+        if pct is not None:
+            text += f" and is {abs(pct):.1f}% {side} the average of all {sel['out_of']} LGAs ({insight['statewide_mean']} {unit})"
+        return text + "."
+    if insight.get("highest") and insight.get("lowest"):
+        hi, lo = insight["highest"][0], insight["lowest"][0]
+        return (f" Highest LGA: {hi['lga']} ({hi['value']} {unit}); lowest: {lo['lga']} ({lo['value']} {unit}).")
+    return ""
+
+
 def build_rule_based_answer(question: str, context: dict) -> dict:
     """Deterministic, data-grounded answer — used as the AI fallback and as
     the answer whenever AI is disabled. `question` is accepted for parity
@@ -586,6 +719,8 @@ def build_rule_based_answer(question: str, context: dict) -> dict:
     condition = context.get("condition")
     if condition:
         sentence += f" This indicates {condition}."
+
+    sentence += _insight_sentence(context)
 
     interpretation = _farmer_interpretation(indicator, context)
     if interpretation:
