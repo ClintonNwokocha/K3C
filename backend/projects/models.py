@@ -253,6 +253,13 @@ class ClimateProject(models.Model):
 
     is_active = models.BooleanField(default=True)
 
+    auto_generated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="Set when this proposal was created or last refreshed by generate_climate_proposals. Blank for staff-created projects.",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

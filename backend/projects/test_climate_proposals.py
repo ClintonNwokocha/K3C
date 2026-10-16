@@ -1,7 +1,8 @@
 from decimal import Decimal
 from types import SimpleNamespace
 
-from django.test import SimpleTestCase
+from django.core.management import call_command
+from django.test import SimpleTestCase, TestCase
 
 from projects.management.commands.generate_climate_proposals import (
     DISCLAIMER,
@@ -9,6 +10,8 @@ from projects.management.commands.generate_climate_proposals import (
     risk_proposal,
     strongest_hazard,
 )
+from climate_risk.models import ClimateRiskProfile
+from core.models import LGARegistry
 from projects.models import ClimateProject
 
 
@@ -51,3 +54,42 @@ class ClimateProposalRuleTests(SimpleTestCase):
         self.assertIsNone(data["lga"])
         self.assertEqual(data["project_type"], ClimateProject.ProjectType.MITIGATION)
         self.assertIn("not the official inventory", data["description"])
+
+
+class ClimateProposalCycleTests(TestCase):
+    def setUp(self):
+        self.lga = LGARegistry.objects.create(lga_id=8, lga_name="Kachia")
+        self.profile = ClimateRiskProfile.objects.create(
+            lga=self.lga, year=2025, flood_risk_score=90, drought_risk_score=80,
+            heat_risk_score=80, erosion_risk_score=95, exposure_score=0,
+            vulnerability_score=80, adaptive_capacity_score=10, data_source="KS-CCC development seed data",
+        )
+
+    def run_cmd(self):
+        call_command("generate_climate_proposals", "--ghg-top", "0", verbosity=0)
+
+    def test_creates_once_and_is_idempotent(self):
+        self.assertEqual(self.profile.risk_level, "high")
+        self.run_cmd()
+        self.run_cmd()
+        qs = ClimateProject.objects.filter(project_code="PROP-RISK-8-erosion-2025")
+        self.assertEqual(qs.count(), 1)
+        p = qs.get()
+        self.assertEqual(p.status, "proposed")
+        self.assertIsNotNone(p.auto_generated_at)
+
+    def test_refreshes_when_data_changes_until_staff_edit(self):
+        self.run_cmd()
+        ClimateRiskProfile.objects.filter(pk=self.profile.pk).update(overall_risk_score=Decimal("70.00"))
+        self.profile.refresh_from_db()
+        self.run_cmd()
+        p = ClimateProject.objects.get(project_code="PROP-RISK-8-erosion-2025")
+        self.assertIn("70.00", p.description)  # refreshed from new data
+
+        p.title = "Kachia: edited by staff"
+        p.save()
+        ClimateRiskProfile.objects.filter(pk=self.profile.pk).update(overall_risk_score=Decimal("71.00"))
+        self.run_cmd()
+        p.refresh_from_db()
+        self.assertEqual(p.title, "Kachia: edited by staff")
+        self.assertNotIn("71.00", p.description)  # left alone after a staff edit

@@ -8,9 +8,9 @@ catalog the Climate Intelligence page uses.
 GHG-based proposals: one statewide mitigation proposal for each of the largest
 inventory sectors in the latest approved year.
 
-Safe to re-run: a proposal is identified by its project_code and is never
-overwritten once created (staff may have edited it). Budget and GHG impact are
-never filled in. Exposure is not used because every stored exposure_score is 0.
+Safe to re-run (it is scheduled daily): a proposal is identified by its project_code.
+While it is untouched by staff it is refreshed from the latest data; once staff edit it
+(or change its status) it is left alone. Budget and GHG impact are never filled in. Exposure is not used because every stored exposure_score is 0.
 """
 from decimal import Decimal
 
@@ -132,6 +132,15 @@ def ghg_proposal(sector, tonnes, year, preview):
     }
 
 
+def staff_touched(project):
+    """True if staff edited the project after the generator last wrote it."""
+    return (
+        project.auto_generated_at is None
+        or project.status != P.Status.PROPOSED
+        or project.updated_at > project.auto_generated_at
+    )
+
+
 class Command(BaseCommand):
     help = "Create Proposed projects from Climate Risk profiles and the GHG inventory (idempotent)."
 
@@ -162,17 +171,32 @@ class Command(BaseCommand):
                 if row["sector"] in GHG_SECTORS and row["t"]:
                     proposals.append(ghg_proposal(row["sector"], row["t"], year, preview))
 
-        created = skipped = 0
+        created = refreshed = skipped = 0
         for data in proposals:
-            exists = ClimateProject.objects.filter(project_code=data["project_code"]).exists()
-            self.stdout.write(f"  {'exists ' if exists else 'create '} {data['project_code']:<34} {data['title']}")
-            if exists:
+            project = ClimateProject.objects.filter(project_code=data["project_code"]).first()
+            if project is None:
+                action = "create "
+                created += 1
+                if not opts["dry_run"]:
+                    new = ClimateProject.objects.create(status=P.Status.PROPOSED, is_active=True, **data)
+                    ClimateProject.objects.filter(pk=new.pk).update(auto_generated_at=new.updated_at)
+            elif staff_touched(project):
+                action = "keep   "
                 skipped += 1
-            elif not opts["dry_run"]:
-                ClimateProject.objects.create(status=P.Status.PROPOSED, is_active=True, **data)
-                created += 1
             else:
-                created += 1
-        self.stdout.write(self.style.SUCCESS(
-            f"{'DRY RUN: would create' if opts['dry_run'] else 'Created'} {created}, already present {skipped}."
-        ))
+                changed = [k for k, v in data.items() if getattr(project, k) != v]
+                if not changed:
+                    action = "same   "
+                    skipped += 1
+                else:
+                    action = "refresh"
+                    refreshed += 1
+                    if not opts["dry_run"]:
+                        for k, v in data.items():
+                            setattr(project, k, v)
+                        project.save()
+                        # pin the marker to the save time so this write is not mistaken for a staff edit
+                        ClimateProject.objects.filter(pk=project.pk).update(auto_generated_at=project.updated_at)
+            self.stdout.write(f"  {action} {data['project_code']:<34} {data['title']}")
+        verb = "DRY RUN: would create" if opts["dry_run"] else "Created"
+        self.stdout.write(self.style.SUCCESS(f"{verb} {created}, refreshed {refreshed}, left alone {skipped}."))
