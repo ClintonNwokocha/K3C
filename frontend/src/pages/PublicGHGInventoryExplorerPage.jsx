@@ -21,7 +21,7 @@ import {
   PublicSecondaryButton,
   PublicSection,
 } from "../components/PublicPortalChrome";
-import { getPublicGHGInventory, getPublicPortalSummary } from "../services/api";
+import { getPublicGHGInventory } from "../services/api";
 import GHGSectorTransitionDashboard from "../components/GHGSectorTransitionDashboard";
 import { transitionFromPublicInventory } from "../utils/ghgTransition.js";
 
@@ -82,16 +82,6 @@ function formatNumber(value, maximumFractionDigits = 2) {
 
   return Number(value).toLocaleString(undefined, {
     maximumFractionDigits,
-  });
-}
-
-function formatDate(value) {
-  if (!value) return "Not yet published";
-
-  return new Date(value).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
   });
 }
 
@@ -1044,157 +1034,6 @@ function ChangePanel({ chart, visibleKeys }) {
   );
 }
 
-function describeComposition(chart, visibleKeys) {
-  const years = chart?.years || [];
-  const year = years[years.length - 1];
-  const visibleSet = new Set(visibleKeys || []);
-  const series = chart?.series || [];
-
-  const rows = series
-    .map((seriesRow, index) => {
-      const value = getRawSeriesValue(seriesRow, year);
-
-      return {
-        key: seriesRow.key,
-        label: seriesRow.label,
-        color: getSeriesColor(index),
-        value: hasNumber(value) ? Number(value) : null,
-      };
-    })
-    .filter((row) => visibleSet.has(row.key))
-    .filter((row) => row.value !== null && row.value > 0);
-  const total = rows.reduce((sum, row) => sum + row.value, 0);
-
-  return { year, total, rows };
-}
-
-function polarToCartesian(center, radius, angle) {
-  const radians = ((angle - 90) * Math.PI) / 180;
-  return {
-    x: center + radius * Math.cos(radians),
-    y: center + radius * Math.sin(radians),
-  };
-}
-
-function describeArc(center, radius, startAngle, endAngle) {
-  const start = polarToCartesian(center, radius, endAngle);
-  const end = polarToCartesian(center, radius, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-
-  return [
-    "M",
-    start.x,
-    start.y,
-    "A",
-    radius,
-    radius,
-    0,
-    largeArcFlag,
-    0,
-    end.x,
-    end.y,
-  ].join(" ");
-}
-
-function CompositionPanel({ chart, filters, visibleKeys }) {
-  const { year, total, rows } = describeComposition(chart, visibleKeys);
-  const title = `${getBreakoutLabel(chart, filters)} composition ${year || ""}`.trim();
-
-  if (!year || !hasNumber(total) || rows.length === 0) {
-    return (
-      <PublicCard className="p-5">
-        <h2 className="text-xl font-black text-[#030454]">{title || "Composition"}</h2>
-        <p className="mt-4 text-sm leading-6 text-slate-600">Not available.</p>
-      </PublicCard>
-    );
-  }
-
-  if (rows.length === 1) {
-    return (
-      <PublicCard className="p-5">
-        <h2 className="text-xl font-black text-[#030454]">{title}</h2>
-        <div className="mt-4 rounded-md border border-[#E6EAEC] bg-[#F7F9FA] p-4">
-          <p className="text-sm font-black text-[#030454]">{rows[0].label}</p>
-          <p className="mt-1 font-mono text-xl font-black text-[#009B35]">
-            {formatNumber(rows[0].value, 2)} tCO2e
-          </p>
-          <p className="mt-1 text-sm text-slate-600">100.0% of visible composition.</p>
-        </div>
-      </PublicCard>
-    );
-  }
-
-  const center = 74;
-  const radius = 52;
-  const arcs = rows.reduce(
-    (acc, row) => {
-      const share = row.value / Number(total);
-      const startAngle = acc.angle;
-      const endAngle = startAngle + share * 360;
-
-      return {
-        angle: endAngle,
-        rows: [
-          ...acc.rows,
-          {
-            ...row,
-            share,
-            startAngle,
-            endAngle,
-          },
-        ],
-      };
-    },
-    { angle: 0, rows: [] }
-  ).rows;
-
-  return (
-    <PublicCard className="p-5">
-      <h2 className="text-xl font-black text-[#030454]">{title}</h2>
-      <div className="mt-5 flex flex-col gap-5 sm:flex-row sm:items-center">
-        <svg
-          viewBox="0 0 148 148"
-          role="img"
-          aria-label={`${title} chart`}
-          className="h-40 w-40 shrink-0"
-        >
-          <circle cx={center} cy={center} r={radius} fill="none" stroke="#E6EAEC" strokeWidth="24" />
-          {arcs.map((row) => (
-            <path
-              key={row.key}
-              d={describeArc(center, radius, row.startAngle, row.endAngle)}
-              fill="none"
-              stroke={row.color}
-              strokeWidth="24"
-              strokeLinecap="butt"
-              aria-label={`${row.label}: ${formatNumber(row.value, 2)} tCO2e, ${formatNumber(row.share * 100, 1)}%`}
-            />
-          ))}
-          <circle cx={center} cy={center} r="32" fill="white" />
-        </svg>
-
-        <ul className="min-w-0 flex-1 space-y-2 text-sm" aria-label={`${title} values`}>
-          {rows.map((row) => (
-            <li key={row.key} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
-              <span className="inline-flex min-w-0 items-center gap-2 font-bold text-[#030454]">
-                <span
-                  className="h-3 w-3 shrink-0 rounded-sm"
-                  style={{ backgroundColor: row.color }}
-                  aria-hidden="true"
-                />
-                <span className="truncate">{row.label}</span>
-              </span>
-              <span className="font-mono text-slate-600">
-                {formatNumber((row.value / Number(total)) * 100, 1)}%
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </PublicCard>
-  );
-}
-
 function FitGhgMapBounds({ geoJson, selectedLga }) {
   const map = useMap();
 
@@ -1873,16 +1712,7 @@ function SummaryMetrics({ summary, selectedYear }) {
   const largestSector = summary?.largest_contributing_sector;
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-      <MetricCard
-        label="Reporting Year"
-        value={
-          selectedYear && selectedYear !== ALL
-            ? selectedYear
-            : "All approved years"
-        }
-        helper="Selected approved reporting period."
-      />
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <MetricCard
         label="Total Emissions"
         value={hasNumber(total) ? `${formatNumber(total, 2)} tCO2e` : "Not available"}
@@ -1905,11 +1735,6 @@ function SummaryMetrics({ summary, selectedYear }) {
             ? `${formatNumber(largestSector.share_pct, 1)}% of selected-year total.`
             : "No approved sector total."
         }
-      />
-      <MetricCard
-        label="Inventory Status"
-        value={summary?.inventory_status || "No public inventory data available"}
-        helper="Returned by the public GHG endpoint."
       />
     </div>
   );
@@ -1955,17 +1780,21 @@ function FiltersPanel({
   onReset,
   options,
   hasActiveFilters,
+  recordCount,
 }) {
   return (
     <PublicCard className="p-5">
       <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
           <h2 className="text-xl font-black text-[#030454]">
-            Explorer Filters
+            GHG Inventory Explorer
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             Year filters the displayed records only. Valid sectors, gases,
             breakout dimensions and geographies remain available.
+            {recordCount !== undefined && (
+              <> <strong className="text-[#030454]">{recordCount}</strong> approved record{recordCount === 1 ? "" : "s"} selected.</>
+            )}
           </p>
         </div>
 
@@ -2036,63 +1865,6 @@ function FiltersPanel({
   );
 }
 
-function InterpretationPanel({ data, projectSummary }) {
-  const latestUpdate = data?.inventory_status?.latest_update;
-  const projectReduction = projectSummary?.total_expected_ghg_reduction_tco2e;
-
-  return (
-    <PublicCard className="p-5">
-      <div className="flex items-start gap-3">
-        <Info className="mt-1 shrink-0 text-[#009B35]" size={20} aria-hidden="true" />
-        <div>
-          <h2 className="text-xl font-black text-[#030454]">
-            Data Interpretation
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            The explorer reads approved greenhouse gas inventory entries from
-            the public API. Values are shown in tCO2e and rounded only for
-            display.
-          </p>
-        </div>
-      </div>
-
-      <dl className="mt-5 grid gap-3 text-sm">
-        <div className="flex justify-between gap-4 border-t border-[#E6EAEC] pt-3">
-          <dt className="text-slate-500">Latest update</dt>
-          <dd className="font-bold text-[#030454]">{formatDate(latestUpdate)}</dd>
-        </div>
-        <div className="flex justify-between gap-4 border-t border-[#E6EAEC] pt-3">
-          <dt className="text-slate-500">Official values</dt>
-          <dd className="text-right font-bold text-[#030454]">
-            Approved inventory entries
-          </dd>
-        </div>
-        <div className="flex justify-between gap-4 border-t border-[#E6EAEC] pt-3">
-          <dt className="text-slate-500">Modelled estimates</dt>
-          <dd className="text-right font-bold text-[#030454]">
-            Not added to inventory totals
-          </dd>
-        </div>
-        <div className="flex justify-between gap-4 border-t border-[#E6EAEC] pt-3">
-          <dt className="text-slate-500">Expected project reductions</dt>
-          <dd className="text-right font-bold text-[#030454]">
-            {hasNumber(projectReduction)
-              ? `${formatNumber(projectReduction, 3)} tCO2e`
-              : "Not available"}
-          </dd>
-        </div>
-      </dl>
-
-      <div className="mt-5 rounded-lg border border-[#F3F74B] bg-[#F3F74B]/20 px-4 py-3 text-sm leading-6 text-[#030454]">
-        Expected project reductions are planning estimates from project records.
-        They are not verified achieved reductions, they are not inventory
-        emissions, and they are not included in explorer charts, metrics,
-        summaries or tables.
-      </div>
-    </PublicCard>
-  );
-}
-
 function SourcesReferencesSection() {
   return (
     <section className="bg-white px-4 py-8 sm:px-8 lg:px-10">
@@ -2154,27 +1926,6 @@ function SourcesReferencesSection() {
   );
 }
 
-function GeographyNotice({ geography }) {
-  return (
-    <PublicCard className="p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-        Map View
-      </p>
-      <h2 className="mt-2 text-xl font-black text-[#030454]">
-        Geographic inventory view is not available
-      </h2>
-      <p className="mt-2 text-sm leading-6 text-slate-600">
-        {geography?.map_view_reason ||
-          "No complete public LGA-level GHG inventory dataset is available."}
-      </p>
-      <p className="mt-3 text-xs font-bold text-slate-500">
-        Approved records with LGA links:{" "}
-        {formatNumber(geography?.approved_lga_record_count, 0)}.
-      </p>
-    </PublicCard>
-  );
-}
-
 // Matches ClimateProject.Sector / GHGInventoryEntry.Sector shared sector
 // codes (backend/projects/models.py, backend/ghg/models.py). Only these are
 // accepted from ?sector= — anything else falls back to ALL rather than being
@@ -2191,7 +1942,6 @@ export default function PublicGHGInventoryExplorerPage() {
 
   const [inventoryData, setInventoryData] = useState(null);
   const [statewideInventory, setStatewideInventory] = useState(null);
-  const [summaryData, setSummaryData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeView, setActiveView] = useState("chart");
@@ -2229,12 +1979,6 @@ export default function PublicGHGInventoryExplorerPage() {
           }));
         }
 
-        return getPublicPortalSummary();
-      })
-      .then((portalSummary) => {
-        if (!isMounted || !portalSummary) return;
-
-        setSummaryData(portalSummary.summary || {});
       })
       .catch((err) => {
         if (!isMounted) return;
@@ -2303,7 +2047,6 @@ export default function PublicGHGInventoryExplorerPage() {
     () => seriesKeys.filter((key) => !hiddenSeriesKeys.includes(key)),
     [seriesKeys, hiddenSeriesKeys]
   );
-  const projectSummary = summaryData?.projects || {};
   const metadata = inventoryData?.metadata || inventoryData?.dimensions || {};
   const metadataYears = (metadata.years || [])
     .map((year) => Number(year))
@@ -2314,13 +2057,6 @@ export default function PublicGHGInventoryExplorerPage() {
     (metadata.years || []).length > 0
       ? String(Math.max(...metadata.years.map((year) => Number(year))))
       : ALL;
-  const selectedPeriodLabel =
-    filters.year_from !== ALL && filters.year_to !== ALL
-      ? filters.year_from === filters.year_to
-        ? filters.year_from
-        : `${filters.year_from}-${filters.year_to}`
-      : "All approved years";
-
   const filterOptions = useMemo(() => {
     const optionMetadata = inventoryData?.metadata || inventoryData?.dimensions || {};
     const yearOptions = (optionMetadata.years || [])
@@ -2440,7 +2176,6 @@ export default function PublicGHGInventoryExplorerPage() {
         <>
           <ExplorerHeader
             data={inventoryData}
-            selectedYear={selectedPeriodLabel}
           />
 
           <PublicSection className="bg-[#F7F9FA]">
@@ -2454,21 +2189,18 @@ export default function PublicGHGInventoryExplorerPage() {
                   </p>
                 </PublicCard>
               )}
-              <GHGSectorTransitionDashboard publicView ghg={transitionFromPublicInventory(statewideInventory)} highlightSector={filters.sector} />
+
+              {/* GHG Inventory Explorer — one unified workspace: compact
+                  filter toolbar directly above the map/chart it controls,
+                  no unrelated section in between. */}
               <FiltersPanel
                 filters={filters}
                 onFilterChange={handleFilterChange}
                 onReset={resetFilters}
                 options={filterOptions}
                 hasActiveFilters={hasActiveFilters}
+                recordCount={records.length}
               />
-
-              <PublicCard className="p-5">
-                <div className="rounded-md border border-[#D8DDE2] bg-white px-4 py-3 text-xs leading-5 text-slate-600">
-                  <strong className="text-[#030454]">{records.length}</strong>{" "}
-                  approved record{records.length === 1 ? "" : "s"} selected.
-                </div>
-              </PublicCard>
 
               <MainVisualization
                 chart={chart}
@@ -2483,20 +2215,7 @@ export default function PublicGHGInventoryExplorerPage() {
                 onFilterChange={handleFilterChange}
               />
 
-              <div className="grid min-w-0 gap-5 xl:grid-cols-2">
-                <InterpretationPanel
-                  data={inventoryData}
-                  projectSummary={projectSummary}
-                />
-                <div className="min-w-0 space-y-5">
-                  <CompositionPanel
-                    chart={chart}
-                    filters={filters}
-                    visibleKeys={visibleKeys}
-                  />
-                  <GeographyNotice geography={inventoryData?.geography} />
-                </div>
-              </div>
+              <GHGSectorTransitionDashboard ghg={transitionFromPublicInventory(statewideInventory)} highlightSector={filters.sector} />
             </div>
           </PublicSection>
 

@@ -78,34 +78,6 @@ const visibleFooterResourceItems = isMilestoneOneDemo
 
 const footerAccessItems = [{ key: "staff-login", label: "Staff Login", href: "/" }];
 
-function FooterNavColumn({ title, items }) {
-  if (!items.length) return null;
-
-  return (
-    <div className="min-w-[150px] flex-1">
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">
-        {title}
-      </p>
-
-      <ul className="mt-3 space-y-2">
-        {items.map((item) => (
-          <li key={item.key}>
-            <button
-              type="button"
-              onClick={() => {
-                window.location.href = item.href;
-              }}
-              className="text-white/65 transition-colors duration-200 hover:text-white"
-            >
-              {item.label}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 function PublicNavButton({ label, active, onClick }) {
   const activeClass = "bg-[#F3F74B] text-[#030454]";
   const ghostClass =
@@ -459,51 +431,59 @@ export function PublicSecondaryButton({
 }
 
 export function PublicPortalFooter() {
-  return (
-    <footer className="bg-[#030454] px-4 py-9 font-['DM_Sans'] text-xs text-white/55 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1536px]">
-        <div className="grid grid-cols-1 gap-x-10 gap-y-7 sm:max-w-4xl sm:grid-cols-[minmax(220px,1.2fr)_minmax(220px,1.2fr)_minmax(120px,0.6fr)] sm:items-start">
-          <div className="max-w-sm">
-            <div className="flex items-center gap-3">
-              <img
-                src="/logos/KCCC.png"
-                alt="Kaduna Climate Command Centre"
-                className="h-10 w-10 shrink-0 object-contain"
-              />
+  const navItems = [...footerExploreItems, ...visibleFooterResourceItems];
 
-              <p className="text-sm font-black uppercase tracking-[0.08em] text-white">
+  return (
+    <footer className="bg-[#030454] px-4 py-3 font-['DM_Sans'] text-xs text-white/55 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-[1536px]">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/logos/KCCC.png"
+              alt="Kaduna Climate Command Centre"
+              className="h-7 w-7 shrink-0 object-contain"
+            />
+            <div>
+              <p className="text-[11px] font-black uppercase tracking-[0.06em] text-white">
                 Kaduna Climate Command Centre
               </p>
+              <p className="text-[10px] leading-4 text-white/55">
+                Public climate evidence, reporting and decision-support portal.
+              </p>
             </div>
-
-            <p className="mt-3 leading-6 text-white/60">
-              Public climate evidence, reporting and decision-support portal.
-            </p>
           </div>
 
-          <div className="flex flex-wrap gap-x-10 gap-y-7">
-            <FooterNavColumn title="Explore" items={footerExploreItems} />
-            <FooterNavColumn title="Resources" items={visibleFooterResourceItems} />
-          </div>
+          <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
+            {navItems.map((item, index) => (
+              <span key={item.key} className="flex items-center gap-x-4">
+                <a href={item.href} className="text-white/70 outline-none transition hover:text-white focus-visible:ring-2 focus-visible:ring-[#009B35]/50">
+                  {item.label}
+                </a>
+                {index < navItems.length - 1 && <span aria-hidden="true" className="text-white/20">|</span>}
+              </span>
+            ))}
+          </nav>
 
-          <FooterNavColumn title="Access" items={footerAccessItems} />
+          {footerAccessItems.map((item) => (
+            <a
+              key={item.key}
+              href={item.href}
+              className="shrink-0 rounded-md border border-white/20 px-3 py-1.5 text-[11px] font-bold text-white outline-none transition hover:border-white/40 focus-visible:ring-2 focus-visible:ring-[#009B35]/50"
+            >
+              {item.label}
+            </a>
+          ))}
         </div>
 
-        <div className="mt-7 border-t border-white/10 pt-4">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">
-            Institutional collaboration
-          </p>
-
-          <p className="mt-2 max-w-3xl leading-6 text-white/55">
-            In collaboration with Kaduna State Government, MacArthur Foundation,
-            and Centre for Policy Research &amp; Development Solutions.
-          </p>
-        </div>
-
-        <div className="mt-4 border-t border-white/10 pt-4">
-          <p className="uppercase tracking-[0.12em]">
+        <div className="mt-2.5 border-t border-white/10 pt-2 text-[10px] leading-4 text-white/45">
+          <span>
+            In collaboration with Kaduna State Government, MacArthur Foundation, and Centre for Policy
+            Research &amp; Development Solutions.
+          </span>
+          <span className="mx-1.5 text-white/20">·</span>
+          <span className="uppercase tracking-[0.08em]">
             © 2026 Kaduna State Climate Command Centre. All rights reserved.
-          </p>
+          </span>
         </div>
       </div>
     </footer>
