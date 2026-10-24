@@ -1707,7 +1707,7 @@ function MetricCard({ label, value, helper }) {
   );
 }
 
-function SummaryMetrics({ summary, selectedYear }) {
+function SummaryMetrics({ summary }) {
   const total = summary?.published_total_emissions_tco2e;
   const largestSector = summary?.largest_contributing_sector;
 
