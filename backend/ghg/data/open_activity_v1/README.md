@@ -48,6 +48,8 @@ Built by `build_osm_shares.py` from the Geofabrik OpenStreetMap Nigeria extract 
 | road_vkm.trunk / primary / secondary / tertiary / minor | The same weighted length for each road class group; it sets each LGA's diesel share. Kaduna holds 9.2% of Nigeria's trunk traffic. |
 | industrial_area | `landuse=industrial`, excluding refinery, power plant and depot polygons (those belong to 1.A.1), as a share of Nigeria. Only used to place industry oil *within* Kaduna. Kaduna's share of national industry oil comes from GHSL population, because industrial land is too patchily mapped nationally (12k ha in all of Nigeria). |
 
+| rail_km.abuja_kaduna_sgr / lagos_kano_narrow / other | `railway=rail` track length, split by tracing each operating line as the shortest path between its stations (Idu-Rigasa; Minna-Kaduna Junction-Zaria-Kano). Kaduna has 765 of Nigeria's 3,977 km: 143 km Abuja-Kaduna, 222 km Lagos-Kano, and 400 km (Kaduna-Kafanchan, the Eastern line, the Zaria-Kaura Namoda branch) with no regular traffic in 2018-2025. The loader turns km into rail diesel (1.A.3.c) with `RAIL_LINES` (trains per day, litres per train-km) and `RAIL_DAYS_SUSPENDED`, and takes it out of Kaduna's road fuel because the IEA transport total includes rail. |
+
 The 2019 extract has no fuel stations in Kaduna and about 16k buildings, which is too sparse to use as a proxy.
 
 ## `wealth_shares.csv`

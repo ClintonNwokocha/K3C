@@ -99,6 +99,27 @@ class Tier1CalculatorTests(SimpleTestCase):
         self.assertAlmostEqual(float(result["average"]), float(F.ROAD_DIESEL_SHARE_NATIONAL), places=6)
         self.assertGreater(result["trunky"], result["average"])
 
+    def test_rail_diesel_uses_railway_factors(self):
+        activity = {("19001", 2022, "energy.rail_diesel_tj"): D("10")}
+        (line,) = calc.fossil_fuels(activity, DRY, ["19001"], [2022])
+        self.assertEqual((line.ipcc_code, line.sub_category), ("1.A.3.c", "railways"))
+        self.assertEqual(line.n2o, D("28.6"))
+
+    def test_rail_diesel_follows_track_km_and_suspensions(self):
+        from ghg.management.commands.load_open_activity_data import rail_diesel_tj
+
+        # 100 km of each operating line, all in one LGA.
+        shares = {f"rail_km.{line}": {"a": D("0.1")} for line in F.RAIL_LINES}
+        nigeria = {f"rail_km.{line}": D("1000000") for line in F.RAIL_LINES}
+        sgr, narrow = F.RAIL_LINES["abuja_kaduna_sgr"], F.RAIL_LINES["lagos_kano_narrow"]
+        full = 100 * 365 * (sgr["trains_per_day"] * sgr["litres_per_train_km"]
+                            + narrow["trains_per_day"] * narrow["litres_per_train_km"])
+        self.assertAlmostEqual(float(rail_diesel_tj(shares, nigeria, ["a"], 2019)["a"]),
+                               float(full * F.DIESEL_TJ_PER_LITRE), places=6)
+        # The 2022 Abuja-Kaduna suspension lowers that year.
+        self.assertLess(rail_diesel_tj(shares, nigeria, ["a"], 2022)["a"],
+                        rail_diesel_tj(shares, nigeria, ["a"], 2023)["a"])
+
     def test_lpg_share_scales_with_development_and_is_bounded(self):
         from ghg.management.commands.load_open_activity_data import lpg_shares
 
@@ -210,8 +231,9 @@ class Tier1EngineTests(TestCase):
         self.assertEqual(payload["inventory_status"]["code"], "provisional_tier1_estimate")
         method = payload["method"]
         self.assertEqual(method["year"], 2022)
-        self.assertIn("1.A.3.c", [c["ipcc_code"] for c in method["not_estimated"]])
+        self.assertIn("1.A.4.a", [c["ipcc_code"] for c in method["not_estimated"]])
         self.assertIn("1.A.3.b", [c["ipcc_code"] for c in method["estimated"]])
+        self.assertIn("1.A.3.c", [c["ipcc_code"] for c in method["estimated"]])
         self.assertEqual([c["ipcc_code"] for c in method["included_elsewhere"]], ["1.A.3.a"])
         self.assertIn("1.B.1", [c["ipcc_code"] for c in method["not_occurring"]])
         self.assertIn("1.A.1.a", [c["ipcc_code"] for c in method["not_occurring"]])
@@ -264,10 +286,15 @@ class LoadOpenActivityDataTests(TestCase):
         self.assertAlmostEqual(float(cattle) / 20862418, 0.0344, places=3)
         rice = ActivityData.objects.filter(year=2022, activity_key="crops.rice_area_ha")
         self.assertEqual(rice.count(), 23)
-        # IEA 2022 transport oil 872,080 TJ; Kaduna holds ~5.35% of OSM weighted road length.
-        road = sum(a.quantity for a in ActivityData.objects.filter(
-            year=2022, activity_key__in=["energy.road_gasoline_tj", "energy.road_diesel_tj"]))
-        self.assertAlmostEqual(float(road) / 872080, 0.0535, places=3)
+        # IEA 2022 transport oil 872,080 TJ; Kaduna holds ~5.35% of OSM weighted
+        # road length.  Rail is taken out of road, so road + rail keeps that total.
+        transport = sum(a.quantity for a in ActivityData.objects.filter(
+            year=2022, activity_key__in=["energy.road_gasoline_tj", "energy.road_diesel_tj",
+                                         "energy.rail_diesel_tj"]))
+        self.assertAlmostEqual(float(transport) / 872080, 0.0535, places=3)
+        rail = ActivityData.objects.filter(year=2022, activity_key="energy.rail_diesel_tj")
+        self.assertEqual(rail.count(), 23)
+        self.assertGreater(sum(a.quantity for a in rail), 0)
         self.assertFalse(ActivityData.objects.filter(activity_key="energy.industry_oil_tj").exists())
 
     def test_population_allocates_residential_and_industry_oil(self):

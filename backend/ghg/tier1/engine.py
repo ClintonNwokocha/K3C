@@ -36,7 +36,7 @@ CATEGORY_REGISTER = [
     ("1.A.2", "Manufacturing and construction fuel use", "energy", "estimated", "low", "IEA Nigeria industry oil x Kaduna population share, placed in LGAs by OpenStreetMap industrial land (2019). Gas and coal not estimated: no pipeline gas reached Kaduna in 2018-2025 and no coal-using plant was identified."),
     ("1.A.3.a", "Domestic aviation", "energy", "IE", "", "Included in 1.A.3.b: the IEA transport total is not split by mode."),
     ("1.A.3.b", "Road transport", "energy", "estimated", "low", "IEA Nigeria transport oil x OpenStreetMap traffic-weighted road length (2019). Diesel share from each LGA's road class mix, calibrated to 15% nationally (Kaduna about 18%)."),
-    ("1.A.3.c", "Railways", "energy", "NE", "", "No open diesel data for the Abuja-Kaduna-Kano line."),
+    ("1.A.3.c", "Railways", "energy", "estimated", "low", "OpenStreetMap 2019 track km of the Abuja-Kaduna (143 km in Kaduna) and Lagos-Kano (222 km) lines x assumed trains per day and diesel per train-km, less suspensions in 2020 and 2022. The other 400 km carried no regular traffic. Taken out of road fuel, since IEA transport includes rail."),
     ("1.A.4.a", "Commercial and institutional, including generators", "energy", "NE", "", "Generator fuel cannot be separated from transport fuel with open data."),
     ("1.A.4.b", "Residential fuel use (firewood, charcoal, kerosene, LPG)", "energy", "estimated", "low", "FAOSTAT wood fuel and charcoal and IEA residential oil, allocated by GHSL population. LPG share of residential oil scaled from 60% nationally by each LGA's HDI and Relative Wealth Index. Biomass CO2 is a memo item."),
     ("1.B.1", "Coal mining", "energy", "NO", "", "No coal mining in Kaduna."),

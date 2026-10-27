@@ -318,6 +318,7 @@ GHG_SUBCATEGORY_LABELS = {
     "transport_combustion": "Transport Combustion",
     "electricity_generation": "Electricity Generation",
     "road_transportation": "Road Transportation",
+    "railways": "Railways",
     "residential_fuel_use": "Residential Fuel Use",
     "commercial_institutional_fuel_use": "Commercial and Institutional Fuel Use",
     "industrial_fuel_combustion": "Industrial Fuel Combustion",
