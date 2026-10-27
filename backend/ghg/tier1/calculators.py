@@ -201,6 +201,38 @@ def cooking(activity: Activity, zones: Zones, codes: Iterable[str], years: Itera
 
 
 # ---------------------------------------------------------------------------
+# Fossil oil products: road transport 1.A.3.b, residential kerosene and LPG
+# 1.A.4.b, manufacturing 1.A.2
+# ---------------------------------------------------------------------------
+
+FOSSIL_FLOWS = (
+    ("energy.road_oil_tj", "1.A.3.b", "road_transportation", F.ROAD_FUEL_MIX,
+     "Vol.2 Tables 3.2.1-3.2.2; IEA transport oil x OSM weighted road length"),
+    ("energy.residential_oil_tj", "1.A.4.b", "residential_fuel_use", F.RESIDENTIAL_OIL_MIX,
+     "Vol.2 Table 2.5; IEA residential oil x GHSL population"),
+    ("energy.industry_oil_tj", "1.A.2", "industrial_fuel_combustion", F.INDUSTRY_OIL_MIX,
+     "Vol.2 Table 2.3; IEA industry oil x population, placed by OSM industrial area"),
+)
+
+
+def fossil_fuels(activity: Activity, zones: Zones, codes: Iterable[str], years: Iterable[int]) -> List[Line]:
+    lines = []
+    for code in codes:
+        for year in years:
+            for key, ipcc_code, sub_category, mix, note in FOSSIL_FLOWS:
+                tj = _get(activity, code, year, key)
+                if not tj:
+                    continue
+                for fuel, (share, ef) in mix.items():
+                    lines.append(Line(lgacode=code, year=year, sector="energy",
+                                      sub_category=sub_category, ipcc_code=ipcc_code,
+                                      source_key=fuel, quantity=tj * share, unit="TJ",
+                                      co2=ef["co2"], ch4=ef["ch4"], n2o=ef["n2o"],
+                                      activity_keys=(key,), confidence="low", note=note))
+    return lines
+
+
+# ---------------------------------------------------------------------------
 # Waste: 4.A (first order decay), 4.C.2, 4.D.1
 # ---------------------------------------------------------------------------
 

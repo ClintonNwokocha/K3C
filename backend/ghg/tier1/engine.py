@@ -32,12 +32,12 @@ EF_PLACES = Decimal("0.000001")
 # (ipcc_code, name, sector, status, confidence, reason)
 CATEGORY_REGISTER = [
     ("1.A.1", "Energy industries (power station, refinery)", "energy", "NE", "", "No open data on plant fuel use; enter manually when available."),
-    ("1.A.2", "Manufacturing and construction fuel use", "energy", "NE", "", "No open fuel-use data by industry."),
-    ("1.A.3.a", "Domestic aviation", "energy", "NE", "", "No open fuel or movement data for Kaduna airport."),
-    ("1.A.3.b", "Road transport", "energy", "NE", "", "No open state or national road-fuel series loaded yet."),
+    ("1.A.2", "Manufacturing and construction fuel use", "energy", "estimated", "low", "IEA Nigeria industry oil x Kaduna population share, placed in LGAs by OpenStreetMap industrial land (2019). Gas and coal not estimated: no pipeline gas reached Kaduna in 2018-2025 and no coal-using plant was identified."),
+    ("1.A.3.a", "Domestic aviation", "energy", "IE", "", "Included in 1.A.3.b: the IEA transport total is not split by mode."),
+    ("1.A.3.b", "Road transport", "energy", "estimated", "low", "IEA Nigeria transport oil x OpenStreetMap traffic-weighted road length (2019). Assumed 85% gasoline, 15% diesel."),
     ("1.A.3.c", "Railways", "energy", "NE", "", "No open diesel data for the Abuja-Kaduna-Kano line."),
     ("1.A.4.a", "Commercial and institutional, including generators", "energy", "NE", "", "Generator fuel cannot be separated from transport fuel with open data."),
-    ("1.A.4.b", "Residential cooking (firewood, charcoal)", "energy", "estimated", "low", "FAOSTAT national wood fuel and charcoal allocated by GHSL population. Kerosene and LPG not estimated. Biomass CO2 is a memo item."),
+    ("1.A.4.b", "Residential fuel use (firewood, charcoal, kerosene, LPG)", "energy", "estimated", "low", "FAOSTAT wood fuel and charcoal and IEA residential oil, allocated by GHSL population. Assumed 60% LPG, 40% kerosene. Biomass CO2 is a memo item."),
     ("1.B.1", "Coal mining", "energy", "NO", "", "No coal mining in Kaduna."),
     ("1.B.2", "Oil and gas fugitive emissions", "energy", "NE", "", "No upstream production in Kaduna; refinery fugitives need throughput data."),
     ("2.A.1", "Cement production", "ippu", "NO", "", "No clinker plant identified in Kaduna (OpenStreetMap, Global Energy Monitor)."),
@@ -102,6 +102,7 @@ def build_lines(years: List[int]):
     lines += calc.soils_and_rice(activity, zones, codes, years)
     lines += calc.fires(activity, zones, codes, years)
     lines += calc.cooking(activity, zones, codes, years)
+    lines += calc.fossil_fuels(activity, zones, codes, years)
     lines += calc.waste(activity, zones, codes, years)
     if agb:
         lines += calc.land_use_change(activity, zones, codes, years, agb)
