@@ -1,3 +1,5 @@
+import { GHG_SHORT_NOTE } from "../config/ghgInventoryNotes.js";
+
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits });
 }
@@ -78,7 +80,7 @@ export default function DashboardCommandMetricsRow({
             ? `Latest approved year ${ghg.latest_year ?? "—"} · ${formatNumber(
                 ghg.total_review_queue_count,
                 0
-              )} entries in review.`
+              )} entries in review. ${GHG_SHORT_NOTE}`
             : "GHG inventory summary unavailable."
         }
         tone="blue"
