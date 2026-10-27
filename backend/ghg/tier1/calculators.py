@@ -206,11 +206,15 @@ def cooking(activity: Activity, zones: Zones, codes: Iterable[str], years: Itera
 # ---------------------------------------------------------------------------
 
 FOSSIL_FLOWS = (
-    ("energy.road_oil_tj", "1.A.3.b", "road_transportation", F.ROAD_FUEL_MIX,
-     "Vol.2 Tables 3.2.1-3.2.2; IEA transport oil x OSM weighted road length"),
-    ("energy.residential_oil_tj", "1.A.4.b", "residential_fuel_use", F.RESIDENTIAL_OIL_MIX,
-     "Vol.2 Table 2.5; IEA residential oil x GHSL population"),
-    ("energy.industry_oil_tj", "1.A.2", "industrial_fuel_combustion", F.INDUSTRY_OIL_MIX,
+    ("energy.road_gasoline_tj", "1.A.3.b", "road_transportation", "motor_gasoline",
+     "Vol.2 Tables 3.2.1-3.2.2; IEA transport oil x OSM road length, diesel share by road class"),
+    ("energy.road_diesel_tj", "1.A.3.b", "road_transportation", "diesel",
+     "Vol.2 Tables 3.2.1-3.2.2; IEA transport oil x OSM road length, diesel share by road class"),
+    ("energy.residential_lpg_tj", "1.A.4.b", "residential_fuel_use", "lpg",
+     "Vol.2 Table 2.5; IEA residential oil x GHSL population, LPG share by HDI and RWI"),
+    ("energy.residential_kerosene_tj", "1.A.4.b", "residential_fuel_use", "kerosene",
+     "Vol.2 Table 2.5; IEA residential oil x GHSL population, LPG share by HDI and RWI"),
+    ("energy.industry_oil_tj", "1.A.2", "industrial_fuel_combustion", "gas_diesel_oil",
      "Vol.2 Table 2.3; IEA industry oil x population, placed by OSM industrial area"),
 )
 
@@ -219,16 +223,16 @@ def fossil_fuels(activity: Activity, zones: Zones, codes: Iterable[str], years: 
     lines = []
     for code in codes:
         for year in years:
-            for key, ipcc_code, sub_category, mix, note in FOSSIL_FLOWS:
+            for key, ipcc_code, sub_category, fuel, note in FOSSIL_FLOWS:
                 tj = _get(activity, code, year, key)
                 if not tj:
                     continue
-                for fuel, (share, ef) in mix.items():
-                    lines.append(Line(lgacode=code, year=year, sector="energy",
-                                      sub_category=sub_category, ipcc_code=ipcc_code,
-                                      source_key=fuel, quantity=tj * share, unit="TJ",
-                                      co2=ef["co2"], ch4=ef["ch4"], n2o=ef["n2o"],
-                                      activity_keys=(key,), confidence="low", note=note))
+                ef = F.FUEL_EF_KG_PER_TJ[fuel]
+                lines.append(Line(lgacode=code, year=year, sector="energy",
+                                  sub_category=sub_category, ipcc_code=ipcc_code,
+                                  source_key=fuel, quantity=tj, unit="TJ",
+                                  co2=ef["co2"], ch4=ef["ch4"], n2o=ef["n2o"],
+                                  activity_keys=(key,), confidence="low", note=note))
     return lines
 
 

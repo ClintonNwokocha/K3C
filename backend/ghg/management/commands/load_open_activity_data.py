@@ -5,10 +5,13 @@ National FAOSTAT and IEA series (ghg/data/open_activity_v1/nigeria_national.csv)
 are allocated to LGAs with:
   - livestock and crop map shares (lga_shares.csv: FAO GLW3, GAEZ+ 2015)
   - OpenStreetMap shares (osm_shares.csv): traffic-weighted road length for
-    transport oil; industrial land to place industry oil within Kaduna
+    transport oil, and the road class mix for its diesel share; industrial
+    land to place industry oil within Kaduna
   - the GHSL population share (wood fuel, charcoal, residential oil, and
     Kaduna's share of industry oil), which needs
-    `sync_inventory_activity --layers population` to have run first.
+    `sync_inventory_activity --layers population` to have run first
+  - HDI and Relative Wealth Index (wealth_shares.csv) for the LPG share of
+    residential oil.
 
 Years with no national value reuse the latest earlier year and are flagged
 carried_forward.  See ghg/data/open_activity_v1/README.md for sources.
@@ -47,6 +50,9 @@ LIVESTOCK = {
     "chickens": "chickens",
 }
 
+# Keys written by earlier versions of this loader.
+OBSOLETE_KEYS = ["energy.road_oil_tj", "energy.residential_oil_tj"]
+
 
 def load_national():
     series = defaultdict(dict)
@@ -58,13 +64,41 @@ def load_national():
 
 def load_shares():
     shares = defaultdict(dict)
+    nigeria = {}
     names = {}
-    for name in ("lga_shares.csv", "osm_shares.csv"):
+    for name in ("lga_shares.csv", "osm_shares.csv", "wealth_shares.csv"):
         with open(DATA_DIR / name, encoding="utf-8") as fh:
             for row in csv.DictReader(fh):
                 shares[row["layer"]][row["lgacode"]] = Decimal(row["share"])
+                nigeria[row["layer"]] = Decimal(row["nigeria_value"])
                 names[row["lgacode"]] = row["lganame"]
-    return shares, names
+    return shares, nigeria, names
+
+
+def road_diesel_shares(shares, nigeria, codes):
+    """
+    Diesel share of road fuel per LGA from its traffic-weighted road class mix,
+    scaled so Nigeria's own mix gives ROAD_DIESEL_SHARE_NATIONAL.
+    """
+    def mix(vkm):
+        total = sum(vkm.values())
+        return sum(vkm[g] * F.ROAD_DIESEL_BY_CLASS[g] for g in vkm) / total if total else Decimal("0")
+
+    groups = F.ROAD_DIESEL_BY_CLASS
+    scale = F.ROAD_DIESEL_SHARE_NATIONAL / mix({g: nigeria[f"road_vkm.{g}"] for g in groups})
+    return {
+        code: mix({g: shares[f"road_vkm.{g}"][code] * nigeria[f"road_vkm.{g}"] for g in groups}) * scale
+        for code in codes
+    }
+
+
+def lpg_shares(shares, codes):
+    """LPG share of residential oil: national share x mean of relative HDI and RWI."""
+    low, high = F.LPG_SHARE_BOUNDS
+    return {
+        code: min(max(F.RESIDENTIAL_LPG_SHARE_NATIONAL * (shares["hdi"][code] + shares["rwi"][code]) / 2, low), high)
+        for code in codes
+    }
 
 
 def value_for(series, year):
@@ -87,13 +121,15 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         years = parse_years(options["years"])
         national = load_national()
-        shares, names = load_shares()
+        shares, nigeria, names = load_shares()
         try:
             lgas = registry_by_lgacode(names)
         except ValueError as exc:
             raise CommandError(str(exc))
         codes = sorted(shares["cattle"])
         industrial_total = sum(shares["industrial_area"].values())
+        diesel_share = road_diesel_shares(shares, nigeria, codes)
+        lpg_share = lpg_shares(shares, codes)
         code_by_registry_id = {lga.lga_id: code for code, lga in lgas.items()}
 
         population = {
@@ -132,8 +168,12 @@ class Command(BaseCommand):
                                 "FAOSTAT Nigeria N agricultural use x GAEZ+ 2015 harvested-area share", carried))
 
                 road_tj, carried = value_for(national["transport_oil_tj"], year)
-                records.append((code, year, "energy.road_oil_tj", road_tj * shares["roads_weighted"][code], "TJ",
-                                "IEA Nigeria transport oil x OSM 2019 traffic-weighted road length share", carried))
+                road_tj *= shares["roads_weighted"][code]
+                source = "IEA Nigeria transport oil x OSM 2019 traffic-weighted road length share"
+                records.append((code, year, "energy.road_gasoline_tj", road_tj * (1 - diesel_share[code]), "TJ",
+                                f"{source}; gasoline = 1 - diesel share by road class", carried))
+                records.append((code, year, "energy.road_diesel_tj", road_tj * diesel_share[code], "TJ",
+                                f"{source}; diesel share {diesel_share[code]:.3f} by road class", carried))
 
                 lga_pop = population.get((code, year))
                 if not lga_pop or not nga_pop:
@@ -149,8 +189,12 @@ class Command(BaseCommand):
                 records.append((code, year, "energy.charcoal_t", charcoal_t * pop_share, "t",
                                 "FAOSTAT Nigeria charcoal x GHSL population share", cf_char))
                 res_tj, carried = value_for(national["residential_oil_tj"], year)
-                records.append((code, year, "energy.residential_oil_tj", res_tj * pop_share, "TJ",
-                                "IEA Nigeria residential oil x GHSL population share", carried))
+                res_tj *= pop_share
+                source = "IEA Nigeria residential oil x GHSL population share"
+                records.append((code, year, "energy.residential_lpg_tj", res_tj * lpg_share[code], "TJ",
+                                f"{source}; LPG share {lpg_share[code]:.3f} from HDI and RWI", carried))
+                records.append((code, year, "energy.residential_kerosene_tj", res_tj * (1 - lpg_share[code]), "TJ",
+                                f"{source}; kerosene = 1 - LPG share", carried))
                 # OSM industrial land is too patchily mapped nationally to set
                 # Kaduna's share, so population sets it and OSM places it.
                 ind_tj, carried = value_for(national["industry_oil_tj"], year)
@@ -170,6 +214,7 @@ class Command(BaseCommand):
         if options["dry_run"]:
             return
 
+        ActivityData.objects.filter(method_version=METHOD_VERSION, activity_key__in=OBSOLETE_KEYS).delete()
         for code, year, key, quantity, unit, source, carried in records:
             ActivityData.objects.update_or_create(
                 lga=lgas[code],

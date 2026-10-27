@@ -66,24 +66,48 @@ class Tier1CalculatorTests(SimpleTestCase):
         self.assertEqual(line.co2, D("1747.2000"))
         self.assertAlmostEqual(float(line.co2e_tonnes), 0.147576, places=6)
 
-    def test_road_oil_split_into_gasoline_and_diesel(self):
-        activity = {("19001", 2022, "energy.road_oil_tj"): D("1")}
+    def test_road_fuels_use_their_own_factors(self):
+        activity = {
+            ("19001", 2022, "energy.road_gasoline_tj"): D("0.8"),
+            ("19001", 2022, "energy.road_diesel_tj"): D("0.2"),
+        }
         lines = calc.fossil_fuels(activity, DRY, ["19001"], [2022])
         self.assertEqual({l.source_key for l in lines}, {"motor_gasoline", "diesel"})
-        self.assertEqual(sum(l.quantity for l in lines), D("1"))
         co2_kg = sum(l.quantity * l.co2 for l in lines)
-        self.assertEqual(co2_kg, D("0.85") * 69300 + D("0.15") * 74100)
+        self.assertEqual(co2_kg, D("0.8") * 69300 + D("0.2") * 74100)
         self.assertTrue(all(l.ipcc_code == "1.A.3.b" and not l.biogenic_co2 for l in lines))
 
     def test_residential_and_industry_oil_categories(self):
         activity = {
-            ("19001", 2022, "energy.residential_oil_tj"): D("10"),
+            ("19001", 2022, "energy.residential_lpg_tj"): D("6"),
+            ("19001", 2022, "energy.residential_kerosene_tj"): D("4"),
             ("19001", 2022, "energy.industry_oil_tj"): D("10"),
         }
         lines = calc.fossil_fuels(activity, DRY, ["19001"], [2022])
         self.assertEqual({l.ipcc_code for l in lines}, {"1.A.4.b", "1.A.2"})
-        lpg = lines_for(lines, "1.A.4.b", "lpg")[0]
-        self.assertEqual(lpg.quantity, D("6.0"))
+        self.assertEqual(lines_for(lines, "1.A.4.b", "kerosene")[0].co2, D("71900"))
+
+    def test_road_diesel_share_follows_road_class_mix(self):
+        from ghg.management.commands.load_open_activity_data import road_diesel_shares
+
+        groups = list(F.ROAD_DIESEL_BY_CLASS)
+        nigeria = {f"road_vkm.{g}": D("100") for g in groups}
+        shares = {f"road_vkm.{g}": {"trunky": D("0"), "average": D("0.01")} for g in groups}
+        shares["road_vkm.trunk"]["trunky"] = D("0.01")
+        result = road_diesel_shares(shares, nigeria, ["trunky", "average"])
+        # An LGA with Nigeria's mix gets the national share; a trunk-only LGA gets more.
+        self.assertAlmostEqual(float(result["average"]), float(F.ROAD_DIESEL_SHARE_NATIONAL), places=6)
+        self.assertGreater(result["trunky"], result["average"])
+
+    def test_lpg_share_scales_with_development_and_is_bounded(self):
+        from ghg.management.commands.load_open_activity_data import lpg_shares
+
+        shares = {"hdi": {"avg": D("1"), "rich": D("1.3"), "poor": D("0.1")},
+                  "rwi": {"avg": D("1"), "rich": D("2"), "poor": D("0.05")}}
+        result = lpg_shares(shares, ["avg", "rich", "poor"])
+        self.assertEqual(result["avg"], F.RESIDENTIAL_LPG_SHARE_NATIONAL)
+        self.assertEqual(result["rich"], D("0.95"))
+        self.assertEqual(result["poor"], D("0.05"))
 
     def test_first_order_decay_reaches_steady_state(self):
         deposits = {y: D("1000") for y in range(1975, 2026)}
@@ -190,6 +214,7 @@ class Tier1EngineTests(TestCase):
         self.assertIn("1.A.3.b", [c["ipcc_code"] for c in method["estimated"]])
         self.assertEqual([c["ipcc_code"] for c in method["included_elsewhere"]], ["1.A.3.a"])
         self.assertIn("1.B.1", [c["ipcc_code"] for c in method["not_occurring"]])
+        self.assertIn("1.A.1.a", [c["ipcc_code"] for c in method["not_occurring"]])
         self.assertAlmostEqual(method["biogenic_co2_memo_tco2"], 174.72, places=2)
         self.assertGreater(method["lulucf_provisional_tco2e"], 0)
         # LULUCF is held back from the published total.
@@ -240,7 +265,8 @@ class LoadOpenActivityDataTests(TestCase):
         rice = ActivityData.objects.filter(year=2022, activity_key="crops.rice_area_ha")
         self.assertEqual(rice.count(), 23)
         # IEA 2022 transport oil 872,080 TJ; Kaduna holds ~5.35% of OSM weighted road length.
-        road = sum(a.quantity for a in ActivityData.objects.filter(year=2022, activity_key="energy.road_oil_tj"))
+        road = sum(a.quantity for a in ActivityData.objects.filter(
+            year=2022, activity_key__in=["energy.road_gasoline_tj", "energy.road_diesel_tj"]))
         self.assertAlmostEqual(float(road) / 872080, 0.0535, places=3)
         self.assertFalse(ActivityData.objects.filter(activity_key="energy.industry_oil_tj").exists())
 
@@ -264,7 +290,9 @@ class LoadOpenActivityDataTests(TestCase):
 
         kaduna_pop_share = D("2300000") / (D("230000000") / D("4"))
         # IEA 2022: residential oil 58,320 TJ, industry oil 18,872 TJ.
-        self.assertAlmostEqual(float(total("energy.residential_oil_tj")), float(58320 * kaduna_pop_share), delta=1)
+        residential = total("energy.residential_lpg_tj") + total("energy.residential_kerosene_tj")
+        self.assertAlmostEqual(float(residential), float(58320 * kaduna_pop_share), delta=1)
+        self.assertGreater(total("energy.residential_lpg_tj"), total("energy.residential_kerosene_tj"))
         self.assertAlmostEqual(float(total("energy.industry_oil_tj")), float(18872 * kaduna_pop_share), delta=1)
         industry = ActivityData.objects.filter(year=2022, activity_key="energy.industry_oil_tj")
         self.assertEqual(industry.get(lga__lga_name="Kudan").quantity, D("0"))

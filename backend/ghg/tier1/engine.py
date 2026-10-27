@@ -31,13 +31,14 @@ EF_PLACES = Decimal("0.000001")
 
 # (ipcc_code, name, sector, status, confidence, reason)
 CATEGORY_REGISTER = [
-    ("1.A.1", "Energy industries (power station, refinery)", "energy", "NE", "", "No open data on plant fuel use; enter manually when available."),
+    ("1.A.1.a", "Public electricity generation", "energy", "NO", "", "The only fossil plant in Kaduna (Kudenda, 215 MW oil/gas, OpenStreetMap way 485733022 via Open Infrastructure Map) was not commissioned: about 80% complete in January 2022 per the Federal Ministry of Power. Re-check if it starts generating."),
+    ("1.A.1.b", "Petroleum refining (Kaduna Refinery)", "energy", "NE", "", "No open throughput or fuel-use data for the Kaduna Refinery."),
     ("1.A.2", "Manufacturing and construction fuel use", "energy", "estimated", "low", "IEA Nigeria industry oil x Kaduna population share, placed in LGAs by OpenStreetMap industrial land (2019). Gas and coal not estimated: no pipeline gas reached Kaduna in 2018-2025 and no coal-using plant was identified."),
     ("1.A.3.a", "Domestic aviation", "energy", "IE", "", "Included in 1.A.3.b: the IEA transport total is not split by mode."),
-    ("1.A.3.b", "Road transport", "energy", "estimated", "low", "IEA Nigeria transport oil x OpenStreetMap traffic-weighted road length (2019). Assumed 85% gasoline, 15% diesel."),
+    ("1.A.3.b", "Road transport", "energy", "estimated", "low", "IEA Nigeria transport oil x OpenStreetMap traffic-weighted road length (2019). Diesel share from each LGA's road class mix, calibrated to 15% nationally (Kaduna about 18%)."),
     ("1.A.3.c", "Railways", "energy", "NE", "", "No open diesel data for the Abuja-Kaduna-Kano line."),
     ("1.A.4.a", "Commercial and institutional, including generators", "energy", "NE", "", "Generator fuel cannot be separated from transport fuel with open data."),
-    ("1.A.4.b", "Residential fuel use (firewood, charcoal, kerosene, LPG)", "energy", "estimated", "low", "FAOSTAT wood fuel and charcoal and IEA residential oil, allocated by GHSL population. Assumed 60% LPG, 40% kerosene. Biomass CO2 is a memo item."),
+    ("1.A.4.b", "Residential fuel use (firewood, charcoal, kerosene, LPG)", "energy", "estimated", "low", "FAOSTAT wood fuel and charcoal and IEA residential oil, allocated by GHSL population. LPG share of residential oil scaled from 60% nationally by each LGA's HDI and Relative Wealth Index. Biomass CO2 is a memo item."),
     ("1.B.1", "Coal mining", "energy", "NO", "", "No coal mining in Kaduna."),
     ("1.B.2", "Oil and gas fugitive emissions", "energy", "NE", "", "No upstream production in Kaduna; refinery fugitives need throughput data."),
     ("2.A.1", "Cement production", "ippu", "NO", "", "No clinker plant identified in Kaduna (OpenStreetMap, Global Energy Monitor)."),
@@ -159,6 +160,8 @@ def recompute_state_totals(sectors: Iterable[str], years: Iterable[int]):
 
 
 def write_category_status(years: Iterable[int]):
+    codes = [row[0] for row in CATEGORY_REGISTER]
+    CategoryStatus.objects.filter(method_version=METHOD_VERSION, year__in=years).exclude(ipcc_code__in=codes).delete()
     for year in years:
         for code, name, sector, status, confidence, reason in CATEGORY_REGISTER:
             CategoryStatus.objects.update_or_create(

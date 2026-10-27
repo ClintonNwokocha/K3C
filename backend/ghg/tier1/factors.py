@@ -144,25 +144,39 @@ CHARCOAL_EF_KG_PER_TJ = {"co2": D("112000"), "ch4": D("200"), "n2o": D("1")}
 
 # ---------------------------------------------------------------------------
 # Fossil oil products, kg/TJ.  National consumption comes from the IEA World
-# Energy Balances (TJ, oil products by flow), which give no product split, so
-# each flow is divided by an assumed product mix.
+# Energy Balances (TJ, oil products by flow), which give no product split.
 #   1.A.3.b road: Vol.2 Table 3.2.1 (CO2) and Table 3.2.2 (CH4, N2O;
 #           gasoline uncontrolled).  The IEA transport flow also holds
 #           domestic aviation and navigation, all assigned to road here.
 #   1.A.4.b residential kerosene and LPG: Vol.2 Table 2.5.
 #   1.A.2 industry: Vol.2 Table 2.3, all oil treated as gas/diesel oil.
 # ---------------------------------------------------------------------------
-ROAD_FUEL_MIX = {
-    "motor_gasoline": (D("0.85"), {"co2": D("69300"), "ch4": D("33"), "n2o": D("3.2")}),
-    "diesel": (D("0.15"), {"co2": D("74100"), "ch4": D("3.9"), "n2o": D("3.9")}),
+FUEL_EF_KG_PER_TJ = {
+    "motor_gasoline": {"co2": D("69300"), "ch4": D("33"), "n2o": D("3.2")},
+    "diesel": {"co2": D("74100"), "ch4": D("3.9"), "n2o": D("3.9")},
+    "lpg": {"co2": D("63100"), "ch4": D("5"), "n2o": D("0.1")},
+    "kerosene": {"co2": D("71900"), "ch4": D("10"), "n2o": D("0.6")},
+    "gas_diesel_oil": {"co2": D("74100"), "ch4": D("3"), "n2o": D("0.6")},
 }
-RESIDENTIAL_OIL_MIX = {
-    "lpg": (D("0.6"), {"co2": D("63100"), "ch4": D("5"), "n2o": D("0.1")}),
-    "kerosene": (D("0.4"), {"co2": D("71900"), "ch4": D("10"), "n2o": D("0.6")}),
+
+# Road diesel share.  Diesel's share of fuel energy on each OSM road class
+# group (trucks and buses dominate trunk roads; petrol cars, motorcycles and
+# tricycles dominate minor roads), scaled so the Nigeria-wide traffic mix
+# gives ROAD_DIESEL_SHARE_NATIONAL.  An LGA's share then follows its own mix.
+ROAD_DIESEL_SHARE_NATIONAL = D("0.15")
+ROAD_DIESEL_BY_CLASS = {
+    "trunk": D("0.40"),
+    "primary": D("0.25"),
+    "secondary": D("0.15"),
+    "tertiary": D("0.10"),
+    "minor": D("0.05"),
 }
-INDUSTRY_OIL_MIX = {
-    "gas_diesel_oil": (D("1"), {"co2": D("74100"), "ch4": D("3"), "n2o": D("0.6")}),
-}
+
+# Residential LPG share.  National LPG share of residential oil, scaled in
+# each LGA by its development relative to Nigeria: the mean of HDI (LGA/Nigeria)
+# and Relative Wealth Index (LGA percentile / median).  Clamped to 5-95%.
+RESIDENTIAL_LPG_SHARE_NATIONAL = D("0.6")
+LPG_SHARE_BOUNDS = (D("0.05"), D("0.95"))
 
 # ---------------------------------------------------------------------------
 # 4.A Solid waste disposal, Vol.5 Ch.2-3 (first order decay, bulk waste).
@@ -243,6 +257,6 @@ VERIFY = [
     "OPEN_BURN_N2O_KG_PER_T and OPEN_BURN_CO2_KG_PER_T (derived, Vol.5 Ch.5)",
     "SANITATION_SHARES (assumption until DHS 2018 Kaduna tables are loaded)",
     "PROTEIN_KG_PER_CAP_YR (FAOSTAT food balance, Nigeria)",
-    "ROAD_FUEL_MIX 85% gasoline / 15% diesel (assumption; NBS PMS and AGO truck-out volumes)",
-    "RESIDENTIAL_OIL_MIX 60% LPG / 40% kerosene (assumption; NBS LPG and DPK volumes)",
+    "ROAD_DIESEL_SHARE_NATIONAL 15% and ROAD_DIESEL_BY_CLASS (assumption; NBS PMS and AGO truck-out volumes, FMW traffic counts)",
+    "RESIDENTIAL_LPG_SHARE_NATIONAL 60% (assumption; NBS LPG and DPK volumes); LGA variation from HDI and RWI",
 ]
