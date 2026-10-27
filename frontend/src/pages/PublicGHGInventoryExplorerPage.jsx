@@ -1256,17 +1256,15 @@ function GhgMapView({ mapData, filters, optionLabels, onFilterChange }) {
 
   if (!mapData?.eligible) {
     return (
-      <PublicCard className="p-5">
-        <PublicEmptyState
-          title="Map View is unavailable because complete LGA-level inventory coverage is not available for the selected year and filters."
-          message={`${mapData?.coverage_count || 0} of ${mapData?.expected_count || 23} LGAs available for map year ${mapData?.year || "selected year"}.`}
-        />
-      </PublicCard>
+      <PublicEmptyState
+        title="Map View is unavailable because complete LGA-level inventory coverage is not available for the selected year and filters."
+        message={`${mapData?.coverage_count || 0} of ${mapData?.expected_count || 23} LGAs available for map year ${mapData?.year || "selected year"}.`}
+      />
     );
   }
 
   return (
-    <PublicCard className="min-w-0 overflow-hidden p-5">
+    <div className="min-w-0 overflow-hidden">
       <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
         <div>
           <h2 className="text-2xl font-black text-[#030454]">GHG Emissions Map</h2>
@@ -1340,7 +1338,7 @@ function GhgMapView({ mapData, filters, optionLabels, onFilterChange }) {
           optionLabels={optionLabels}
         />
       </div>
-    </PublicCard>
+    </div>
   );
 }
 
@@ -1532,7 +1530,7 @@ function ViewSwitch({ activeView, onChange, mapData }) {
   ];
 
   return (
-    <div className="flex flex-col justify-between gap-3 rounded-lg border border-[#D8DDE2] bg-white p-3 md:flex-row md:items-center">
+    <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
       <div className="inline-flex w-fit rounded-md border border-[#D8DDE2] bg-[#F7F9FA] p-1">
         {options.map((option) => (
           <button
@@ -1580,7 +1578,7 @@ function MainVisualization({
   const seriesCount = visibleKeys.length;
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4 border-t border-[#E6EAEC] pt-4">
       <ViewSwitch
         activeView={activeView}
         onChange={onViewChange}
@@ -1595,8 +1593,8 @@ function MainVisualization({
           onFilterChange={onFilterChange}
         />
       ) : (
-        <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,4fr)_minmax(260px,1.15fr)]">
-          <PublicCard className="min-w-0 p-5">
+        <div className="grid min-w-0 gap-5 border-t border-[#E6EAEC] pt-4 xl:grid-cols-[minmax(0,4fr)_minmax(260px,1.15fr)]">
+          <div className="min-w-0">
             <div className="mb-5 flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
               <div>
                 <h2 className="text-2xl font-black text-[#030454]">
@@ -1624,7 +1622,7 @@ function MainVisualization({
               onToggleSeries={onToggleSeries}
               onShowAll={onShowAllSeries}
             />
-          </PublicCard>
+          </div>
 
           <ChangePanel chart={chart} visibleKeys={visibleKeys} />
         </div>
@@ -1843,13 +1841,13 @@ function FiltersPanel({
   recordCount,
 }) {
   return (
-    <PublicCard className="p-5">
-      <div className="mb-5 flex flex-col justify-between gap-3 md:flex-row md:items-center">
+    <div>
+      <div className="mb-3 flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
           <h2 className="text-xl font-black text-[#030454]">
             GHG Inventory Explorer
           </h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
+          <p className="mt-1 text-xs leading-5 text-slate-600">
             Year filters the displayed records only. Valid sectors, gases,
             breakout dimensions and geographies remain available.
             {recordCount !== undefined && (
@@ -1868,7 +1866,7 @@ function FiltersPanel({
         </PublicSecondaryButton>
       </div>
 
-      <div className="grid min-w-0 gap-4 md:grid-cols-3 xl:grid-cols-7">
+      <div className="grid min-w-0 gap-3 md:grid-cols-3 xl:grid-cols-7">
         <FilterField
           id="ghg-filter-sector"
           label="1. Sector"
@@ -1921,7 +1919,7 @@ function FiltersPanel({
           options={options.breakoutOptions}
         />
       </div>
-    </PublicCard>
+    </div>
   );
 }
 
@@ -2253,27 +2251,29 @@ export default function PublicGHGInventoryExplorerPage() {
               {/* GHG Inventory Explorer — one unified workspace: compact
                   filter toolbar directly above the map/chart it controls,
                   no unrelated section in between. */}
-              <FiltersPanel
-                filters={filters}
-                onFilterChange={handleFilterChange}
-                onReset={resetFilters}
-                options={filterOptions}
-                hasActiveFilters={hasActiveFilters}
-                recordCount={records.length}
-              />
+              <PublicCard className="min-w-0 p-5">
+                <FiltersPanel
+                  filters={filters}
+                  onFilterChange={handleFilterChange}
+                  onReset={resetFilters}
+                  options={filterOptions}
+                  hasActiveFilters={hasActiveFilters}
+                  recordCount={records.length}
+                />
 
-              <MainVisualization
-                chart={chart}
-                mapData={mapData}
-                filters={filters}
-                optionLabels={optionLabels}
-                visibleKeys={visibleKeys}
-                onToggleSeries={handleToggleSeries}
-                onShowAllSeries={handleShowAllSeries}
-                activeView={activeView}
-                onViewChange={handleViewChange}
-                onFilterChange={handleFilterChange}
-              />
+                <MainVisualization
+                  chart={chart}
+                  mapData={mapData}
+                  filters={filters}
+                  optionLabels={optionLabels}
+                  visibleKeys={visibleKeys}
+                  onToggleSeries={handleToggleSeries}
+                  onShowAllSeries={handleShowAllSeries}
+                  activeView={activeView}
+                  onViewChange={handleViewChange}
+                  onFilterChange={handleFilterChange}
+                />
+              </PublicCard>
 
               <GHGSectorTransitionDashboard ghg={transitionFromPublicInventory(statewideInventory)} highlightSector={filters.sector} />
             </div>
