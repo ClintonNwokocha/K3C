@@ -1,5 +1,7 @@
 from django.urls import path
 
+from .tier1_views import tier1_method
+
 from .views import (
     energy_entries,
     energy_options,
@@ -48,6 +50,7 @@ from .lulucf_views import (
 
 urlpatterns = [
     path("dashboard-summary/", ghg_dashboard_summary, name="ghg-dashboard-summary"),
+    path("tier1/method/", tier1_method, name="ghg-tier1-method"),
 
     path("energy/options/", energy_options, name="energy-options"),
     path("energy/entries/", energy_entries, name="energy-entries"),

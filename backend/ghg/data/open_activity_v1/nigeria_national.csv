@@ -1,0 +1,92 @@
+key,faostat_item,faostat_element,unit,year,value
+asses,Asses,Stocks,An,2018,1321441.0
+asses,Asses,Stocks,An,2019,1332751.0
+asses,Asses,Stocks,An,2020,1340798.0
+asses,Asses,Stocks,An,2021,1335648.0
+asses,Asses,Stocks,An,2022,1338703.0
+asses,Asses,Stocks,An,2023,1341778.0
+asses,Asses,Stocks,An,2024,1344853.0
+camels,Camels,Stocks,An,2018,280009.0
+camels,Camels,Stocks,An,2019,280346.0
+camels,Camels,Stocks,An,2020,280703.0
+camels,Camels,Stocks,An,2021,279468.0
+camels,Camels,Stocks,An,2022,279355.0
+camels,Camels,Stocks,An,2023,279246.0
+camels,Camels,Stocks,An,2024,279135.0
+cattle,Cattle,Stocks,An,2018,20240605.0
+cattle,Cattle,Stocks,An,2019,20402276.0
+cattle,Cattle,Stocks,An,2020,20585153.0
+cattle,Cattle,Stocks,An,2021,20764244.0
+cattle,Cattle,Stocks,An,2022,20862418.0
+cattle,Cattle,Stocks,An,2023,20896548.0
+cattle,Cattle,Stocks,An,2024,20943448.0
+chickens,Chickens,Stocks,An,2018,192525000.0
+chickens,Chickens,Stocks,An,2019,205697000.0
+chickens,Chickens,Stocks,An,2020,223704000.0
+chickens,Chickens,Stocks,An,2021,240481000.0
+chickens,Chickens,Stocks,An,2022,250620000.0
+chickens,Chickens,Stocks,An,2023,234795000.0
+chickens,Chickens,Stocks,An,2024,241700000.0
+goats,Goats,Stocks,An,2018,79893060.0
+goats,Goats,Stocks,An,2019,81875539.0
+goats,Goats,Stocks,An,2020,84039154.0
+goats,Goats,Stocks,An,2021,86140133.0
+goats,Goats,Stocks,An,2022,88043009.0
+goats,Goats,Stocks,An,2023,89536070.0
+goats,Goats,Stocks,An,2024,90970883.0
+horses,Horses,Stocks,An,2018,102200.0
+horses,Horses,Stocks,An,2019,102319.0
+horses,Horses,Stocks,An,2020,102529.0
+horses,Horses,Stocks,An,2021,102631.0
+horses,Horses,Stocks,An,2022,102758.0
+horses,Horses,Stocks,An,2023,103523.0
+horses,Horses,Stocks,An,2024,104092.0
+rice_area_ha,Rice,Area harvested,ha,2018,4065500.0
+rice_area_ha,Rice,Area harvested,ha,2019,4126670.0
+rice_area_ha,Rice,Area harvested,ha,2020,4195100.0
+rice_area_ha,Rice,Area harvested,ha,2021,4320100.0
+rice_area_ha,Rice,Area harvested,ha,2022,4580000.0
+rice_area_ha,Rice,Area harvested,ha,2023,4509800.0
+rice_area_ha,Rice,Area harvested,ha,2024,4572900.0
+sheep,Sheep,Stocks,An,2018,45609634.0
+sheep,Sheep,Stocks,An,2019,46767182.0
+sheep,Sheep,Stocks,An,2020,47926393.0
+sheep,Sheep,Stocks,An,2021,49124553.0
+sheep,Sheep,Stocks,An,2022,50305129.0
+sheep,Sheep,Stocks,An,2023,51214020.0
+sheep,Sheep,Stocks,An,2024,52136324.0
+swine,Swine / pigs,Stocks,An,2018,8259938.0
+swine,Swine / pigs,Stocks,An,2019,8562529.0
+swine,Swine / pigs,Stocks,An,2020,8941888.0
+swine,Swine / pigs,Stocks,An,2021,9299563.0
+swine,Swine / pigs,Stocks,An,2022,9515952.0
+swine,Swine / pigs,Stocks,An,2023,9717469.0
+swine,Swine / pigs,Stocks,An,2024,9958091.0
+synthetic_n_t,Nutrient nitrogen N (total),Agricultural Use,t,2018,436400.0
+synthetic_n_t,Nutrient nitrogen N (total),Agricultural Use,t,2019,436400.0
+synthetic_n_t,Nutrient nitrogen N (total),Agricultural Use,t,2020,591627.0
+synthetic_n_t,Nutrient nitrogen N (total),Agricultural Use,t,2021,418329.0
+synthetic_n_t,Nutrient nitrogen N (total),Agricultural Use,t,2022,253744.0
+synthetic_n_t,Nutrient nitrogen N (total),Agricultural Use,t,2023,234722.0
+synthetic_n_t,Nutrient nitrogen N (total),Agricultural Use,t,2024,356171.0
+woodfuel_m3,Wood fuel,Production,m3,2018,66209938.0
+woodfuel_m3,Wood fuel,Production,m3,2019,66540702.0
+woodfuel_m3,Wood fuel,Production,m3,2020,66883195.0
+woodfuel_m3,Wood fuel,Production,m3,2021,67239649.0
+woodfuel_m3,Wood fuel,Production,m3,2022,67607483.0
+woodfuel_m3,Wood fuel,Production,m3,2023,67986750.0
+woodfuel_m3,Wood fuel,Production,m3,2024,68377506.0
+charcoal_t,Wood charcoal,Production,t,2018,4595112.0
+charcoal_t,Wood charcoal,Production,t,2019,4672279.0
+charcoal_t,Wood charcoal,Production,t,2020,4750741.0
+charcoal_t,Wood charcoal,Production,t,2021,4828689.0
+charcoal_t,Wood charcoal,Production,t,2022,4907916.0
+charcoal_t,Wood charcoal,Production,t,2023,4988442.0
+charcoal_t,Wood charcoal,Production,t,2024,5070290.0
+dairy_cattle,Raw milk of cattle,Milk Animals,An,2018,2166562.0
+dairy_cattle,Raw milk of cattle,Milk Animals,An,2019,2181347.0
+dairy_cattle,Raw milk of cattle,Milk Animals,An,2020,2198659.0
+dairy_cattle,Raw milk of cattle,Milk Animals,An,2021,2215191.0
+dairy_cattle,Raw milk of cattle,Milk Animals,An,2022,2224791.0
+dairy_cattle,Raw milk of cattle,Milk Animals,An,2023,2228913.0
+dairy_cattle,Raw milk of cattle,Milk Animals,An,2024,2234131.0

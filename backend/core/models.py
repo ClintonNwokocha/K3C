@@ -34,6 +34,10 @@ class EmissionFactor(models.Model):
     n2o_ef = models.DecimalField(max_digits=16, decimal_places=6, null=True, blank=True)
     unit = models.CharField(max_length=100)
     ipcc_source = models.CharField(max_length=255, blank=True)
+    ipcc_code = models.CharField(max_length=20, blank=True)
+    # CO2 from biomass that regrows (firewood, charcoal) is reported as a memo
+    # item and kept out of CO2e totals.
+    is_biogenic_co2 = models.BooleanField(default=False)
     tier = models.CharField(max_length=20, choices=Tier.choices, default=Tier.TIER_1)
     is_active = models.BooleanField(default=True)
 

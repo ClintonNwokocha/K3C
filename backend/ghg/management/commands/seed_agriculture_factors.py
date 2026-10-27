@@ -7,9 +7,11 @@ class Command(BaseCommand):
     help = "Seed Agriculture sector emission factors for KS-CCC"
 
     def handle(self, *args, **options):
+        # IPCC 2006 Vol.4 Table 10.11 (Africa cattle) and Table 10.10.
+        # Horses / donkeys keeps the horse value (18); donkeys alone are 10.
         enteric_factors = [
-            ("dairy_cattle", "Dairy Cattle", 56),
-            ("beef_cattle", "Beef / Draft Cattle", 47),
+            ("dairy_cattle", "Dairy Cattle", 40),
+            ("beef_cattle", "Beef / Draft Cattle", 31),
             ("sheep", "Sheep", 5),
             ("goats", "Goats", 5),
             ("market_swine", "Market Swine", 1),
@@ -29,12 +31,15 @@ class Command(BaseCommand):
                     "co2_ef": 0,
                     "ch4_ef": ch4_ef,
                     "n2o_ef": 0,
-                    "ipcc_source": f"KS-CCC seed value for {label}",
+                    "ipcc_source": f"IPCC 2006 Vol.4 Tables 10.10-10.11 (Africa): {label}",
+                    "ipcc_code": "3.A.1",
                     "is_active": True,
                 },
             )
 
-        rice_ch4_ef = 1.30 * 0.52 * 120
+        # Rainfed regular water regime (SFw 0.28, Vol.4 Table 5.12): most
+        # Kaduna rice is rainfed lowland (fadama).
+        rice_ch4_ef = 1.30 * 0.28 * 120
 
         EmissionFactor.objects.update_or_create(
             sector="agriculture",
@@ -46,7 +51,8 @@ class Command(BaseCommand):
                 "co2_ef": 0,
                 "ch4_ef": rice_ch4_ef,
                 "n2o_ef": 0,
-                "ipcc_source": "Rice CH4 = area × 1.30 × 0.52 × 120 days",
+                "ipcc_source": "IPCC 2006 Vol.4 Eq. 5.1: area × 1.30 × 0.28 (rainfed) × 120 days",
+                "ipcc_code": "3.C.7",
                 "is_active": True,
             },
         )
@@ -71,8 +77,10 @@ class Command(BaseCommand):
                 defaults={
                     "co2_ef": 0,
                     "ch4_ef": 0,
-                    "n2o_ef": 0.01,
-                    "ipcc_source": f"Synthetic fertiliser N2O seed value for {label}",
+                    # EF1 0.01 kg N2O-N per kg N x 44/28 (Vol.4 Table 11.1)
+                    "n2o_ef": round(0.01 * 44 / 28, 6),
+                    "ipcc_source": f"IPCC 2006 Vol.4 Eq. 11.1, EF1 0.01 × 44/28: {label}",
+                    "ipcc_code": "3.C.4",
                     "is_active": True,
                 },
             )
