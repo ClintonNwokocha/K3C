@@ -143,6 +143,28 @@ WOOD_EF_KG_PER_TJ = {"co2": D("112000"), "ch4": D("300"), "n2o": D("4")}
 CHARCOAL_EF_KG_PER_TJ = {"co2": D("112000"), "ch4": D("200"), "n2o": D("1")}
 
 # ---------------------------------------------------------------------------
+# Fossil oil products, kg/TJ.  National consumption comes from the IEA World
+# Energy Balances (TJ, oil products by flow), which give no product split, so
+# each flow is divided by an assumed product mix.
+#   1.A.3.b road: Vol.2 Table 3.2.1 (CO2) and Table 3.2.2 (CH4, N2O;
+#           gasoline uncontrolled).  The IEA transport flow also holds
+#           domestic aviation and navigation, all assigned to road here.
+#   1.A.4.b residential kerosene and LPG: Vol.2 Table 2.5.
+#   1.A.2 industry: Vol.2 Table 2.3, all oil treated as gas/diesel oil.
+# ---------------------------------------------------------------------------
+ROAD_FUEL_MIX = {
+    "motor_gasoline": (D("0.85"), {"co2": D("69300"), "ch4": D("33"), "n2o": D("3.2")}),
+    "diesel": (D("0.15"), {"co2": D("74100"), "ch4": D("3.9"), "n2o": D("3.9")}),
+}
+RESIDENTIAL_OIL_MIX = {
+    "lpg": (D("0.6"), {"co2": D("63100"), "ch4": D("5"), "n2o": D("0.1")}),
+    "kerosene": (D("0.4"), {"co2": D("71900"), "ch4": D("10"), "n2o": D("0.6")}),
+}
+INDUSTRY_OIL_MIX = {
+    "gas_diesel_oil": (D("1"), {"co2": D("74100"), "ch4": D("3"), "n2o": D("0.6")}),
+}
+
+# ---------------------------------------------------------------------------
 # 4.A Solid waste disposal, Vol.5 Ch.2-3 (first order decay, bulk waste).
 # Only urban (GHSL dense-urban) residents' waste is assumed to reach
 # disposal sites; rural waste is burned or dispersed.
@@ -221,4 +243,6 @@ VERIFY = [
     "OPEN_BURN_N2O_KG_PER_T and OPEN_BURN_CO2_KG_PER_T (derived, Vol.5 Ch.5)",
     "SANITATION_SHARES (assumption until DHS 2018 Kaduna tables are loaded)",
     "PROTEIN_KG_PER_CAP_YR (FAOSTAT food balance, Nigeria)",
+    "ROAD_FUEL_MIX 85% gasoline / 15% diesel (assumption; NBS PMS and AGO truck-out volumes)",
+    "RESIDENTIAL_OIL_MIX 60% LPG / 40% kerosene (assumption; NBS LPG and DPK volumes)",
 ]

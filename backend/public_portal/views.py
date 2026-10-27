@@ -961,6 +961,7 @@ def build_public_tier1_method(selected_year):
         ],
         "not_estimated": category_rows(CategoryStatus.Status.NOT_ESTIMATED),
         "not_occurring": category_rows(CategoryStatus.Status.NOT_OCCURRING),
+        "included_elsewhere": category_rows(CategoryStatus.Status.INCLUDED_ELSEWHERE),
         "biogenic_co2_memo_tco2": decimal_to_float(
             (tier1_entries.filter(status=GHGInventoryEntry.Status.APPROVED)
              .aggregate(value=Sum("co2_biogenic_kg"))["value"] or Decimal("0")) / Decimal("1000")

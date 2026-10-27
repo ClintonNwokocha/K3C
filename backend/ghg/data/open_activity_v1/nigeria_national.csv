@@ -1,4 +1,4 @@
-key,faostat_item,faostat_element,unit,year,value
+key,source_item,source_element,unit,year,value
 asses,Asses,Stocks,An,2018,1321441.0
 asses,Asses,Stocks,An,2019,1332751.0
 asses,Asses,Stocks,An,2020,1340798.0
@@ -90,3 +90,24 @@ dairy_cattle,Raw milk of cattle,Milk Animals,An,2021,2215191.0
 dairy_cattle,Raw milk of cattle,Milk Animals,An,2022,2224791.0
 dairy_cattle,Raw milk of cattle,Milk Animals,An,2023,2228913.0
 dairy_cattle,Raw milk of cattle,Milk Animals,An,2024,2234131.0
+transport_oil_tj,IEA World Energy Balances: Transport,"Oil products, final consumption",TJ,2018,781354.0
+transport_oil_tj,IEA World Energy Balances: Transport,"Oil products, final consumption",TJ,2019,835604.0
+transport_oil_tj,IEA World Energy Balances: Transport,"Oil products, final consumption",TJ,2020,721745.0
+transport_oil_tj,IEA World Energy Balances: Transport,"Oil products, final consumption",TJ,2021,817841.0
+transport_oil_tj,IEA World Energy Balances: Transport,"Oil products, final consumption",TJ,2022,872080.0
+transport_oil_tj,IEA World Energy Balances: Transport,"Oil products, final consumption",TJ,2023,793049.0
+transport_oil_tj,IEA World Energy Balances: Transport,"Oil products, final consumption",TJ,2024,763113.0
+residential_oil_tj,IEA World Energy Balances: Residential,"Oil products, final consumption",TJ,2018,30902.0
+residential_oil_tj,IEA World Energy Balances: Residential,"Oil products, final consumption",TJ,2019,40742.0
+residential_oil_tj,IEA World Energy Balances: Residential,"Oil products, final consumption",TJ,2020,56759.0
+residential_oil_tj,IEA World Energy Balances: Residential,"Oil products, final consumption",TJ,2021,63147.0
+residential_oil_tj,IEA World Energy Balances: Residential,"Oil products, final consumption",TJ,2022,58320.0
+residential_oil_tj,IEA World Energy Balances: Residential,"Oil products, final consumption",TJ,2023,76110.0
+residential_oil_tj,IEA World Energy Balances: Residential,"Oil products, final consumption",TJ,2024,79225.0
+industry_oil_tj,IEA World Energy Balances: Industry,"Oil products, final consumption",TJ,2018,18628.0
+industry_oil_tj,IEA World Energy Balances: Industry,"Oil products, final consumption",TJ,2019,19100.0
+industry_oil_tj,IEA World Energy Balances: Industry,"Oil products, final consumption",TJ,2020,17891.0
+industry_oil_tj,IEA World Energy Balances: Industry,"Oil products, final consumption",TJ,2021,18095.0
+industry_oil_tj,IEA World Energy Balances: Industry,"Oil products, final consumption",TJ,2022,18872.0
+industry_oil_tj,IEA World Energy Balances: Industry,"Oil products, final consumption",TJ,2023,19493.0
+industry_oil_tj,IEA World Energy Balances: Industry,"Oil products, final consumption",TJ,2024,20281.0

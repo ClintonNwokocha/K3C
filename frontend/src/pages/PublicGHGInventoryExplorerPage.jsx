@@ -1809,6 +1809,12 @@ function Tier1MethodPanel({ method }) {
         <p className="mt-3 text-xs leading-5 text-slate-600">
           {method.guideline}. {method.estimated?.length || 0} IPCC categories estimated.
         </p>
+        {(method.included_elsewhere || []).map((category) => (
+          <p key={category.ipcc_code} className="mt-1 text-xs leading-5 text-slate-600">
+            <span className="font-bold text-[#030454]">{category.ipcc_code}</span>{" "}
+            {category.name}: {category.reason}
+          </p>
+        ))}
       </PublicCard>
 
       <PublicCard className="p-5">

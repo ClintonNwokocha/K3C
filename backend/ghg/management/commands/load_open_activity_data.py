@@ -1,13 +1,16 @@
 """
 Load open statistics into ActivityData for the Tier 1 inventory.
 
-National FAOSTAT series (ghg/data/open_activity_v1/nigeria_national.csv) are
-allocated to LGAs with:
+National FAOSTAT and IEA series (ghg/data/open_activity_v1/nigeria_national.csv)
+are allocated to LGAs with:
   - livestock and crop map shares (lga_shares.csv: FAO GLW3, GAEZ+ 2015)
-  - the GHSL population share (wood fuel, charcoal), which needs
+  - OpenStreetMap shares (osm_shares.csv): traffic-weighted road length for
+    transport oil; industrial land to place industry oil within Kaduna
+  - the GHSL population share (wood fuel, charcoal, residential oil, and
+    Kaduna's share of industry oil), which needs
     `sync_inventory_activity --layers population` to have run first.
 
-Years with no FAOSTAT value reuse the latest earlier year and are flagged
+Years with no national value reuse the latest earlier year and are flagged
 carried_forward.  See ghg/data/open_activity_v1/README.md for sources.
 
 Usage
@@ -56,25 +59,26 @@ def load_national():
 def load_shares():
     shares = defaultdict(dict)
     names = {}
-    with open(DATA_DIR / "lga_shares.csv", encoding="utf-8") as fh:
-        for row in csv.DictReader(fh):
-            shares[row["layer"]][row["lgacode"]] = Decimal(row["share"])
-            names[row["lgacode"]] = row["lganame"]
+    for name in ("lga_shares.csv", "osm_shares.csv"):
+        with open(DATA_DIR / name, encoding="utf-8") as fh:
+            for row in csv.DictReader(fh):
+                shares[row["layer"]][row["lgacode"]] = Decimal(row["share"])
+                names[row["lgacode"]] = row["lganame"]
     return shares, names
 
 
 def value_for(series, year):
-    """FAOSTAT value for year, or the latest earlier year (carried forward)."""
+    """National value for year, or the latest earlier year (carried forward)."""
     if year in series:
         return series[year], False
     earlier = [y for y in series if y < year]
     if not earlier:
-        raise CommandError(f"No FAOSTAT value on or before {year}")
+        raise CommandError(f"No national value on or before {year}")
     return series[max(earlier)], True
 
 
 class Command(BaseCommand):
-    help = "Allocate open national statistics (FAOSTAT) to LGAs as Tier 1 activity data."
+    help = "Allocate open national statistics (FAOSTAT, IEA) to LGAs as Tier 1 activity data."
 
     def add_arguments(self, parser):
         parser.add_argument("--years", default="2018-2025")
@@ -89,6 +93,7 @@ class Command(BaseCommand):
         except ValueError as exc:
             raise CommandError(str(exc))
         codes = sorted(shares["cattle"])
+        industrial_total = sum(shares["industrial_area"].values())
         code_by_registry_id = {lga.lga_id: code for code, lga in lgas.items()}
 
         population = {
@@ -102,6 +107,8 @@ class Command(BaseCommand):
 
         records = []
         for year in years:
+            nga_pop = population.get((None, year))
+            kaduna_pop = sum(population.get((code, year), Decimal("0")) for code in codes)
             cattle, cf_cattle = value_for(national["cattle"], year)
             dairy, cf_dairy = value_for(national["dairy_cattle"], year)
             for code in codes:
@@ -124,8 +131,11 @@ class Command(BaseCommand):
                                 n_t * Decimal("1000") * shares["all_crops"][code], "kg_n",
                                 "FAOSTAT Nigeria N agricultural use x GAEZ+ 2015 harvested-area share", carried))
 
+                road_tj, carried = value_for(national["transport_oil_tj"], year)
+                records.append((code, year, "energy.road_oil_tj", road_tj * shares["roads_weighted"][code], "TJ",
+                                "IEA Nigeria transport oil x OSM 2019 traffic-weighted road length share", carried))
+
                 lga_pop = population.get((code, year))
-                nga_pop = population.get((None, year))
                 if not lga_pop or not nga_pop:
                     continue
                 pop_share = lga_pop / nga_pop
@@ -138,10 +148,21 @@ class Command(BaseCommand):
                                 cf_wood or cf_char))
                 records.append((code, year, "energy.charcoal_t", charcoal_t * pop_share, "t",
                                 "FAOSTAT Nigeria charcoal x GHSL population share", cf_char))
+                res_tj, carried = value_for(national["residential_oil_tj"], year)
+                records.append((code, year, "energy.residential_oil_tj", res_tj * pop_share, "TJ",
+                                "IEA Nigeria residential oil x GHSL population share", carried))
+                # OSM industrial land is too patchily mapped nationally to set
+                # Kaduna's share, so population sets it and OSM places it.
+                ind_tj, carried = value_for(national["industry_oil_tj"], year)
+                industrial_share = shares["industrial_area"][code] / industrial_total
+                records.append((code, year, "energy.industry_oil_tj",
+                                ind_tj * kaduna_pop / nga_pop * industrial_share, "TJ",
+                                "IEA Nigeria industry oil x Kaduna GHSL population share x OSM 2019 industrial land",
+                                carried))
 
         if not any(r[2] == "energy.woodfuel_t" for r in records):
             self.stdout.write(self.style.WARNING(
-                "No GHSL population found: wood fuel and charcoal skipped. "
+                "No GHSL population found: wood fuel, charcoal, residential and industry oil skipped. "
                 "Run sync_inventory_activity --layers population first."
             ))
 
