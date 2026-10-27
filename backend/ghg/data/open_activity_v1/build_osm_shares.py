@@ -4,6 +4,8 @@ Usage: python -I build_osm_shares.py <osm_shp_dir> <nga_adm0.geojson> <kaduna_lg
 
 Layers written:
   roads_weighted   road length x traffic weight (ROAD_WEIGHTS), share of Nigeria
+  road_vkm.<group> the same weighted length for one road class group (ROAD_GROUPS);
+                   the loader uses the class mix to set each LGA's diesel share
   industrial_area  OSM landuse=industrial area, excluding energy facilities
                    (refinery, power plants, depots: those are 1.A.1), share of Nigeria
 Cross-checks printed (not written): unweighted major- and minor-road length.
@@ -38,6 +40,13 @@ ROAD_WEIGHTS = {
     "unclassified": 0.25, "residential": 0.25, "living_street": 0.25,
 }
 MAJOR = {k for k, w in ROAD_WEIGHTS.items() if w >= 2}
+ROAD_GROUPS = {
+    "trunk": {"motorway", "motorway_link", "trunk", "trunk_link"},
+    "primary": {"primary", "primary_link"},
+    "secondary": {"secondary", "secondary_link"},
+    "tertiary": {"tertiary", "tertiary_link"},
+    "minor": {"unclassified", "residential", "living_street"},
+}
 ENERGY_FACILITY = r"(?i)refiner|power|substation|depot|tank farm|petroleum"
 
 
@@ -78,6 +87,9 @@ roads = roads[roads.fclass.isin(ROAD_WEIGHTS)].copy()
 roads["weight"] = roads.fclass.map(ROAD_WEIGHTS).astype(float)
 kroads = roads.cx[kaduna_bbox[0]:kaduna_bbox[2], kaduna_bbox[1]:kaduna_bbox[3]]
 rows += share_rows("roads_weighted", per_lga(kroads, "length"), national(roads, "length"))
+for group, classes in ROAD_GROUPS.items():
+    rows += share_rows(f"road_vkm.{group}", per_lga(kroads[kroads.fclass.isin(classes)], "length"),
+                       national(roads[roads.fclass.isin(classes)], "length"))
 
 major = roads[roads.fclass.isin(MAJOR)].assign(weight=1.0)
 kmajor = major.cx[kaduna_bbox[0]:kaduna_bbox[2], kaduna_bbox[1]:kaduna_bbox[3]]
