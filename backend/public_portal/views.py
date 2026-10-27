@@ -28,7 +28,8 @@ from core.geography import (
     normalize_kaduna_geography_name,
 )
 from core.models import NDCConstant as CoreNDCConstant
-from ghg.models import GHGInventoryEntry
+from ghg.models import CategoryStatus, GHGInventoryEntry
+from ghg.tier1 import METHOD_VERSION as TIER1_METHOD_VERSION
 from ghg.preview_dataset import (
     PREVIEW_BATCH_ID,
     PREVIEW_CATEGORIES,
@@ -931,6 +932,47 @@ def build_public_ghg_map(records, selected_years, params, preview_batch_active=F
     }
 
 
+def build_public_tier1_method(selected_year):
+    """
+    What a reader needs next to Tier 1 totals: which IPCC categories are not
+    estimated or not occurring, the biomass CO2 memo item, and the LULUCF
+    estimate that is held back from totals.
+    """
+    statuses = CategoryStatus.objects.filter(method_version=TIER1_METHOD_VERSION)
+    year = safe_int(selected_year) if selected_year else statuses.aggregate(value=Max("year"))["value"]
+    statuses = statuses.filter(year=year).order_by("ipcc_code")
+    tier1_entries = GHGInventoryEntry.objects.filter(method_version=TIER1_METHOD_VERSION, year=year)
+
+    def category_rows(status):
+        return [
+            {"ipcc_code": s.ipcc_code, "name": s.name, "reason": s.reason}
+            for s in statuses
+            if s.status == status
+        ]
+
+    return {
+        "method_version": TIER1_METHOD_VERSION,
+        "year": year,
+        "guideline": "IPCC 2006 Guidelines, Tier 1; AR5 GWP100",
+        "estimated": [
+            {"ipcc_code": s.ipcc_code, "name": s.name, "confidence": s.confidence}
+            for s in statuses
+            if s.status == CategoryStatus.Status.ESTIMATED
+        ],
+        "not_estimated": category_rows(CategoryStatus.Status.NOT_ESTIMATED),
+        "not_occurring": category_rows(CategoryStatus.Status.NOT_OCCURRING),
+        "biogenic_co2_memo_tco2": decimal_to_float(
+            (tier1_entries.filter(status=GHGInventoryEntry.Status.APPROVED)
+             .aggregate(value=Sum("co2_biogenic_kg"))["value"] or Decimal("0")) / Decimal("1000")
+        ),
+        "lulucf_provisional_tco2e": decimal_to_float(
+            tier1_entries.filter(sector=GHGInventoryEntry.Sector.LULUCF)
+            .aggregate(value=Sum("co2e_tonnes"))["value"] or Decimal("0")
+        ),
+        "method_note_url": "/api/ghg/tier1/method/",
+    }
+
+
 def build_public_ghg_inventory_explorer(params=None):
     all_approved_entries = (
         GHGInventoryEntry.objects
@@ -1043,9 +1085,17 @@ def build_public_ghg_inventory_explorer(params=None):
         default=None,
     )
 
+    tier1_published = (
+        not preview_batch_active
+        and approved_entries.filter(method_version=TIER1_METHOD_VERSION).exists()
+    )
+
     if preview_batch_active:
         inventory_status = "Preview dataset — not the official inventory"
         inventory_status_code = "preview_dataset_not_official"
+    elif tier1_published:
+        inventory_status = "Provisional IPCC Tier 1 estimate"
+        inventory_status_code = "provisional_tier1_estimate"
     elif approved_count:
         inventory_status = "Official inventory published"
         inventory_status_code = "official_inventory_published"
@@ -1102,6 +1152,7 @@ def build_public_ghg_inventory_explorer(params=None):
         },
         "summary": summary,
         "metadata": metadata,
+        "method": build_public_tier1_method(selected_year) if tier1_published else None,
         "preview": {
             "preview_batch_active": preview_batch_active,
             "preview_batch_id": PREVIEW_BATCH_ID if preview_batch_active else "",
