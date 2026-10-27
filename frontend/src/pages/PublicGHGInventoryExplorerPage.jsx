@@ -54,7 +54,7 @@ const aboutDataItems = [
   {
     title: "Official versus modelled status",
     body:
-      "Approved GHG inventory entries are labelled as official inventory values. NDC constants, baseline references, and expected project reductions are modelled or planning estimates unless separately published as official inventory values.",
+      "The current inventory is a provisional IPCC 2006 Tier 1 estimate built from satellite data and open statistics, not an official submission. NDC constants, baseline references, and expected project reductions are modelled or planning estimates unless separately published as official inventory values.",
   },
   {
     title: "Project reductions are separate",
@@ -64,7 +64,7 @@ const aboutDataItems = [
   {
     title: "Known limitations",
     body:
-      "The current public inventory data is state-level and entry-based. Only a small subset of approved entries has LGA links, so a complete geographic GHG inventory map is not available.",
+      "Most inputs are national FAOSTAT values shared out to LGAs using livestock, crop and population maps, so LGA figures show where emissions are likely to occur rather than local measurements. Fossil fuel use (road transport, generators, power) is not yet estimated.",
   },
 ];
 
@@ -1643,6 +1643,7 @@ function StatusNotice({ status, preview }) {
     status?.code === "preview_dataset_not_official" || preview?.preview_batch_active;
   const isOfficial = status?.code === "official_inventory_published" && !isPreview;
   const isModelled = status?.code === "modelled_estimates_available" && !isPreview;
+  const isProvisional = status?.code === "provisional_tier1_estimate" && !isPreview;
 
   return (
     <div
@@ -1651,7 +1652,7 @@ function StatusNotice({ status, preview }) {
           ? "border-[#009B35]/30 bg-[#009B35]/10"
           : isPreview
             ? "border-orange-300 bg-orange-50"
-            : isModelled
+            : isModelled || isProvisional
               ? "border-[#F3F74B] bg-[#F3F74B]/25"
               : "border-[#D8DDE2] bg-white"
       }`}
@@ -1683,7 +1684,9 @@ function StatusNotice({ status, preview }) {
                       } exist separately and will be shown once the preview dataset is retired.`
                     : ""
                 }`
-              : "Public inventory values on this page come from approved GHG entries only. Expected project reductions and modelled references are kept separate."}
+              : isProvisional
+                ? "Estimated with IPCC 2006 Tier 1 default factors from satellite data (Google Earth Engine) and open statistics (FAOSTAT). Land use and forestry is held back until its maps are validated, and fossil fuel use is not yet estimated. Not an official submission."
+                : "Public inventory values on this page come from approved GHG entries only. Expected project reductions and modelled references are kept separate."}
           </p>
         </div>
       </div>
@@ -1770,7 +1773,58 @@ function ExplorerHeader({ data, selectedYear }) {
           selectedYear={selectedYear}
         />
       </div>
+
+      {data?.method ? <Tier1MethodPanel method={data.method} /> : null}
     </PublicSection>
+  );
+}
+
+function Tier1MethodPanel({ method }) {
+  const missing = [...(method.not_estimated || []), ...(method.not_occurring || [])];
+
+  return (
+    <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <PublicCard className="p-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+          Reported separately ({method.year})
+        </p>
+        <dl className="mt-3 grid gap-3 text-sm">
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-slate-600">
+              Land use and forestry (provisional, not in total)
+            </dt>
+            <dd className="font-black text-[#030454]">
+              {formatNumber(method.lulucf_provisional_tco2e, 0)} tCO2e
+            </dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-4">
+            <dt className="text-slate-600">
+              CO2 from firewood and charcoal (memo item, not in total)
+            </dt>
+            <dd className="font-black text-[#030454]">
+              {formatNumber(method.biogenic_co2_memo_tco2, 0)} tCO2
+            </dd>
+          </div>
+        </dl>
+        <p className="mt-3 text-xs leading-5 text-slate-600">
+          {method.guideline}. {method.estimated?.length || 0} IPCC categories estimated.
+        </p>
+      </PublicCard>
+
+      <PublicCard className="p-5">
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+          Not in this estimate
+        </p>
+        <ul className="mt-3 grid gap-1.5 text-sm text-slate-700">
+          {missing.map((category) => (
+            <li key={category.ipcc_code} title={category.reason}>
+              <span className="font-bold text-[#030454]">{category.ipcc_code}</span>{" "}
+              {category.name}
+            </li>
+          ))}
+        </ul>
+      </PublicCard>
+    </div>
   );
 }
 

@@ -159,6 +159,21 @@ class Tier1EngineTests(TestCase):
         lulucf = GHGStateTotal.objects.get(sector="lulucf", year=2022)
         self.assertEqual(lulucf.total_co2e, 0)
 
+    def test_public_explorer_labels_tier1_as_provisional(self):
+        from public_portal.views import build_public_ghg_inventory_explorer
+
+        engine.run([2022], status=GHGInventoryEntry.Status.APPROVED)
+        payload = build_public_ghg_inventory_explorer({"year": "2022"})
+        self.assertEqual(payload["inventory_status"]["code"], "provisional_tier1_estimate")
+        method = payload["method"]
+        self.assertEqual(method["year"], 2022)
+        self.assertIn("1.A.3.b", [c["ipcc_code"] for c in method["not_estimated"]])
+        self.assertIn("1.B.1", [c["ipcc_code"] for c in method["not_occurring"]])
+        self.assertAlmostEqual(method["biogenic_co2_memo_tco2"], 174.72, places=2)
+        self.assertGreater(method["lulucf_provisional_tco2e"], 0)
+        # LULUCF is held back from the published total.
+        self.assertNotIn("lulucf", {r["sector"] for r in payload["records"]})
+
     def test_rerun_replaces_instead_of_duplicating(self):
         engine.run([2022])
         first = GHGInventoryEntry.objects.filter(method_version=METHOD_VERSION).count()
