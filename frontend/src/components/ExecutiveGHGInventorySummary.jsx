@@ -1,3 +1,5 @@
+import GHGInventoryNotes from "./GHGInventoryNotes";
+
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits });
 }
@@ -416,6 +418,8 @@ export default function ExecutiveGHGInventorySummary({ ghgSummary, onOpenSector,
           )}
         </div>
       </div>
+
+      <GHGInventoryNotes sector={highlightSector} />
 
       <div className="rounded-xl border border-[#F3F74B]/70 bg-[#F3F74B]/20 px-5 py-4 text-sm leading-6 text-[#030454] shadow-sm">
         <h3 className="font-black">NDC Progress Note</h3>

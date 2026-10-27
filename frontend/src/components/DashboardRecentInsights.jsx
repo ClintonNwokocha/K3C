@@ -1,3 +1,5 @@
+import { GHG_SHORT_NOTE } from "../config/ghgInventoryNotes.js";
+
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits });
 }
@@ -103,7 +105,7 @@ export default function DashboardRecentInsights({
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           {ghg?.latest_total_mtco2e != null
-            ? `Latest approved GHG total: ${formatNumber(ghg.latest_total_mtco2e, 2)} MtCO₂e (${ghg.latest_year ?? "—"}).`
+            ? `Latest approved GHG total: ${formatNumber(ghg.latest_total_mtco2e, 2)} MtCO₂e (${ghg.latest_year ?? "—"}). ${GHG_SHORT_NOTE}`
             : "No approved GHG data yet."}
         </p>
       </div>

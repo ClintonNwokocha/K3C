@@ -23,6 +23,8 @@ import {
 } from "../components/PublicPortalChrome";
 import { getPublicGHGInventory } from "../services/api";
 import GHGSectorTransitionDashboard from "../components/GHGSectorTransitionDashboard";
+import GHGInventoryNotes from "../components/GHGInventoryNotes";
+import { GHG_CSV_NOTE as CSV_NOTE } from "../config/ghgInventoryNotes.js";
 import { transitionFromPublicInventory } from "../utils/ghgTransition.js";
 
 const ALL = "all";
@@ -1368,6 +1370,7 @@ function buildChartCsv(chart, filters, optionLabels) {
         "breakout_dimension",
         "breakout_value",
         "publication_status",
+        "note",
       ],
       ...chart.csv_rows.map((row) => [
         row.year,
@@ -1381,6 +1384,7 @@ function buildChartCsv(chart, filters, optionLabels) {
         row.breakout_dimension,
         row.breakout_value,
         row.publication_status,
+        CSV_NOTE,
       ]),
     ];
 
@@ -1400,6 +1404,7 @@ function buildChartCsv(chart, filters, optionLabels) {
       "publication_status",
       "source_reference",
       "preview_batch_id",
+      "note",
     ],
   ];
 
@@ -1418,6 +1423,7 @@ function buildChartCsv(chart, filters, optionLabels) {
         "Approved public inventory aggregate",
         "KCCC approved GHG inventory entries",
         "",
+        CSV_NOTE,
       ]);
     });
   });
@@ -2274,6 +2280,8 @@ export default function PublicGHGInventoryExplorerPage() {
                 onViewChange={handleViewChange}
                 onFilterChange={handleFilterChange}
               />
+
+              <GHGInventoryNotes sector={filters.sector} />
 
               <GHGSectorTransitionDashboard ghg={transitionFromPublicInventory(statewideInventory)} highlightSector={filters.sector} />
             </div>

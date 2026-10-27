@@ -13,6 +13,7 @@ import GHGIPPUPage from "./GHGIPPUPage";
 import GHGLULUCFPage from "./GHGLULUCFPage";
 import GHGWastePage from "./GHGWastePage";
 import GHGSectorTransitionDashboard from "../components/GHGSectorTransitionDashboard";
+import GHGInventoryNotes from "../components/GHGInventoryNotes";
 
 const sectorTabs = [
   { key: "summary", label: "Summary" },
@@ -161,6 +162,8 @@ export default function GHGInventoryPage({
       </section>
 
       <GHGSectorTransitionDashboard ghg={ghgSummary?.ghg} highlightSector={activeSector === "summary" ? sharedSector : activeSector} />
+      {/* The Summary tab shows these notes inside ExecutiveGHGInventorySummary. */}
+      {activeSector !== "summary" && <GHGInventoryNotes sector={activeSector} />}
       {activeSector === "summary" && (
         <GHGInventorySummaryPage
           ghgSummary={ghgSummary}
