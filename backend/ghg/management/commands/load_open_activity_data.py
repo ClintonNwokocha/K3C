@@ -5,8 +5,9 @@ National FAOSTAT and IEA series (ghg/data/open_activity_v1/nigeria_national.csv)
 are allocated to LGAs with:
   - livestock and crop map shares (lga_shares.csv: FAO GLW3, GAEZ+ 2015)
   - OpenStreetMap shares (osm_shares.csv): traffic-weighted road length for
-    transport oil, and the road class mix for its diesel share; industrial
-    land to place industry oil within Kaduna
+    transport oil, and the road class mix for its diesel share; railway track
+    km for rail diesel (taken out of road); industrial land to place industry
+    oil within Kaduna
   - the GHSL population share (wood fuel, charcoal, residential oil, and
     Kaduna's share of industry oil), which needs
     `sync_inventory_activity --layers population` to have run first
@@ -101,6 +102,19 @@ def lpg_shares(shares, codes):
     }
 
 
+def rail_diesel_tj(shares, nigeria, codes, year):
+    """Rail diesel per LGA: OSM track km of each operating line x train-km per km x litres per train-km."""
+    result = {code: Decimal("0") for code in codes}
+    for line, ops in F.RAIL_LINES.items():
+        layer = f"rail_km.{line}"
+        days = (366 if year % 4 == 0 else 365) - F.RAIL_DAYS_SUSPENDED.get((line, year), 0)
+        litres_per_km = ops["trains_per_day"] * days * ops["litres_per_train_km"]
+        for code in codes:
+            km = shares[layer][code] * nigeria[layer] / 1000
+            result[code] += km * litres_per_km * F.DIESEL_TJ_PER_LITRE
+    return result
+
+
 def value_for(series, year):
     """National value for year, or the latest earlier year (carried forward)."""
     if year in series:
@@ -147,6 +161,11 @@ class Command(BaseCommand):
             kaduna_pop = sum(population.get((code, year), Decimal("0")) for code in codes)
             cattle, cf_cattle = value_for(national["cattle"], year)
             dairy, cf_dairy = value_for(national["dairy_cattle"], year)
+            # IEA transport oil includes rail, so Kaduna's rail diesel comes out of its road fuel.
+            rail_tj = rail_diesel_tj(shares, nigeria, codes, year)
+            transport_tj, cf_transport = value_for(national["transport_oil_tj"], year)
+            kaduna_transport_tj = transport_tj * sum(shares["roads_weighted"][code] for code in codes)
+            road_factor = 1 - sum(rail_tj.values()) / kaduna_transport_tj
             for code in codes:
                 for species, layer in LIVESTOCK.items():
                     if species == "dairy_cattle":
@@ -167,13 +186,15 @@ class Command(BaseCommand):
                                 n_t * Decimal("1000") * shares["all_crops"][code], "kg_n",
                                 "FAOSTAT Nigeria N agricultural use x GAEZ+ 2015 harvested-area share", carried))
 
-                road_tj, carried = value_for(national["transport_oil_tj"], year)
-                road_tj *= shares["roads_weighted"][code]
-                source = "IEA Nigeria transport oil x OSM 2019 traffic-weighted road length share"
+                road_tj = transport_tj * shares["roads_weighted"][code] * road_factor
+                source = ("IEA Nigeria transport oil x OSM 2019 traffic-weighted road length share, "
+                          "less Kaduna rail diesel")
                 records.append((code, year, "energy.road_gasoline_tj", road_tj * (1 - diesel_share[code]), "TJ",
-                                f"{source}; gasoline = 1 - diesel share by road class", carried))
+                                f"{source}; gasoline = 1 - diesel share by road class", cf_transport))
                 records.append((code, year, "energy.road_diesel_tj", road_tj * diesel_share[code], "TJ",
-                                f"{source}; diesel share {diesel_share[code]:.3f} by road class", carried))
+                                f"{source}; diesel share {diesel_share[code]:.3f} by road class", cf_transport))
+                records.append((code, year, "energy.rail_diesel_tj", rail_tj[code], "TJ",
+                                "OSM 2019 track km x trains per day x litres per train-km (RAIL_LINES)", False))
 
                 lga_pop = population.get((code, year))
                 if not lga_pop or not nga_pop:

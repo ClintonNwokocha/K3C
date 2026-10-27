@@ -147,7 +147,8 @@ CHARCOAL_EF_KG_PER_TJ = {"co2": D("112000"), "ch4": D("200"), "n2o": D("1")}
 # Energy Balances (TJ, oil products by flow), which give no product split.
 #   1.A.3.b road: Vol.2 Table 3.2.1 (CO2) and Table 3.2.2 (CH4, N2O;
 #           gasoline uncontrolled).  The IEA transport flow also holds
-#           domestic aviation and navigation, all assigned to road here.
+#           domestic aviation and navigation, assigned to road here; rail
+#           is estimated separately and taken out of road (RAIL_LINES).
 #   1.A.4.b residential kerosene and LPG: Vol.2 Table 2.5.
 #   1.A.2 industry: Vol.2 Table 2.3, all oil treated as gas/diesel oil.
 # ---------------------------------------------------------------------------
@@ -157,7 +158,27 @@ FUEL_EF_KG_PER_TJ = {
     "lpg": {"co2": D("63100"), "ch4": D("5"), "n2o": D("0.1")},
     "kerosene": {"co2": D("71900"), "ch4": D("10"), "n2o": D("0.6")},
     "gas_diesel_oil": {"co2": D("74100"), "ch4": D("3"), "n2o": D("0.6")},
+    # 1.A.3.c locomotive diesel: Vol.2 Table 3.4.1.
+    "rail_diesel": {"co2": D("74100"), "ch4": D("4.15"), "n2o": D("28.6")},
 }
+
+# Railways.  Train-km = OSM track km of each line (osm_shares.csv rail_km.<line>)
+# x trains per day (both directions) x operating days.  Lines not listed carried
+# no regular traffic in 2018-2025.  Diesel energy: NCV 43.0 TJ/Gg (Vol.2 Table
+# 1.2) x 0.84 kg/L.  Rail diesel is inside the IEA transport total, so the loader
+# takes Kaduna's rail diesel out of its road fuel.
+RAIL_LINES = {
+    # Abuja-Kaduna Train Service, locomotive-hauled coaches.
+    "abuja_kaduna_sgr": {"trains_per_day": D("8"), "litres_per_train_km": D("6")},
+    # Lagos-Kano narrow gauge passenger and freight, a few trains a week.
+    "lagos_kano_narrow": {"trains_per_day": D("1"), "litres_per_train_km": D("8")},
+}
+RAIL_DAYS_SUSPENDED = {
+    ("abuja_kaduna_sgr", 2020): 128,  # COVID-19, 23 Mar - 29 Jul 2020
+    ("lagos_kano_narrow", 2020): 128,
+    ("abuja_kaduna_sgr", 2022): 252,  # after the 28 Mar 2022 attack, resumed 5 Dec 2022
+}
+DIESEL_TJ_PER_LITRE = D("43.0") * D("0.84") / D("1000000")
 
 # Road diesel share.  Diesel's share of fuel energy on each OSM road class
 # group (trucks and buses dominate trunk roads; petrol cars, motorcycles and
@@ -259,4 +280,5 @@ VERIFY = [
     "PROTEIN_KG_PER_CAP_YR (FAOSTAT food balance, Nigeria)",
     "ROAD_DIESEL_SHARE_NATIONAL 15% and ROAD_DIESEL_BY_CLASS (assumption; NBS PMS and AGO truck-out volumes, FMW traffic counts)",
     "RESIDENTIAL_LPG_SHARE_NATIONAL 60% (assumption; NBS LPG and DPK volumes); LGA variation from HDI and RWI",
+    "RAIL_LINES trains per day and litres per train-km (assumption; NRC timetables and NBS rail transport data)",
 ]

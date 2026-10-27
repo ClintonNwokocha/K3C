@@ -160,3 +160,72 @@ industrial_area,19012,Kajuru,0.0,113556114.0233,0.0
 industrial_area,19006,Jaba,0.0,113556114.0233,0.0
 industrial_area,19020,Sanga,0.0,113556114.0233,0.0
 industrial_area,19007,Jema'A,0.0,113556114.0233,0.0
+rail_km.abuja_kaduna_sgr,19011,Kagarko,33025.9751,3976523.9217,0.008305237381166454
+rail_km.abuja_kaduna_sgr,19008,Kachia,56595.0175,3976523.9217,0.014232283939692633
+rail_km.abuja_kaduna_sgr,19022,Zangon Kataf,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19018,Makarfi,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19016,Kudan,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19002,Chikun,46816.8752,3976523.9217,0.01177331662994696
+rail_km.abuja_kaduna_sgr,19009,Kaduna North,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19019,Sabon Gari,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19003,Giwa,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19017,Lere,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19014,Kauru,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19021,Soba,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19004,Igabi,6198.9904,3976523.9217,0.0015588968038943748
+rail_km.abuja_kaduna_sgr,19015,Kubau,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19010,Kaduna South,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19005,Ikara,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19001,Birnin Gwari,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19023,Zaria,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19013,Kaura,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19012,Kajuru,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19006,Jaba,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19020,Sanga,0.0,3976523.9217,0.0
+rail_km.abuja_kaduna_sgr,19007,Jema'A,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19011,Kagarko,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19008,Kachia,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19022,Zangon Kataf,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19018,Makarfi,20930.2464,3976523.9217,0.005263452913126827
+rail_km.lagos_kano_narrow,19016,Kudan,9993.8172,3976523.9217,0.0025132043512248845
+rail_km.lagos_kano_narrow,19002,Chikun,64696.4711,3976523.9217,0.01626960440061792
+rail_km.lagos_kano_narrow,19009,Kaduna North,14001.0164,3976523.9217,0.0035209184314593965
+rail_km.lagos_kano_narrow,19019,Sabon Gari,11708.0706,3976523.9217,0.002944297790187373
+rail_km.lagos_kano_narrow,19003,Giwa,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19017,Lere,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19014,Kauru,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19021,Soba,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19004,Igabi,46014.3933,3976523.9217,0.011571511752653212
+rail_km.lagos_kano_narrow,19015,Kubau,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19010,Kaduna South,7807.2505,3976523.9217,0.0019633354668857194
+rail_km.lagos_kano_narrow,19005,Ikara,27828.2916,3976523.9217,0.006998145148589003
+rail_km.lagos_kano_narrow,19001,Birnin Gwari,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19023,Zaria,19079.2848,3976523.9217,0.00479798065231969
+rail_km.lagos_kano_narrow,19013,Kaura,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19012,Kajuru,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19006,Jaba,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19020,Sanga,0.0,3976523.9217,0.0
+rail_km.lagos_kano_narrow,19007,Jema'A,0.0,3976523.9217,0.0
+rail_km.other,19011,Kagarko,0.0,3976523.9217,0.0
+rail_km.other,19008,Kachia,21148.3502,3976523.9217,0.005318300752636641
+rail_km.other,19022,Zangon Kataf,78482.0474,3976523.9217,0.019736344836423076
+rail_km.other,19018,Makarfi,0.0,3976523.9217,0.0
+rail_km.other,19016,Kudan,0.0,3976523.9217,0.0
+rail_km.other,19002,Chikun,50109.4181,3976523.9217,0.01260131187614344
+rail_km.other,19009,Kaduna North,878.139,3976523.9217,0.00022083081238399185
+rail_km.other,19019,Sabon Gari,24884.1867,3976523.9217,0.006257773671822926
+rail_km.other,19003,Giwa,29705.4233,3976523.9217,0.007470198578266693
+rail_km.other,19017,Lere,0.0,3976523.9217,0.0
+rail_km.other,19014,Kauru,0.0,3976523.9217,0.0
+rail_km.other,19021,Soba,0.0,3976523.9217,0.0
+rail_km.other,19004,Igabi,3267.7197,3976523.9217,0.0008217528027012619
+rail_km.other,19015,Kubau,0.0,3976523.9217,0.0
+rail_km.other,19010,Kaduna South,10001.1603,3976523.9217,0.0025150509599235144
+rail_km.other,19005,Ikara,0.0,3976523.9217,0.0
+rail_km.other,19001,Birnin Gwari,0.0,3976523.9217,0.0
+rail_km.other,19023,Zaria,0.0,3976523.9217,0.0
+rail_km.other,19013,Kaura,31537.0958,3976523.9217,0.007930820091114963
+rail_km.other,19012,Kajuru,49748.8401,3976523.9217,0.012510635187291267
+rail_km.other,19006,Jaba,0.0,3976523.9217,0.0
+rail_km.other,19020,Sanga,26827.2306,3976523.9217,0.00674640241509781
+rail_km.other,19007,Jema'A,73587.7453,3976523.9217,0.01850554572978472

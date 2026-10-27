@@ -210,6 +210,8 @@ FOSSIL_FLOWS = (
      "Vol.2 Tables 3.2.1-3.2.2; IEA transport oil x OSM road length, diesel share by road class"),
     ("energy.road_diesel_tj", "1.A.3.b", "road_transportation", "diesel",
      "Vol.2 Tables 3.2.1-3.2.2; IEA transport oil x OSM road length, diesel share by road class"),
+    ("energy.rail_diesel_tj", "1.A.3.c", "railways", "rail_diesel",
+     "Vol.2 Table 3.4.1; OSM track km x trains per day x litres per train-km"),
     ("energy.residential_lpg_tj", "1.A.4.b", "residential_fuel_use", "lpg",
      "Vol.2 Table 2.5; IEA residential oil x GHSL population, LPG share by HDI and RWI"),
     ("energy.residential_kerosene_tj", "1.A.4.b", "residential_fuel_use", "kerosene",
