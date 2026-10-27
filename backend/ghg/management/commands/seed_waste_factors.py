@@ -37,8 +37,9 @@ class Command(BaseCommand):
             )
 
         # Wastewater formula simplified into per-person factors:
-        # TOW = population × 45g BOD/day × 365 days = 16.425 kg/person/year
-        # CH4 = TOW × 0.6 × 0.10 = 0.9855 kg CH4/person/year
+        # TOW = population × 37 g BOD/day (Africa, Vol.5 Table 6.4) × 365 days
+        #     = 13.505 kg/person/year
+        # CH4 = TOW × 0.6 × 0.10 = 0.8103 kg CH4/person/year
         # N2O = population × 3.65 kg N/person/year × 0.005 × 44/28
         #     = 0.028678571 kg N2O/person/year
 
@@ -50,7 +51,7 @@ class Command(BaseCommand):
             tier=EmissionFactor.Tier.TIER_1,
             defaults={
                 "co2_ef": 0,
-                "ch4_ef": Decimal("0.9855"),
+                "ch4_ef": Decimal("0.8103"),
                 "n2o_ef": Decimal("0.028678571"),
                 "ipcc_source": "KS-CCC wastewater seed factors from population-based calculation",
                 "is_active": True,

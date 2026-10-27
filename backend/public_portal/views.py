@@ -395,7 +395,15 @@ def serialize_ghg_entry(entry):
         },
         "gases": gases,
         "emissions_tco2e": decimal_to_float(entry.co2e_tonnes),
-        "data_status": "Official inventory value",
+        "co2_biogenic_memo_t": decimal_to_float((entry.co2_biogenic_kg or Decimal("0")) / Decimal("1000")),
+        "ipcc_code": entry.ipcc_code,
+        "method_version": entry.method_version,
+        "confidence": entry.confidence,
+        "data_status": (
+            "IPCC Tier 1 estimate from satellite and open data"
+            if entry.method_version
+            else "Official inventory value"
+        ),
         "publication_status": entry.get_status_display(),
         "source_note": (
             PREVIEW_SOURCE_LABEL

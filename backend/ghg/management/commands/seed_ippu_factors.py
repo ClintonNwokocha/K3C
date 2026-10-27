@@ -29,13 +29,15 @@ class Command(BaseCommand):
                 },
             )
 
+        # AR5 GWP100 (UNFCCC reporting).  R-22 is an HCFC controlled under the
+        # Montreal Protocol and excluded from UNFCCC totals, so it is inactive.
         refrigerants = [
-            ("r134a", "R-134a", 1430),
-            ("r410a", "R-410A", 2088),
-            ("r22", "R-22", 1810),
+            ("r134a", "R-134a", 1300, True),
+            ("r410a", "R-410A", 1924, True),
+            ("r22", "R-22", 1760, False),
         ]
 
-        for code, label, gwp in refrigerants:
+        for code, label, gwp, active in refrigerants:
             EmissionFactor.objects.update_or_create(
                 sector="ippu",
                 sub_category="refrigerants",
@@ -46,8 +48,9 @@ class Command(BaseCommand):
                     "co2_ef": gwp,
                     "ch4_ef": 0,
                     "n2o_ef": 0,
-                    "ipcc_source": f"KS-CCC refrigerant GWP seed factor for {label}",
-                    "is_active": True,
+                    "ipcc_source": f"IPCC AR5 GWP100 for {label}",
+                    "ipcc_code": "2.F.1",
+                    "is_active": active,
                 },
             )
 
