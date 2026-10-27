@@ -106,7 +106,7 @@ function uniqueOptions(options) {
 function FilterField({ id, label, value, onChange, options, disabled = false }) {
   return (
     <label htmlFor={id} className="block">
-      <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+      <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.1em] text-slate-500">
         {label}
       </span>
       <select
@@ -114,7 +114,7 @@ function FilterField({ id, label, value, onChange, options, disabled = false }) 
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className="h-11 w-full rounded-md border border-[#D8DDE2] bg-white px-3 text-sm font-bold text-[#030454] outline-none transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
+        className="h-9 w-full rounded-md border border-[#D8DDE2] bg-white px-2.5 text-xs font-bold text-[#030454] outline-none transition disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400 focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
       >
         {options.map((option) => (
           <option
@@ -133,14 +133,14 @@ function FilterField({ id, label, value, onChange, options, disabled = false }) 
 function YearSelectField({ id, label, prefix, value, onChange, options }) {
   return (
     <label htmlFor={id} className="block min-w-0">
-      <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+      <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.1em] text-slate-500">
         {label}
       </span>
       <select
         id={id}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-11 w-full rounded-md border border-[#D8DDE2] bg-white px-3 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
+        className="h-9 w-full rounded-md border border-[#D8DDE2] bg-white px-2.5 text-xs font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
       >
         {options.map((option) => (
           <option key={`${id}-${option.value}`} value={option.value}>
@@ -1265,19 +1265,13 @@ function GhgMapView({ mapData, filters, optionLabels, onFilterChange }) {
 
   return (
     <div className="min-w-0 overflow-hidden">
-      <div className="mb-4 flex flex-col justify-between gap-3 md:flex-row md:items-start">
-        <div>
-          <h2 className="text-2xl font-black text-[#030454]">GHG Emissions Map</h2>
-          <p className="mt-1 text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
-            Map year: {mapData.year} | {mapData.coverage_count} of {mapData.expected_count} LGAs
-          </p>
-        </div>
-        {selectedLga ? (
+      {selectedLga ? (
+        <div className="mb-2 flex justify-end">
           <PublicSecondaryButton onClick={() => onFilterChange("geography", ALL)}>
             View all LGAs
           </PublicSecondaryButton>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(220px,1fr)]">
         <div className="relative min-h-[440px] min-w-0 overflow-hidden rounded-lg border border-[#E6EAEC] bg-[#F7F9FA]">
@@ -1530,34 +1524,37 @@ function ViewSwitch({ activeView, onChange, mapData }) {
   ];
 
   return (
-    <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-      <div className="inline-flex w-fit rounded-md border border-[#D8DDE2] bg-[#F7F9FA] p-1">
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            disabled={option.disabled}
-            aria-pressed={activeView === option.value}
-            onClick={() => onChange(option.value)}
-            className={`rounded px-4 py-2 text-sm font-black transition focus:outline-none focus:ring-2 focus:ring-[#009B35]/25 disabled:cursor-not-allowed disabled:opacity-50 ${
-              activeView === option.value
-                ? "bg-[#030454] text-white"
-                : "text-[#030454] hover:bg-white"
-            }`}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
-      <p className="text-xs leading-5 text-slate-600">
-        Map year: <strong className="text-[#030454]">{mapData?.year || "N/A"}</strong>
-        {" | "}
-        LGA coverage:{" "}
-        <strong className="text-[#030454]">
-          {mapData?.coverage_count || 0}/{mapData?.expected_count || 23}
-        </strong>
-      </p>
+    <div className="inline-flex w-fit shrink-0 rounded-md border border-[#D8DDE2] bg-[#F7F9FA] p-1">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          disabled={option.disabled}
+          aria-pressed={activeView === option.value}
+          onClick={() => onChange(option.value)}
+          className={`rounded px-3 py-1.5 text-xs font-black transition focus:outline-none focus:ring-2 focus:ring-[#009B35]/25 disabled:cursor-not-allowed disabled:opacity-50 ${
+            activeView === option.value
+              ? "bg-[#030454] text-white"
+              : "text-[#030454] hover:bg-white"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
+  );
+}
+
+function MapCoverageLine({ mapData }) {
+  return (
+    <>
+      Map year: <strong className="text-[#030454]">{mapData?.year || "N/A"}</strong>
+      {" | "}
+      LGA coverage:{" "}
+      <strong className="text-[#030454]">
+        {mapData?.coverage_count || 0}/{mapData?.expected_count || 23}
+      </strong>
+    </>
   );
 }
 
@@ -1572,18 +1569,53 @@ function MainVisualization({
   activeView,
   onViewChange,
   onFilterChange,
+  onReset,
+  hasActiveFilters,
+  recordCount,
+  filterOptions,
 }) {
   const chartTitle = getChartTitle(filters, chart);
   const metadataLine = getChartMetadataLine(chart, filters, optionLabels);
   const seriesCount = visibleKeys.length;
+  const workspaceTitle = activeView === "map" ? "GHG Emissions Map" : chartTitle;
 
   return (
-    <div className="space-y-4 border-t border-[#E6EAEC] pt-4">
-      <ViewSwitch
-        activeView={activeView}
-        onChange={onViewChange}
-        mapData={mapData}
-      />
+    <div className="space-y-3">
+      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
+        <div>
+          <h2 className="text-xl font-black leading-tight text-[#030454] sm:text-2xl">
+            {workspaceTitle}
+          </h2>
+          {recordCount !== undefined && (
+            <p className="mt-0.5 text-xs leading-5 text-slate-500">
+              <strong className="text-[#030454]">{recordCount}</strong> approved record{recordCount === 1 ? "" : "s"} selected
+            </p>
+          )}
+        </div>
+        <PublicSecondaryButton
+          onClick={onReset}
+          disabled={!hasActiveFilters}
+          className="inline-flex w-fit shrink-0 items-center gap-2 self-start disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <FilterX size={14} aria-hidden="true" />
+          Clear Filters
+        </PublicSecondaryButton>
+      </div>
+
+      <div className="flex flex-col gap-2 border-t border-[#E6EAEC] pt-3 xl:flex-row xl:items-start">
+        <ViewSwitch activeView={activeView} onChange={onViewChange} mapData={mapData} />
+        <FiltersPanel filters={filters} onFilterChange={onFilterChange} options={filterOptions} />
+      </div>
+
+      <p className="text-xs leading-5 text-slate-500">
+        {metadataLine}
+        {activeView === "map" && (
+          <>
+            {" | "}
+            <MapCoverageLine mapData={mapData} />
+          </>
+        )}
+      </p>
 
       {activeView === "map" ? (
         <GhgMapView
@@ -1593,26 +1625,12 @@ function MainVisualization({
           onFilterChange={onFilterChange}
         />
       ) : (
-        <div className="grid min-w-0 gap-5 border-t border-[#E6EAEC] pt-4 xl:grid-cols-[minmax(0,4fr)_minmax(260px,1.15fr)]">
+        <div className="grid min-w-0 gap-5 border-t border-[#E6EAEC] pt-3 xl:grid-cols-[minmax(0,4fr)_minmax(260px,1.15fr)]">
           <div className="min-w-0">
-            <div className="mb-5 flex flex-col justify-between gap-4 xl:flex-row xl:items-start">
-              <div>
-                <h2 className="text-2xl font-black text-[#030454]">
-                  {chartTitle}
-                </h2>
-                <p className="mt-2 text-xs font-bold uppercase tracking-[0.08em] text-slate-500">
-                  {metadataLine}
-                </p>
-                <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-                  Only approved public inventory years are displayed. Missing
-                  years indicate that no approved public inventory record is
-                  available for that year.
-                </p>
-              </div>
-              <div className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-4 py-3 text-xs leading-5 text-slate-600">
-                <strong className="text-[#030454]">{seriesCount}</strong>{" "}
-                visible series
-              </div>
+            <div className="mb-2 flex items-center justify-end">
+              <span className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-3 py-1.5 text-xs leading-5 text-slate-600">
+                <strong className="text-[#030454]">{seriesCount}</strong> visible series
+              </span>
             </div>
 
             <StackedAreaChart chart={chart} visibleKeys={visibleKeys} />
@@ -1835,38 +1853,11 @@ function Tier1MethodPanel({ method }) {
 function FiltersPanel({
   filters,
   onFilterChange,
-  onReset,
   options,
-  hasActiveFilters,
-  recordCount,
 }) {
   return (
-    <div>
-      <div className="mb-3 flex flex-col justify-between gap-3 md:flex-row md:items-center">
-        <div>
-          <h2 className="text-xl font-black text-[#030454]">
-            GHG Inventory Explorer
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-slate-600">
-            Year filters the displayed records only. Valid sectors, gases,
-            breakout dimensions and geographies remain available.
-            {recordCount !== undefined && (
-              <> <strong className="text-[#030454]">{recordCount}</strong> approved record{recordCount === 1 ? "" : "s"} selected.</>
-            )}
-          </p>
-        </div>
-
-        <PublicSecondaryButton
-          onClick={onReset}
-          disabled={!hasActiveFilters}
-          className="inline-flex w-fit items-center gap-2 disabled:cursor-not-allowed disabled:opacity-45"
-        >
-          <FilterX size={15} aria-hidden="true" />
-          Clear Filters
-        </PublicSecondaryButton>
-      </div>
-
-      <div className="grid min-w-0 gap-3 md:grid-cols-3 xl:grid-cols-7">
+    <div className="min-w-0 grow">
+      <div className="grid min-w-0 gap-2 grid-cols-2 sm:grid-cols-4 xl:grid-cols-7">
         <FilterField
           id="ghg-filter-sector"
           label="1. Sector"
@@ -2251,16 +2242,7 @@ export default function PublicGHGInventoryExplorerPage() {
               {/* GHG Inventory Explorer — one unified workspace: compact
                   filter toolbar directly above the map/chart it controls,
                   no unrelated section in between. */}
-              <PublicCard className="min-w-0 p-5">
-                <FiltersPanel
-                  filters={filters}
-                  onFilterChange={handleFilterChange}
-                  onReset={resetFilters}
-                  options={filterOptions}
-                  hasActiveFilters={hasActiveFilters}
-                  recordCount={records.length}
-                />
-
+              <PublicCard className="min-w-0 p-4">
                 <MainVisualization
                   chart={chart}
                   mapData={mapData}
@@ -2272,6 +2254,10 @@ export default function PublicGHGInventoryExplorerPage() {
                   activeView={activeView}
                   onViewChange={handleViewChange}
                   onFilterChange={handleFilterChange}
+                  onReset={resetFilters}
+                  hasActiveFilters={hasActiveFilters}
+                  recordCount={records.length}
+                  filterOptions={filterOptions}
                 />
               </PublicCard>
 
