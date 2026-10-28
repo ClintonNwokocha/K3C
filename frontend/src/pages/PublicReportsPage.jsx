@@ -1,15 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import {
-  PublicBadge,
   PublicCard,
   PublicEmptyState,
   PublicErrorBanner,
-  PublicDisclaimerNote,
   PublicLoadingState,
   PublicPortalFooter,
   PublicPortalHeader,
-  PublicPrimaryButton,
-  PublicSecondaryButton,
   PublicSection,
   PublicSectionHeading,
 } from "../components/PublicPortalChrome";
@@ -26,68 +22,9 @@ const reportTypeOptions = [
   { value: "other", label: "Other" },
 ];
 
-const reportUseCases = {
-  climate_risk: {
-    label: "Risk planning",
-    title: "Supports Climate Impact prioritisation",
-    body: "Useful for identifying LGAs, hazards and risk drivers that may require preparedness, adaptation planning or further technical assessment.",
-    tone: "green",
-  },
-  ghg_inventory: {
-    label: "Emissions tracking",
-    title: "Supports greenhouse gas accounting",
-    body: "Useful for understanding emissions baselines, sector contributions, mitigation opportunities and public inventory communication.",
-    tone: "blue",
-  },
-  project_portfolio: {
-    label: "Implementation tracking",
-    title: "Supports climate action visibility",
-    body: "Useful for seeing where climate projects are happening, who may benefit and what mitigation or resilience outcomes are expected.",
-    tone: "yellow",
-  },
-  ndc_progress: {
-    label: "Target monitoring",
-    title: "Supports NDC progress review",
-    body: "Useful for understanding progress toward reduction targets, climate commitments and implementation milestones.",
-    tone: "orange",
-  },
-  executive_brief: {
-    label: "Decision briefing",
-    title: "Supports leadership decisions",
-    body: "Useful for quick policy, planning and coordination decisions where a concise evidence summary is needed.",
-    tone: "indigo",
-  },
-  data_export: {
-    label: "Technical data",
-    title: "Supports technical analysis",
-    body: "Useful for analysts who need structured outputs, tabular summaries or public datasets for further review.",
-    tone: "cyan",
-  },
-  other: {
-    label: "General evidence",
-    title: "Supports public evidence access",
-    body: "Useful for public awareness, coordination and reference where the document does not fall into the main reporting categories.",
-    tone: "slate",
-  },
-};
-
-const audienceGuidance = [
-  {
-    label: "Residents",
-    title: "Read public summaries first",
-    body: "Start with executive briefs and Climate Impact reports to understand what the evidence means for your community or LGA.",
-  },
-  {
-    label: "Policy teams",
-    title: "Use reports for prioritisation",
-    body: "Use Climate Impact, GHG and project portfolio reports to support adaptation planning, budgeting discussions and coordination.",
-  },
-  {
-    label: "Partners",
-    title: "Locate evidence-backed entry points",
-    body: "Use project and risk reports to identify where technical support, finance or implementation partnerships may be useful.",
-  },
-];
+function hasValidCount(value) {
+  return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+}
 
 function formatNumber(value, maximumFractionDigits = 0) {
   return Number(value || 0).toLocaleString(undefined, {
@@ -133,34 +70,6 @@ function normalizeReportsPayload(data) {
   };
 }
 
-function getTypeMeta(type) {
-  return reportUseCases[type] || reportUseCases.other;
-}
-
-function getTypeClass(type) {
-  if (type === "climate_risk") return "bg-[#009B35]/10 text-[#009B35]";
-  if (type === "ghg_inventory") return "bg-[#030454]/10 text-[#030454]";
-  if (type === "project_portfolio") return "bg-[#F3F74B]/50 text-[#030454]";
-  if (type === "ndc_progress") return "bg-orange-50 text-orange-700";
-  if (type === "executive_brief") return "bg-indigo-50 text-indigo-700";
-  if (type === "data_export") return "bg-cyan-50 text-cyan-700";
-  return "bg-slate-100 text-slate-700";
-}
-
-function getToneClasses(tone) {
-  const classes = {
-    green: "border-[#009B35]/25 bg-[#009B35]/5",
-    blue: "border-[#030454]/20 bg-[#030454]/5",
-    yellow: "border-[#F3F74B] bg-[#F3F74B]/25",
-    orange: "border-orange-200 bg-orange-50",
-    indigo: "border-indigo-200 bg-indigo-50",
-    cyan: "border-cyan-200 bg-cyan-50",
-    slate: "border-slate-200 bg-slate-50",
-  };
-
-  return classes[tone] || classes.slate;
-}
-
 function parseDate(value) {
   if (!value) return null;
 
@@ -171,16 +80,47 @@ function parseDate(value) {
   return date;
 }
 
-function formatDate(value) {
-  const date = parseDate(value);
+// Reporting year first (the report's actual subject year), falling back to
+// the upload date. Returns null (never a fabricated date) when neither
+// exists, so callers can omit the field entirely.
+function getReportDateLabel(report) {
+  if (report.reporting_year) return String(report.reporting_year);
 
-  if (!date) return "Not published";
+  const date = parseDate(report.created_at);
 
-  return date.toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return date
+    ? date.toLocaleDateString(undefined, { year: "numeric", month: "short" })
+    : null;
+}
+
+// Reads the file extension directly from the real file_url — never a
+// fabricated/assumed format. Returns null when there is no file or no
+// discoverable extension.
+function getReportFileFormat(fileUrl) {
+  if (!fileUrl) return null;
+
+  const match = String(fileUrl).split("?")[0].match(/\.([a-zA-Z0-9]{2,5})$/);
+
+  return match ? match[1].toUpperCase() : null;
+}
+
+// Compact "Type · Date · Format" meta line shared by the Latest Publication
+// panel and the report library rows — omits any part that is genuinely
+// unavailable rather than showing a repeated "Not available".
+function buildReportMetaParts(report) {
+  const parts = [];
+  const typeLabel =
+    report.report_type_display || getOptionLabel(reportTypeOptions, report.report_type);
+
+  if (typeLabel && typeLabel !== "—") parts.push(typeLabel);
+
+  const dateLabel = getReportDateLabel(report);
+  if (dateLabel) parts.push(dateLabel);
+
+  const format = getReportFileFormat(getReportFileUrl(report));
+  if (format) parts.push(format);
+
+  return parts;
 }
 
 function getReportSortTime(report) {
@@ -201,339 +141,86 @@ function getFeaturedReport(reports) {
   return [...reports].sort((a, b) => getReportSortTime(b) - getReportSortTime(a))[0];
 }
 
-function ReportsExecutiveHero({ reports, summary, years }) {
-  const reportTypes =
-    summary.report_type_count ||
-    new Set(reports.map((report) => report.report_type).filter(Boolean)).size ||
-    0;
-  const totalReports = summary.total_reports || reports.length || 0;
-  const publishedReports = summary.published_reports || reports.length || 0;
-  const latestYear =
-    summary.latest_year ||
-    years[0] ||
-    (reports.length ? "Available" : "Not published");
-
+function ReportsHero({ publishedCount }) {
   return (
-    <PublicSection
-      className="border-b border-[#D8DDE2] bg-white"
-      innerClassName="grid gap-6 lg:grid-cols-[minmax(0,1fr)_430px] lg:items-stretch"
-    >
-      <div className="flex min-h-[300px] flex-col justify-center py-2">
-        <div className="flex flex-wrap items-center gap-3">
-          <PublicBadge active>Public evidence portal</PublicBadge>
-          <PublicBadge active={publishedReports > 0}>
-            {publishedReports} published
-          </PublicBadge>
-          <PublicBadge>{reportTypes} report types</PublicBadge>
-        </div>
-
-        <h1 className="mt-6 max-w-4xl text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-[#030454] sm:text-5xl lg:text-6xl">
-          Public reports and evidence documents
+    <PublicSection className="border-b border-[#D8DDE2] bg-white">
+      <div className="max-w-3xl py-2">
+        <h1 className="text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-[#030454] sm:text-5xl">
+          Reports &amp; Publications
         </h1>
 
-        <p className="mt-5 max-w-3xl text-pretty text-base leading-8 text-slate-600 sm:text-lg">
-          Access approved climate reports, evidence documents, public briefs
-          and validated outputs published through the Kaduna Climate Command
-          Centre.
+        <p className="mt-4 text-pretty text-base leading-8 text-slate-600 sm:text-lg">
+          Access approved climate reports, technical assessments, policy
+          briefs, inventories and project reports published by the Kaduna
+          Climate Command Centre.
         </p>
 
-        <div className="mt-7 flex flex-wrap gap-3">
-          <PublicPrimaryButton
-            onClick={() => {
-              document
-                .getElementById("public-report-library")
-                ?.scrollIntoView({ behavior: "smooth", block: "start" });
-            }}
-          >
-            Browse Library
-          </PublicPrimaryButton>
-          <PublicSecondaryButton
-            onClick={() => {
-              window.location.href = "/public/climate-risk";
-            }}
-          >
-            Climate Impact
-          </PublicSecondaryButton>
-        </div>
+        <p className="mt-4 text-xs font-bold uppercase tracking-[0.1em] text-[#009B35]">
+          {publishedCount > 0
+            ? `${formatNumber(publishedCount)} published document${publishedCount === 1 ? "" : "s"}`
+            : "No public reports have been published yet."}
+        </p>
       </div>
-
-      <PublicCard className="flex min-h-[300px] flex-col justify-between border-[#009B35]/25 p-6">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
-            Publication snapshot
-          </p>
-          <p className="mt-5 text-4xl font-black leading-tight text-[#030454] sm:text-5xl">
-            {formatNumber(totalReports)}
-          </p>
-          <p className="mt-2 text-sm font-bold uppercase tracking-[0.08em] text-slate-500">
-            Public reports
-          </p>
-        </div>
-
-        <div className="mt-6 grid gap-3 border-t border-[#D8DDE2] pt-5 text-sm">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-slate-500">Published documents</span>
-            <strong className="text-right text-[#030454]">
-              {formatNumber(publishedReports)}
-            </strong>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-slate-500">Report types</span>
-            <strong className="text-right text-[#030454]">{reportTypes}</strong>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-slate-500">Latest year</span>
-            <strong className="text-right text-[#030454]">{latestYear}</strong>
-          </div>
-        </div>
-      </PublicCard>
     </PublicSection>
   );
 }
 
-function EvidenceRibbon({ reports, summary, years }) {
-  const reportTypes =
-    summary.report_type_count ||
-    new Set(reports.map((report) => report.report_type).filter(Boolean)).size ||
-    0;
-
-  const latestYear =
-    summary.latest_year ||
-    years[0] ||
-    (reports.length ? "Available" : "Not published");
-
-  const items = [
-    `Public reports: ${summary.total_reports || reports.length || 0}`,
-    `Published documents: ${summary.published_reports || reports.length || 0}`,
-    `Report types: ${reportTypes}`,
-    `Latest year: ${latestYear}`,
-    `Climate Impact evidence: ${
-      reports.some((report) => report.report_type === "climate_risk")
-        ? "Available"
-        : "Pending"
-    }`,
-    `GHG evidence: ${
-      reports.some((report) => report.report_type === "ghg_inventory")
-        ? "Available"
-        : "Pending"
-    }`,
-    `Project evidence: ${
-      reports.some((report) => report.report_type === "project_portfolio")
-        ? "Available"
-        : "Pending"
-    }`,
-    "Only public-approved documents are shown",
-  ];
-
-  const scrollingItems = [...items, ...items];
-
-  return (
-    <section className="overflow-hidden border-y border-[#D8DDE2] bg-[#F7F9FA]">
-      <style>
-        {`
-          @keyframes reports-evidence-ribbon {
-            0% {
-              transform: translateX(0);
-            }
-
-            100% {
-              transform: translateX(-50%);
-            }
-          }
-
-          .reports-evidence-ribbon-track {
-            width: max-content;
-            animation: reports-evidence-ribbon 55s linear infinite;
-            will-change: transform;
-          }
-
-          .reports-evidence-ribbon-track:hover {
-            animation-play-state: paused;
-          }
-
-          @media (prefers-reduced-motion: reduce) {
-            .reports-evidence-ribbon-track {
-              animation: none;
-              flex-wrap: wrap;
-              width: 100%;
-            }
-          }
-        `}
-      </style>
-
-      <div className="reports-evidence-ribbon-track flex">
-        {scrollingItems.map((item, index) => (
-          <div
-            key={`${item}-${index}`}
-            className="flex min-w-[260px] items-center gap-3 border-r border-[#D8DDE2] bg-white px-5 py-3.5 text-xs font-black uppercase tracking-[0.08em] text-[#030454]"
-          >
-            <span className="h-2.5 w-2.5 rounded-full bg-[#009B35]" />
-            {item}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function FeaturedReportPanel({ report }) {
-  if (!report) {
-    return (
-      <PublicSection className="bg-[#F7F9FA]">
-          <PublicEmptyState
-            title="No featured report available"
-            message="Published public reports will appear here once they are approved and available."
-          />
-      </PublicSection>
-    );
-  }
+function LatestPublicationSection({ report }) {
+  if (!report) return null;
 
   const fileUrl = getReportFileUrl(report);
-  const meta = getTypeMeta(report.report_type);
+  const metaParts = buildReportMetaParts(report);
+  const fileFormat = getReportFileFormat(fileUrl);
 
   return (
-    <PublicSection
-      className="bg-[#F7F9FA]"
-      innerClassName="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]"
-    >
-        <div className="overflow-hidden rounded-lg bg-[#030454] text-white shadow-sm">
-          <div className="relative p-7">
-            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(0,155,53,0.2),transparent_48%),linear-gradient(180deg,rgba(255,255,255,0.08),transparent)]" />
+    <PublicSection className="bg-[#F7F9FA]">
+      <PublicSectionHeading title="Latest Publication" />
 
-            <div className="relative">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#F3F74B]">
-                Featured evidence document
-              </p>
+      <PublicCard className="mt-5 p-6 sm:p-7">
+        <p className="text-balance font-['Playfair_Display'] text-2xl font-bold leading-tight text-[#030454] sm:text-3xl">
+          {report.title}
+        </p>
 
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span
-                  className={`rounded-sm px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${getTypeClass(
-                    report.report_type
-                  )}`}
-                >
-                  {report.report_type_display ||
-                    getOptionLabel(reportTypeOptions, report.report_type)}
-                </span>
-
-                {report.reporting_year && (
-                  <span className="rounded-sm bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-white">
-                    {report.reporting_year}
-                  </span>
-                )}
-              </div>
-
-              <h2 className="mt-5 text-balance font-['Playfair_Display'] text-4xl font-bold leading-tight text-white md:text-5xl">
-                {report.title}
-              </h2>
-
-              <p className="mt-5 max-w-3xl text-pretty text-sm leading-7 text-white/78">
-                {report.description ||
-                  "This public report is available as an approved evidence document."}
-              </p>
-
-              <div className="mt-7 flex flex-wrap gap-3">
-                {fileUrl ? (
-                  <PublicPrimaryButton
-                    as="a"
-                    href={fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={() => trackReportDownloaded(report)}
-                    className="px-5 py-3 text-xs focus-visible:ring-white/70"
-                  >
-                    Open featured report
-                  </PublicPrimaryButton>
-                ) : (
-                  <button
-                    type="button"
-                    disabled
-                    className="cursor-not-allowed rounded-md bg-white/15 px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-white/50"
-                  >
-                    File unavailable
-                  </button>
-                )}
-
-                <PublicSecondaryButton
-                  inverse
-                  onClick={() => {
-                    document
-                      .getElementById("public-report-library")
-                      ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                  className="px-5 py-3 text-xs"
-                >
-                  Browse library
-                </PublicSecondaryButton>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <PublicCard
-          className={`p-6 ${getToneClasses(
-            meta.tone
-          )}`}
-        >
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
-            What this report supports
+        {report.description && (
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+            {report.description}
           </p>
+        )}
 
-          <h3 className="mt-3 text-balance font-['Playfair_Display'] text-3xl font-bold leading-tight text-[#030454]">
-            {meta.title}
-          </h3>
+        {metaParts.length > 0 && (
+          <p className="mt-4 text-xs font-black uppercase tracking-[0.08em] text-slate-500">
+            {metaParts.join(" · ")}
+          </p>
+        )}
 
-          <p className="mt-4 text-sm leading-7 text-slate-600">{meta.body}</p>
-
-          <div className="mt-6 grid gap-3 rounded-lg bg-white/70 p-4 text-xs leading-6 text-slate-600">
-            {report.source_module && (
-              <p>
-                <span className="font-black text-[#030454]">Source module:</span>{" "}
-                {report.source_module}
-              </p>
-            )}
-
-            {report.generated_by_name && (
-              <p>
-                <span className="font-black text-[#030454]">Generated by:</span>{" "}
-                {report.generated_by_name}
-              </p>
-            )}
-
-            <p>
-              <span className="font-black text-[#030454]">Uploaded:</span>{" "}
-              {formatDate(report.created_at)}
-            </p>
-          </div>
-
-          <PublicDisclaimerNote className="mt-6">
-            Use public reports as approved evidence references. For formal
-            decisions, consult the full report and its methodology notes.
-          </PublicDisclaimerNote>
-        </PublicCard>
-    </PublicSection>
-  );
-}
-
-function EvidenceUseStrip() {
-  return (
-    <PublicSection className="border-y border-[#D8DDE2] bg-white" innerClassName="grid gap-4 lg:grid-cols-3">
-        {audienceGuidance.map((item) => (
-          <PublicCard
-            as="article"
-            key={item.label}
-            className="bg-[#F7F9FA] p-5 transition hover:-translate-y-0.5 hover:border-[#009B35]/45 hover:shadow-md"
-          >
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#009B35]">
-              {item.label}
-            </p>
-
-            <h3 className="mt-2 text-lg font-black text-[#030454]">
-              {item.title}
-            </h3>
-
-            <p className="mt-3 text-sm leading-7 text-slate-600">{item.body}</p>
-          </PublicCard>
-        ))}
+        <div className="mt-6 flex flex-wrap gap-3">
+          {fileUrl ? (
+            <>
+              <a
+                href={fileUrl}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => trackReportDownloaded(report)}
+                className="rounded-md border border-[#030454] px-5 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:bg-[#030454] hover:text-white"
+              >
+                View Report
+              </a>
+              <a
+                href={fileUrl}
+                download
+                onClick={() => trackReportDownloaded(report)}
+                className="rounded-md bg-[#009B35] px-5 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
+              >
+                Download{fileFormat ? ` ${fileFormat}` : ""}
+              </a>
+            </>
+          ) : (
+            <span className="text-xs font-black uppercase tracking-[0.08em] text-slate-400">
+              File unavailable
+            </span>
+          )}
+        </div>
+      </PublicCard>
     </PublicSection>
   );
 }
@@ -596,133 +283,57 @@ function ReportFilterPanel({ filters, updateFilter, years }) {
   );
 }
 
-function ReportTypeChips({ reports, activeType, onSelect }) {
-  const counts = reportTypeOptions.map((option) => ({
-    ...option,
-    count: reports.filter((report) => report.report_type === option.value)
-      .length,
-  }));
-
-  return (
-    <div className="flex flex-wrap gap-2">
-      <button
-        type="button"
-        onClick={() => onSelect("all")}
-        className={`rounded-full px-4 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30 ${
-          activeType === "all"
-            ? "bg-[#030454] text-white"
-            : "border border-[#D8DDE2] bg-white text-slate-600 hover:border-[#030454]/35 hover:text-[#030454]"
-        }`}
-      >
-        All reports
-      </button>
-
-      {counts.map((item) => (
-        <button
-          key={item.value}
-          type="button"
-          onClick={() => onSelect(item.value)}
-          className={`rounded-full px-4 py-2 text-xs font-black transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30 ${
-            activeType === item.value
-              ? "bg-[#030454] text-white"
-              : "border border-[#D8DDE2] bg-white text-slate-600 hover:border-[#030454]/35 hover:text-[#030454]"
-          }`}
-        >
-          {item.label} · {item.count}
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function ReportCard({ report }) {
+function ReportRow({ report }) {
   const fileUrl = getReportFileUrl(report);
-  const meta = getTypeMeta(report.report_type);
+  const fileFormat = getReportFileFormat(fileUrl);
+  const metaParts = buildReportMetaParts(report);
 
   return (
-    <PublicCard
-      as="article"
-      className="group flex h-full flex-col p-6 transition hover:-translate-y-0.5 hover:border-[#009B35]/55 hover:shadow-md"
-    >
-      <div className="mb-4 flex flex-wrap gap-2">
-        <span
-          className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${getTypeClass(
-            report.report_type
-          )}`}
-        >
-          {report.report_type_display ||
-            getOptionLabel(reportTypeOptions, report.report_type)}
-        </span>
-
-        {report.reporting_year && (
-          <span className="rounded-sm bg-slate-100 px-3 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-slate-600">
-            {report.reporting_year}
-          </span>
-        )}
-      </div>
-
-      <h3 className="text-balance text-xl font-black leading-snug text-[#030454]">
-        {report.title}
-      </h3>
-
-      <p className="mt-3 line-clamp-3 text-sm leading-7 text-slate-600">
-        {report.description || "No report description has been provided."}
-      </p>
-
-      <div
-        className={`mt-5 rounded-lg border p-4 ${getToneClasses(meta.tone)}`}
-      >
-        <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#009B35]">
-          Supports
+    <div className="flex flex-col gap-3 border-b border-[#E6EAEC] bg-white px-4 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div className="min-w-0">
+        <p className="text-balance text-base font-bold leading-snug text-[#030454]">
+          {report.title}
         </p>
 
-        <p className="mt-1 text-sm font-black text-[#030454]">{meta.label}</p>
-      </div>
-
-      <div className="mt-5 grid gap-3 border-t border-slate-200 pt-5 text-xs text-slate-500">
-        {report.source_module && (
-          <p>
-            <span className="font-bold text-[#030454]">Source module:</span>{" "}
-            {report.source_module}
+        {report.description && (
+          <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-600">
+            {report.description}
           </p>
         )}
 
-        {report.generated_by_name && (
-          <p>
-            <span className="font-bold text-[#030454]">Generated by:</span>{" "}
-            {report.generated_by_name}
+        {metaParts.length > 0 && (
+          <p className="mt-1.5 text-xs font-black uppercase tracking-[0.06em] text-slate-400">
+            {metaParts.join(" · ")}
           </p>
         )}
-
-        <p>
-          <span className="font-bold text-[#030454]">Uploaded:</span>{" "}
-          {formatDate(report.created_at)}
-        </p>
       </div>
 
-      <div className="mt-auto pt-6">
-        {fileUrl ? (
-          <PublicPrimaryButton
-            as="a"
+      {fileUrl ? (
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <a
             href={fileUrl}
             target="_blank"
             rel="noreferrer"
             onClick={() => trackReportDownloaded(report)}
-            className="inline-flex w-full justify-center bg-[#009B35] px-5 py-3 text-sm text-white hover:bg-[#00842e]"
+            className="rounded-md border border-[#030454] px-3.5 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:bg-[#030454] hover:text-white"
           >
-            Open Report →
-          </PublicPrimaryButton>
-        ) : (
-          <button
-            type="button"
-            disabled
-            className="inline-flex w-full cursor-not-allowed items-center justify-center rounded-md bg-slate-100 px-5 py-3 text-sm font-black uppercase tracking-[0.08em] text-slate-400"
+            View Report
+          </a>
+          <a
+            href={fileUrl}
+            download
+            onClick={() => trackReportDownloaded(report)}
+            className="rounded-md bg-[#009B35] px-3.5 py-2 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-[#00842e]"
           >
-            File Unavailable
-          </button>
-        )}
-      </div>
-    </PublicCard>
+            Download{fileFormat ? ` ${fileFormat}` : ""}
+          </a>
+        </div>
+      ) : (
+        <span className="shrink-0 text-xs font-black uppercase tracking-[0.08em] text-slate-400">
+          File unavailable
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -734,59 +345,60 @@ function ReportLibrary({
   years,
   isLoading,
 }) {
+  const hasAnyReports = reports.length > 0;
+
   return (
-    <PublicSection
-      id="public-report-library"
-      className="bg-[#F7F9FA]"
-    >
-        <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
-          <PublicSectionHeading
-            title="Evidence library"
-            description="Browse public-facing Climate Impact reports, greenhouse gas inventory outputs, project portfolio reports, executive briefs and data exports."
-          />
+    <PublicSection id="public-report-library" className="bg-[#F7F9FA]">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+        <PublicSectionHeading title="Report Library" />
 
-          <PublicBadge className="rounded-lg px-4 py-3 uppercase tracking-[0.1em] text-[#030454]">
-            {formatNumber(filteredReports.length)} matching document
-            {filteredReports.length === 1 ? "" : "s"}
-          </PublicBadge>
-        </div>
+        {hasAnyReports && !isLoading && (
+          <p className="text-xs font-bold uppercase tracking-[0.08em] text-slate-400">
+            Showing {formatNumber(filteredReports.length)} of {formatNumber(reports.length)} report
+            {reports.length === 1 ? "" : "s"}
+          </p>
+        )}
+      </div>
 
-        <div className="mt-8 space-y-4">
+      {hasAnyReports && (
+        <div className="mt-6">
           <ReportFilterPanel
             filters={filters}
             updateFilter={updateFilter}
             years={years}
           />
+        </div>
+      )}
 
-          <ReportTypeChips
-            reports={reports}
-            activeType={filters.report_type}
-            onSelect={(value) => updateFilter("report_type", value)}
+      {isLoading ? (
+        <PublicLoadingState
+          message="Loading public reports..."
+          className="mt-10"
+          maxWidthClassName="max-w-none"
+        />
+      ) : !hasAnyReports ? (
+        <div className="mt-8">
+          <PublicEmptyState
+            title="No public reports found"
+            message="Approved KCCC reports and publications will appear here once they are published."
           />
         </div>
-
-        {isLoading ? (
-          <PublicLoadingState
-            message="Loading public reports..."
-            className="mt-10"
-            maxWidthClassName="max-w-none"
-          />
-        ) : (
-          <div className="mt-10">
-            {filteredReports.length > 0 ? (
-              <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-                {filteredReports.map((report) => (
-                  <ReportCard key={report.id || report.title} report={report} />
-                ))}
-              </div>
-            ) : (
-              <PublicEmptyState
-                title="No public reports found"
-                message="No published public reports match the selected filters."
-              />
-            )}
-          </div>
-        )}
+      ) : (
+        <div className="mt-8">
+          {filteredReports.length > 0 ? (
+            <div className="overflow-hidden rounded-lg border border-[#D8DDE2] bg-white">
+              {filteredReports.map((report) => (
+                <ReportRow key={report.id || report.title} report={report} />
+              ))}
+            </div>
+          ) : (
+            <PublicEmptyState
+              title="No public reports found"
+              message="No published public reports match the selected filters."
+            />
+          )}
+        </div>
+      )}
     </PublicSection>
   );
 }
@@ -880,6 +492,14 @@ export default function PublicReportsPage() {
     return getFeaturedReport(reports);
   }, [reports]);
 
+  // summary.total_public_reports is the authoritative API count (see
+  // backend/public_portal/views.py's public_report_documents); reports.length
+  // is used only as a fallback when that field is absent, never when the
+  // whole fetch failed.
+  const publishedCount = hasValidCount(summary.total_public_reports)
+    ? summary.total_public_reports
+    : reports.length;
+
   function updateFilter(field, value) {
     setFilters((current) => ({
       ...current,
@@ -898,13 +518,9 @@ export default function PublicReportsPage() {
 
       <PublicErrorBanner message={error} maxWidthClassName="max-w-7xl" />
 
-      <ReportsExecutiveHero reports={reports} summary={summary} years={years} />
+      <ReportsHero publishedCount={publishedCount} />
 
-      <EvidenceRibbon reports={reports} summary={summary} years={years} />
-
-      <FeaturedReportPanel report={featuredReport} />
-
-      <EvidenceUseStrip />
+      <LatestPublicationSection report={featuredReport} />
 
       <ReportLibrary
         reports={reports}
@@ -914,31 +530,6 @@ export default function PublicReportsPage() {
         years={years}
         isLoading={isLoading}
       />
-
-      <PublicSection
-        className="border-y border-slate-200 bg-[#030454] text-white"
-        innerClassName="grid gap-8 md:grid-cols-[1fr_auto] md:items-center"
-      >
-          <div>
-            <h3 className="text-balance font-['Playfair_Display'] text-3xl font-bold">
-              Return to Climate Impact portal
-            </h3>
-
-            <p className="mt-3 max-w-2xl text-sm font-light leading-7 text-white/70">
-              Go back to the public portal to view the Climate Impact map, public
-              project summary and partner information.
-            </p>
-          </div>
-
-          <PublicPrimaryButton
-            onClick={() => {
-              window.location.href = "/public";
-            }}
-            className="w-fit bg-[#009B35] text-white hover:bg-[#00842e]"
-          >
-            Back to Public Portal
-          </PublicPrimaryButton>
-      </PublicSection>
 
       <PublicPortalFooter />
     </main>
