@@ -9,6 +9,7 @@ import PublicPortalPage from "./pages/PublicPortalPage";
 import PublicClimateRiskPage from "./pages/PublicClimateRiskPage";
 import PublicGHGInventoryPage from "./pages/PublicGHGInventoryExplorerPage";
 import PublicProjectsPage from "./pages/PublicProjectsPage";
+import PublicProjectDetailPage from "./pages/PublicProjectDetailPage";
 import GHGInventoryPage from "./pages/GHGInventoryPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import ClimateRiskPage from "./pages/ClimateRiskPage";
@@ -292,6 +293,16 @@ function App() {
 
   if (publicPage) {
     return publicPage;
+  }
+
+  // Dynamic public project detail route (/public/projects/:id) — the app
+  // otherwise only does exact-pathname lookups above, so this is handled as
+  // a single additive prefix match rather than introducing a second router.
+  const projectDetailMatch = window.location.pathname.match(
+    /^\/public\/projects\/([^/]+)\/?$/
+  );
+  if (projectDetailMatch) {
+    return <PublicProjectDetailPage projectId={projectDetailMatch[1]} />;
   }
 
   if (isLoading) {

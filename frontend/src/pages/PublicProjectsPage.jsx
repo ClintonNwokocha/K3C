@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Activity, Download, Layers, Leaf, MapPin } from "lucide-react";
+import { ChevronRight, Download, Layers, Leaf, Wallet, X } from "lucide-react";
 import {
   CircleMarker,
   GeoJSON,
@@ -33,6 +33,26 @@ import ClimateActionOpportunitiesPanel from "../components/ClimateActionOpportun
 import { SECTOR_LABELS } from "../decision-support/climateRecommendations.js";
 import { readProjectPathwayContext, matchesContributingProject } from "../utils/projectPathwayContext.js";
 import ProjectPathwayNotice from "../components/ProjectPathwayNotice";
+import {
+  hasValidNumber,
+  formatNumber,
+  formatCompactNumber,
+  formatNaira,
+  getProjectSector,
+  getProjectStatus,
+  getProjectStatusKey,
+  getProjectLga,
+  getProjectFundingSource,
+  getProjectImplementingMda,
+  getProjectExternalLink,
+  getProjectReduction,
+  getProjectBeneficiaries,
+  getProjectValue,
+  getProjectSummary,
+  getProjectDescription,
+  getProjectPeriod,
+  getStatusMeta,
+} from "../utils/publicProjectFields.js";
 
 const KADUNA_CENTER = [10.5105, 7.4165];
 
@@ -160,34 +180,6 @@ function normalizeName(value) {
     .replace(/\s+/g, " ");
 }
 
-function hasValidNumber(value) {
-  if (value === null || value === undefined || value === "") return false;
-  return Number.isFinite(Number(value));
-}
-
-function formatNumber(value, maximumFractionDigits = 2) {
-  if (!hasValidNumber(value)) return "—";
-  return Number(value).toLocaleString(undefined, { maximumFractionDigits });
-}
-
-function formatCompactNumber(value) {
-  if (!hasValidNumber(value)) return "—";
-  const number = Number(value);
-  if (number >= 1_000_000) return `${formatNumber(number / 1_000_000, 2)}M`;
-  if (number >= 1_000) return `${formatNumber(number / 1_000, 1)}K`;
-  return formatNumber(number, 0);
-}
-
-function titleCase(value) {
-  return String(value || "")
-    .replace(/_/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .replace(/\w\S*/g, (word) => {
-      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-    });
-}
-
 function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")
@@ -195,91 +187,6 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
-}
-
-function getProjectSector(project) {
-  return (
-    project.sector_display ||
-    project.sector_name ||
-    project.sector ||
-    "Not specified"
-  );
-}
-
-function getProjectStatus(project) {
-  return project.status_display || titleCase(project.status) || "Not specified";
-}
-
-function getProjectStatusKey(project) {
-  const status = String(project.status || project.status_display || "")
-    .toLowerCase()
-    .trim();
-  if (status.includes("completed")) return "completed";
-  if (status.includes("ongoing") || status.includes("active")) return "ongoing";
-  if (status.includes("proposed") || status.includes("planned")) return "proposed";
-  return "other";
-}
-
-function getProjectLga(project) {
-  return project.lga_name || project.lga || "Statewide";
-}
-
-function getProjectFundingSource(project) {
-  return project.funding_source || "Not specified";
-}
-
-function getProjectImplementingMda(project) {
-  return project.implementing_agency || "Not specified";
-}
-
-function getProjectExternalLink(project) {
-  const link = String(project.external_link || "").trim();
-  return link || null;
-}
-
-function getProjectReduction(project) {
-  // null (not 0) when the field is genuinely absent — formatNumber() already
-  // renders null/undefined as "—" rather than a fabricated zero impact.
-  if (hasValidNumber(project.expected_ghg_reduction_tco2e)) return project.expected_ghg_reduction_tco2e;
-  if (hasValidNumber(project.estimated_ghg_reduction_tco2e)) return project.estimated_ghg_reduction_tco2e;
-  if (hasValidNumber(project.ghg_reduction_tco2e)) return project.ghg_reduction_tco2e;
-  return null;
-}
-
-function getProjectBeneficiaries(project) {
-  return (
-    project.expected_beneficiaries ||
-    project.beneficiaries ||
-    project.total_beneficiaries ||
-    0
-  );
-}
-
-function getProjectSummary(project) {
-  return (
-    project.public_summary ||
-    project.summary ||
-    project.climate_risk_relevance ||
-    "Public summary for this project is being prepared."
-  );
-}
-
-function getProjectDescription(project) {
-  return (
-    project.public_description ||
-    project.public_summary ||
-    project.summary ||
-    project.climate_risk_relevance ||
-    "Detailed public description for this project is being prepared."
-  );
-}
-
-function getProjectPeriod(project) {
-  const start = project.start_date || project.implementation_start;
-  const end = project.end_date || project.implementation_end;
-  if (!start && !end) return null;
-  if (start && end) return `${start} – ${end}`;
-  return start || end;
 }
 
 function getApiOrigins() {
@@ -343,7 +250,7 @@ function ProjectImageFallback({ project, label = "Climate Action Project" }) {
   );
 }
 
-function ProjectImage({
+export function ProjectImage({
   project,
   alt,
   label,
@@ -402,41 +309,7 @@ function getValidNigeriaProjectCoordinates(project) {
   return coordinates;
 }
 
-function getStatusMeta(statusKey) {
-  const meta = {
-    ongoing: {
-      label: "Ongoing",
-      dot: "#030454",
-      badge: "bg-[#030454]/10 text-[#030454]",
-      title: "Ongoing Projects",
-      description: "Projects currently under implementation.",
-    },
-    completed: {
-      label: "Completed",
-      dot: "#009B35",
-      badge: "bg-[#009B35]/10 text-[#009B35]",
-      title: "Completed Projects",
-      description: "Projects reported as completed.",
-    },
-    proposed: {
-      label: "Proposed",
-      dot: "#F3B91E",
-      badge: "bg-[#F3F74B]/35 text-[#030454]",
-      title: "Proposed Projects",
-      description: "Projects proposed or planned for implementation.",
-    },
-    other: {
-      label: "Other",
-      dot: "#64748B",
-      badge: "bg-slate-100 text-slate-600",
-      title: "Other Projects",
-      description: "Projects with other implementation statuses.",
-    },
-  };
-  return meta[statusKey] || meta.other;
-}
-
-function SummaryChip({ label, value, helper }) {
+export function SummaryChip({ label, value, helper }) {
   return (
     <PublicCard className="px-4 py-4">
       <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">
@@ -522,7 +395,7 @@ function PortfolioMetricCard({ icon: Icon, tone, label, value, helper }) {
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-xl border p-5 transition duration-200 motion-safe:hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(8,12,65,0.1)] ${toneClass}`}
+      className={`group relative flex h-full flex-col overflow-hidden rounded-xl border p-5 transition duration-200 motion-safe:hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(8,12,65,0.1)] ${toneClass}`}
     >
       <span
         aria-hidden="true"
@@ -539,10 +412,24 @@ function PortfolioMetricCard({ icon: Icon, tone, label, value, helper }) {
 }
 
 function PortfolioSnapshotSection({ projects, summary, hasError }) {
-  const lgaCount = new Set(projects.map((project) => getProjectLga(project))).size;
-  const ongoingCount = projects.filter((p) => getProjectStatusKey(p) === "ongoing").length;
   const totalProjects = formatProjectCount(summary.total_projects, projects.length, hasError);
   const totalReduction = summary.total_expected_ghg_reduction_tco2e;
+
+  // No per-project value is ever fabricated — the total is only computed
+  // from projects that actually carry a valid value field (see
+  // getProjectValue). If none do (the current public API does not expose
+  // one — see aboutDataItems), this is null and the card truthfully reports
+  // "Not available" rather than inventing a ₦ amount.
+  const projectValues = projects.map(getProjectValue).filter(hasValidNumber);
+  const totalValue = projectValues.length
+    ? projectValues.reduce((sum, value) => sum + Number(value), 0)
+    : null;
+  const totalValueDisplay = !hasError && hasValidNumber(totalValue) ? formatNaira(totalValue) : "Not available";
+  const totalValueHelper = hasError
+    ? "Portfolio summary is temporarily unavailable."
+    : hasValidNumber(totalValue)
+      ? "Combined value across public project records."
+      : "Project financial values are not available in the public dataset.";
 
   return (
     <section aria-label="Portfolio snapshot" className="border-b border-[#D8DDE2] bg-[#F7F9FA] px-4 py-6 sm:px-8 lg:px-10">
@@ -550,7 +437,7 @@ function PortfolioSnapshotSection({ projects, summary, hasError }) {
         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#009B35]">
           Portfolio snapshot
         </p>
-        <div className="mt-3 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-3 grid gap-4 sm:grid-cols-3">
           <PortfolioMetricCard
             icon={Layers}
             tone={0}
@@ -559,22 +446,15 @@ function PortfolioSnapshotSection({ projects, summary, hasError }) {
             helper="Approved projects visible on the public portal."
           />
           <PortfolioMetricCard
-            icon={Activity}
+            icon={Wallet}
             tone={1}
-            label="Ongoing projects"
-            value={hasError ? "Not available" : ongoingCount}
-            helper="Currently under implementation."
-          />
-          <PortfolioMetricCard
-            icon={MapPin}
-            tone={2}
-            label="LGAs represented"
-            value={hasError ? "Not available" : lgaCount}
-            helper="LGAs with at least one public project."
+            label="Total project value"
+            value={totalValueDisplay}
+            helper={totalValueHelper}
           />
           <PortfolioMetricCard
             icon={Leaf}
-            tone={3}
+            tone={2}
             label="Estimated GHG impact"
             value={hasValidNumber(totalReduction) ? `${formatCompactNumber(totalReduction)} tCO₂e` : "Not available"}
             helper="Expected project impact — not official inventory emissions."
@@ -582,89 +462,6 @@ function PortfolioSnapshotSection({ projects, summary, hasError }) {
         </div>
       </div>
     </section>
-  );
-}
-
-function PortfolioBreakdownCard({ title, description, rows, emptyMessage }) {
-  const maxCount = rows.reduce((max, row) => Math.max(max, row.count), 0);
-
-  return (
-    <PublicCard className="p-5">
-      <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">{title}</p>
-      {description && <p className="mt-1 text-xs leading-5 text-slate-500">{description}</p>}
-      {rows.length ? (
-        <div className="mt-4 space-y-3">
-          {rows.map((row) => (
-            <div key={row.label}>
-              <div className="flex items-center justify-between gap-3 text-xs font-bold text-slate-600">
-                <span className="truncate">{row.label}</span>
-                <span className="shrink-0 text-[#030454]">{row.count}</span>
-              </div>
-              <div className="mt-1 h-2 overflow-hidden rounded-full bg-[#E6EAEC]">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${maxCount ? (row.count / maxCount) * 100 : 0}%`,
-                    backgroundColor: row.color || "#009B35",
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-4 text-sm text-slate-500">{emptyMessage}</p>
-      )}
-    </PublicCard>
-  );
-}
-
-function PortfolioAnalyticsSection({ projects }) {
-  const statusRows = useMemo(() => {
-    const counts = new Map();
-    projects.forEach((project) => {
-      const key = getProjectStatusKey(project);
-      counts.set(key, (counts.get(key) || 0) + 1);
-    });
-    return [...counts.entries()]
-      .map(([key, count]) => ({ label: getStatusMeta(key).label, count, color: getStatusMeta(key).dot }))
-      .sort((a, b) => b.count - a.count);
-  }, [projects]);
-
-  const lgaRows = useMemo(() => {
-    const counts = new Map();
-    projects.forEach((project) => {
-      const lga = getProjectLga(project);
-      counts.set(lga, (counts.get(lga) || 0) + 1);
-    });
-    return [...counts.entries()]
-      .map(([label, count]) => ({ label, count }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 8);
-  }, [projects]);
-
-  if (!projects.length) return null;
-
-  return (
-    <PublicSection className="bg-white !py-10 lg:!py-11" innerClassName="">
-      <PublicSectionHeading
-        title="Understand the Portfolio"
-        description="Calculated directly from the currently published public project records."
-      />
-      <div className="mt-6 grid gap-5 md:grid-cols-2">
-        <PortfolioBreakdownCard
-          title="Projects by status"
-          rows={statusRows}
-          emptyMessage="No status data available."
-        />
-        <PortfolioBreakdownCard
-          title="Projects by LGA"
-          description={lgaRows.length >= 8 ? "Showing the most represented LGAs." : undefined}
-          rows={lgaRows}
-          emptyMessage="No LGA data available."
-        />
-      </div>
-    </PublicSection>
   );
 }
 
@@ -1232,65 +1029,76 @@ function ProjectLocationMap({ projects, onReadMore }) {
   );
 }
 
-function ProjectCard({ project, onReadMore }) {
-  const statusKey = getProjectStatusKey(project);
-  const statusMeta = getStatusMeta(statusKey);
-  const beneficiaries = getProjectBeneficiaries(project);
-  const period = getProjectPeriod(project);
-  const fundingSource = getProjectFundingSource(project);
-  const implementingMda = getProjectImplementingMda(project);
+const PROJECT_DIRECTORY_GRID_COLS =
+  "md:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1fr)_auto]";
+
+function ProjectDirectoryRow({ project, onReadMore }) {
+  const statusMeta = getStatusMeta(getProjectStatusKey(project));
+  const projectValue = getProjectValue(project);
+  const title = project.title || "Untitled project";
 
   return (
-    <PublicCard
-      as="article"
-      className="group flex flex-col overflow-hidden p-0 transition duration-200 motion-safe:hover:-translate-y-1 hover:shadow-[0_14px_30px_rgba(8,12,65,0.12)]"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => onReadMore(project)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onReadMore(project);
+        }
+      }}
+      aria-label={`View project details for ${title}`}
+      className={`group grid cursor-pointer gap-2 border-b border-[#E6EAEC] bg-white px-4 py-4 transition hover:bg-[#F7F9FA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30 md:items-center md:gap-4 md:px-5 md:py-3.5 ${PROJECT_DIRECTORY_GRID_COLS}`}
     >
-      <div className="h-1.5 w-full" style={{ backgroundColor: statusMeta.dot }} aria-hidden="true" />
-
-      <div className="relative h-40 bg-[#030454] sm:h-44">
-        <ProjectImage project={project} alt={project.title} label="Climate Action Project" />
-        <div className="absolute left-3 top-3">
-          <span className={`rounded-full px-2.5 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] ${statusMeta.badge}`}>
-            {getProjectStatus(project)}
-          </span>
-        </div>
-      </div>
-
-      <div className="flex flex-1 flex-col p-4 lg:p-5">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
-          {getProjectSector(project)} · {getProjectLga(project)}
+      <div className="min-w-0">
+        <p className="text-balance font-['Playfair_Display'] text-base font-bold leading-snug text-[#030454]">
+          {title}
         </p>
-        <h3 className="mt-1.5 text-balance font-['Playfair_Display'] text-xl font-bold leading-tight text-[#030454]">
-          {project.title}
-        </h3>
-        <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600">{getProjectSummary(project)}</p>
-
-        <dl className="mt-3 grid gap-x-4 gap-y-1.5 border-t border-[#E6EAEC] pt-3 text-xs leading-5 text-slate-600 sm:grid-cols-2">
-          <div><dt className="inline font-black text-[#030454]">Implementing org: </dt><dd className="inline">{implementingMda || "Not reported"}</dd></div>
-          <div><dt className="inline font-black text-[#030454]">Funded by: </dt><dd className="inline">{fundingSource || "Not reported"}</dd></div>
-          {beneficiaries > 0 && (
-            <div><dt className="inline font-black text-[#030454]">Beneficiaries: </dt><dd className="inline">{formatCompactNumber(beneficiaries)}</dd></div>
-          )}
-          <div><dt className="inline font-black text-[#030454]">Est. GHG reduction: </dt><dd className="inline">{formatNumber(getProjectReduction(project), 0)} tCO₂e</dd></div>
-          {period && (
-            <div><dt className="inline font-black text-[#030454]">Implementation period: </dt><dd className="inline">{period}</dd></div>
-          )}
-        </dl>
-
-        <button
-          type="button"
-          onClick={() => onReadMore(project)}
-          aria-label={`View project details for ${project.title}`}
-          className="mt-4 inline-flex w-fit items-center gap-2 rounded-md border border-[#030454] px-3.5 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:bg-[#030454] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
-        >
-          View project details <span aria-hidden="true">→</span>
-        </button>
+        <p className="mt-0.5 line-clamp-1 text-xs leading-5 text-slate-500">
+          {getProjectSummary(project)}
+        </p>
       </div>
-    </PublicCard>
+
+      <div className="text-xs text-slate-600 md:text-sm md:text-[#030454]">
+        <span className="font-black uppercase tracking-[0.1em] text-slate-400 md:hidden">Sector: </span>
+        {getProjectSector(project)}
+      </div>
+
+      <div className="text-xs text-slate-600 md:text-sm md:text-[#030454]">
+        <span className="font-black uppercase tracking-[0.1em] text-slate-400 md:hidden">LGA: </span>
+        {getProjectLga(project)}
+      </div>
+
+      <div>
+        <span className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.08em] ${statusMeta.badge}`}>
+          {getProjectStatus(project)}
+        </span>
+      </div>
+
+      <div className="text-xs font-bold text-slate-600 md:text-sm md:text-[#030454]">
+        <span className="font-black uppercase tracking-[0.1em] text-slate-400 md:hidden">Value: </span>
+        {hasValidNumber(projectValue) ? formatNaira(projectValue) : "Not available"}
+      </div>
+
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          onReadMore(project);
+        }}
+        aria-hidden="true"
+        tabIndex={-1}
+        className="flex items-center gap-1.5 text-xs font-black uppercase tracking-[0.08em] text-[#009B35] transition group-hover:text-[#00722A] md:justify-self-end"
+      >
+        View project
+        <ChevronRight size={14} aria-hidden="true" />
+      </button>
+    </div>
   );
 }
 
-function ProjectDirectoryGrid({ projects, onReadMore }) {
+function ProjectDirectoryList({ projects, onReadMore }) {
   if (!projects.length) {
     return (
       <PublicEmptyState
@@ -1301,9 +1109,19 @@ function ProjectDirectoryGrid({ projects, onReadMore }) {
   }
 
   return (
-    <div className="grid gap-5 md:grid-cols-2">
+    <div className="overflow-hidden rounded-lg border border-[#D8DDE2] bg-white">
+      <div
+        className={`hidden border-b border-[#E6EAEC] bg-[#F7F9FA] px-5 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-slate-400 md:grid md:gap-4 ${PROJECT_DIRECTORY_GRID_COLS}`}
+      >
+        <span>Project</span>
+        <span>Sector</span>
+        <span>LGA</span>
+        <span>Status</span>
+        <span>Project value</span>
+        <span className="justify-self-end">Action</span>
+      </div>
       {projects.map((project) => (
-        <ProjectCard
+        <ProjectDirectoryRow
           key={project.id || project.project_code || project.title}
           project={project}
           onReadMore={onReadMore}
@@ -1313,73 +1131,132 @@ function ProjectDirectoryGrid({ projects, onReadMore }) {
   );
 }
 
+// Reused by both the slide-over panel and the full project detail page so
+// the two views never silently disagree about which fields exist.
+export function ProjectKeyMetrics({ project }) {
+  const projectValue = getProjectValue(project);
+  const beneficiaries = getProjectBeneficiaries(project);
+  const reduction = getProjectReduction(project);
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2">
+      <SummaryChip
+        label="Total project value"
+        value={hasValidNumber(projectValue) ? formatNaira(projectValue) : "Not available"}
+        helper={hasValidNumber(projectValue) ? undefined : "Not available in the public dataset."}
+      />
+      <SummaryChip
+        label="Expected beneficiaries"
+        value={hasValidNumber(beneficiaries) ? formatCompactNumber(beneficiaries) : "Not available"}
+      />
+      <SummaryChip
+        label="Estimated GHG reduction"
+        value={hasValidNumber(reduction) ? `${formatNumber(reduction, 0)} tCO₂e` : "Not available"}
+      />
+      <SummaryChip
+        label="Implementing agency"
+        value={getProjectImplementingMda(project) || "Not available"}
+      />
+    </div>
+  );
+}
+
+function ProjectDetailPanelBody({ project }) {
+  const period = getProjectPeriod(project);
+  const externalLink = getProjectExternalLink(project);
+
+  return (
+    <div className="space-y-5">
+      <ProjectKeyMetrics project={project} />
+
+      {period && <SummaryChip label="Timeline" value={period} />}
+
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-400">Project summary</p>
+        <p className="mt-2 text-sm leading-7 text-slate-600">{getProjectDescription(project)}</p>
+      </div>
+
+      {Object.hasOwn(SECTOR_LABELS, project.sector) && (
+        <a
+          href={`/public/ghg-inventory?sector=${encodeURIComponent(project.sector)}&from_lga=${encodeURIComponent(getProjectLga(project))}`}
+          className="inline-block text-sm font-bold text-[#173B91] underline"
+        >
+          View GHG Sector — Kaduna State inventory
+        </a>
+      )}
+
+      {externalLink && (
+        <a
+          href={externalLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.08em] text-[#009B35] underline-offset-4 hover:underline"
+        >
+          Visit project resource <span aria-hidden="true">→</span>
+        </a>
+      )}
+
+      <PublicDisclaimerNote className="">
+        This public detail view excludes budget and financial values not already published by the project record.
+      </PublicDisclaimerNote>
+    </div>
+  );
+}
+
 function ProjectReadMorePanel({ project, onClose }) {
   if (!project) return null;
   const statusMeta = getStatusMeta(getProjectStatusKey(project));
+  const projectId = project.id ?? project.project_code;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-[#030454]/60 px-4 py-6 backdrop-blur-sm sm:px-8">
-      <PublicCard className="mx-auto flex max-h-full max-w-5xl flex-col overflow-hidden p-0 shadow-lg">
+    <div className="fixed inset-0 z-[9999]">
+      <div
+        aria-hidden="true"
+        onClick={onClose}
+        className="absolute inset-0 bg-[#030454]/15"
+      />
+
+      <div className="absolute inset-y-0 right-0 flex h-full w-full flex-col overflow-hidden bg-white shadow-2xl sm:w-[85%] md:w-[45%] lg:w-[40%]">
+        <div className="h-32 shrink-0 bg-[#030454] sm:h-36">
+          <ProjectImage project={project} alt={project.title} label="Climate Action Project" />
+        </div>
         <div className="flex items-start justify-between gap-4 border-b border-[#E6EAEC] bg-[#F7F9FA] px-6 py-5">
-          <div>
-            <span className={`rounded-full px-3 py-2 text-[10px] font-black uppercase tracking-[0.08em] ${statusMeta.badge}`}>
+          <div className="min-w-0">
+            <span className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] ${statusMeta.badge}`}>
               {getProjectStatus(project)}
             </span>
-            <h2 className="mt-4 text-balance font-['Playfair_Display'] text-3xl font-bold text-[#030454]">{project.title}</h2>
+            <h2 className="mt-3 text-balance font-['Playfair_Display'] text-2xl font-bold leading-tight text-[#030454]">
+              {project.title}
+            </h2>
             <p className="mt-2 text-sm text-slate-500">
-              {getProjectLga(project)} · {getProjectSector(project)}
+              {getProjectSector(project)} · {getProjectLga(project)}
             </p>
           </div>
-          <PublicSecondaryButton
+          <button
+            type="button"
             onClick={onClose}
-            className="px-3 py-2 text-sm"
+            aria-label="Close project details"
+            className="shrink-0 rounded-md border border-[#D8DDE2] bg-white p-2 text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
           >
-            Close
-          </PublicSecondaryButton>
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
-        <div className="grid overflow-y-auto lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="min-h-[320px] bg-[#030454]">
-            <ProjectImage project={project} alt={project.title} label="Project image pending" />
-          </div>
-          <div className="space-y-5 p-6">
-            <p className="text-sm leading-7 text-slate-600">{getProjectDescription(project)}</p>
-            {Object.hasOwn(SECTOR_LABELS, project.sector) && <a
-              href={`/public/ghg-inventory?sector=${encodeURIComponent(project.sector)}&from_lga=${encodeURIComponent(getProjectLga(project))}`}
-              className="inline-block text-sm font-bold text-[#173B91] underline"
-            >View GHG Sector — Kaduna State inventory</a>}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <SummaryChip label="Project code" value={project.project_code || "Not published"} />
-              <SummaryChip
-                label="Project type"
-                value={project.project_type_display || project.project_type || "Not specified"}
-              />
-              <SummaryChip label="Implementing MDA" value={getProjectImplementingMda(project)} />
-              <SummaryChip label="Funding source" value={getProjectFundingSource(project)} />
-              <SummaryChip label="Beneficiaries" value={formatCompactNumber(getProjectBeneficiaries(project))} />
-              <SummaryChip
-                label="Estimated GHG reduction"
-                value={`${formatNumber(getProjectReduction(project), 0)} tCO₂e`}
-              />
-              {getProjectPeriod(project) && (
-                <SummaryChip label="Implementation period" value={getProjectPeriod(project)} />
-              )}
-            </div>
-            {getProjectExternalLink(project) && (
-              <a
-                href={getProjectExternalLink(project)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.08em] text-[#009B35] underline-offset-4 hover:underline"
-              >
-                Visit project resource <span aria-hidden="true">→</span>
-              </a>
-            )}
-            <PublicDisclaimerNote className="">
-              This public detail view excludes budget and financial values.
-            </PublicDisclaimerNote>
-          </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          <ProjectDetailPanelBody project={project} />
         </div>
-      </PublicCard>
+
+        {projectId != null && (
+          <div className="border-t border-[#E6EAEC] bg-[#F7F9FA] px-6 py-4">
+            <a
+              href={`/public/projects/${encodeURIComponent(projectId)}`}
+              className="flex w-full items-center justify-center gap-2 rounded-md bg-[#030454] px-4 py-3 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:bg-[#0B1A78] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/40"
+            >
+              Open full project page <span aria-hidden="true">→</span>
+            </a>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1625,7 +1502,6 @@ export default function PublicProjectsPage() {
               existingProjects={projectList}
             />
           )}
-          <PortfolioAnalyticsSection projects={projectList} />
           <ProjectDirectoryToolbar
             filters={filters}
             setFilters={setFilters}
@@ -1644,7 +1520,7 @@ export default function PublicProjectsPage() {
             <ProjectLocationMap projects={filteredProjects} onReadMore={handleProjectReadMore} />
           ) : (
             <PublicSection className="bg-[#F7F9FA] !pt-0 !pb-10 lg:!pb-11" innerClassName="">
-              <ProjectDirectoryGrid projects={sortedProjects} onReadMore={handleProjectReadMore} />
+              <ProjectDirectoryList projects={sortedProjects} onReadMore={handleProjectReadMore} />
             </PublicSection>
           )}
           <PublicFaqAccordion
