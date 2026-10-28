@@ -321,6 +321,137 @@ function MovingIntelligenceSummary({ summaryData }) {
   );
 }
 
+const priorityCards = [
+  {
+    key: "risk",
+    index: "01",
+    kicker: "Risk & resilience",
+    title: "Prioritise climate resilience.",
+    description:
+      "Explore Kaduna's climate risk profiles and vegetation monitoring across 23 LGAs to compare adaptation needs.",
+    linkLabel: "Explore Climate Impact",
+    href: "/public/climate-risk",
+    tone: "risk",
+  },
+  {
+    key: "emissions",
+    index: "02",
+    kicker: "Emissions",
+    title: "Make emissions visible.",
+    description:
+      "Review public greenhouse gas inventory summaries and sector-level emissions insights where approved data is available.",
+    linkLabel: "View GHG Inventory",
+    href: "/public/ghg-inventory",
+    tone: "emissions",
+  },
+  {
+    key: "accountability",
+    index: "03",
+    kicker: "Public accountability",
+    title: "Show what is changing.",
+    description:
+      "Follow climate action projects, expected beneficiaries and implementation progress across Kaduna State.",
+    linkLabel: "View Projects",
+    href: "/public/projects",
+    tone: "accountability",
+  },
+];
+
+function PriorityCard({ item }) {
+  const toneClasses = {
+    risk: "bg-[#F3F74B] text-[#030454]",
+    emissions: "bg-[#030454] text-white",
+    accountability: "bg-[#DCEAFF] text-[#030454]",
+  };
+  const shadowClasses = {
+    risk: "hover:shadow-[0_24px_52px_rgba(213,233,0,0.35)]",
+    emissions: "hover:shadow-[0_24px_52px_rgba(3,4,84,0.35)]",
+    accountability: "hover:shadow-[0_24px_52px_rgba(71,120,197,0.28)]",
+  };
+
+  return (
+    <article
+      className={`group relative isolate flex min-h-[380px] flex-col overflow-hidden rounded-[28px] p-8 transition duration-300 motion-safe:hover:-translate-y-2 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-4 focus-within:outline-[#009B35] ${toneClasses[item.tone]} ${shadowClasses[item.tone]}`}
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[10%] top-[16%] aspect-square w-40 rounded-full border border-current opacity-30 transition-transform duration-500 motion-safe:group-hover:scale-125 motion-safe:group-hover:rotate-[18deg]"
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[10%] top-[16%] aspect-square w-28 rounded-full border border-current opacity-20"
+      />
+
+      <p className="relative z-[1] text-[11px] font-black uppercase tracking-[0.14em] opacity-80">
+        {item.index} / {item.kicker}
+      </p>
+
+      <div className="relative z-[1] mt-auto max-w-[27rem] pt-40">
+        <h3 className="font-['Playfair_Display'] text-[1.7rem] font-bold leading-[1.1] tracking-tight sm:text-3xl">
+          {item.title}
+        </h3>
+        <p className="mt-4 text-sm leading-7 opacity-90">{item.description}</p>
+        <button
+          type="button"
+          onClick={() => navigateTo(item.href)}
+          className="mt-7 inline-flex items-center gap-3 border-b-2 border-current pb-1 text-xs font-black uppercase tracking-[0.1em] transition-[gap] duration-200 group-hover:gap-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current"
+        >
+          {item.linkLabel}
+          <span
+            aria-hidden="true"
+            className="inline-block transition-transform duration-200 motion-safe:group-hover:translate-x-1 motion-safe:group-hover:-translate-y-0.5"
+          >
+            ↗
+          </span>
+        </button>
+      </div>
+
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute bottom-3 right-6 select-none text-[70px] font-black leading-none tracking-tighter opacity-10"
+      >
+        {item.index}
+      </span>
+    </article>
+  );
+}
+
+function ClimateActionPrioritySection() {
+  return (
+    <section className="bg-white px-4 py-16 sm:px-8 lg:px-10 lg:py-20">
+      <div className="mx-auto max-w-7xl">
+        <div className="mb-10 flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#009B35]">
+              From plans to progress
+            </p>
+            <h2 className="mt-3 font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
+              Climate action, tracked with purpose.
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-slate-500">
+              A clearer view of climate risk, emissions priorities and on-the-ground project implementation.
+            </p>
+          </div>
+
+          <PublicGreenButton
+            onClick={() => navigateTo("/public/projects")}
+            showArrow
+            className="w-fit px-5 py-3"
+          >
+            Explore project portfolio
+          </PublicGreenButton>
+        </div>
+
+        <div className="grid gap-5 lg:grid-cols-3">
+          {priorityCards.map((item) => (
+            <PriorityCard key={item.key} item={item} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function NewsCard({ item }) {
   return (
     <article className="group flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#009B35]/70 hover:shadow-md">
@@ -551,6 +682,7 @@ export default function PublicPortalPage() {
       ) : (
         <>
           <MovingIntelligenceSummary summaryData={safeSummaryData} />
+          <ClimateActionPrioritySection />
           <NewsPolicySection />
           <PartnersSection />
           <PublicDataNotice />
