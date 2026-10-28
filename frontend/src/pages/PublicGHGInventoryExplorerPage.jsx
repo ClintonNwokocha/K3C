@@ -54,7 +54,7 @@ const aboutDataItems = [
   {
     title: "Official versus modelled status",
     body:
-      "The current inventory is a provisional IPCC 2006 Tier 1 estimate built from satellite data and open statistics, not an official submission. NDC constants, baseline references, and expected project reductions are modelled or planning estimates unless separately published as official inventory values.",
+      "Approved GHG inventory entries are labelled as official inventory values. NDC constants, baseline references, and expected project reductions are modelled or planning estimates unless separately published as official inventory values.",
   },
   {
     title: "Project reductions are separate",
@@ -64,7 +64,7 @@ const aboutDataItems = [
   {
     title: "Known limitations",
     body:
-      "Most inputs are national FAOSTAT values shared out to LGAs using livestock, crop and population maps, so LGA figures show where emissions are likely to occur rather than local measurements. Fossil fuel use (road transport, generators, power) is not yet estimated.",
+      "The current public inventory data is state-level and entry-based. Only a small subset of approved entries has LGA links, so a complete geographic GHG inventory map is not available.",
   },
 ];
 
@@ -1258,7 +1258,7 @@ function GhgMapView({ mapData, filters, optionLabels, onFilterChange }) {
     return (
       <PublicEmptyState
         title="Map View is unavailable because complete LGA-level inventory coverage is not available for the selected year and filters."
-        message={`${mapData?.coverage_count || 0} of ${mapData?.expected_count || 23} LGAs available for map year ${mapData?.year || "selected year"}.`}
+        message={`${hasNumber(mapData?.coverage_count) ? formatNumber(mapData.coverage_count, 0) : "Not available"} of ${hasNumber(mapData?.expected_count) ? formatNumber(mapData.expected_count, 0) : 23} LGAs available for map year ${mapData?.year || "selected year"}.`}
       />
     );
   }
@@ -1552,7 +1552,8 @@ function MapCoverageLine({ mapData }) {
       {" | "}
       LGA coverage:{" "}
       <strong className="text-[#030454]">
-        {mapData?.coverage_count || 0}/{mapData?.expected_count || 23}
+        {hasNumber(mapData?.coverage_count) ? formatNumber(mapData.coverage_count, 0) : "Not available"}/
+        {hasNumber(mapData?.expected_count) ? formatNumber(mapData.expected_count, 0) : 23}
       </strong>
     </>
   );
@@ -1710,19 +1711,36 @@ function StatusNotice({ status, preview }) {
   );
 }
 
-function MetricCard({ label, value, helper }) {
+const METRIC_TONE_CLASSES = [
+  "border-[#d9dcff] bg-[#eef0ff] text-[#28266f]",
+  "border-[#c9eed8] bg-[#e8f8ef] text-[#075f37]",
+  "border-[#ffd6dc] bg-[#fff0f1] text-[#982b43]",
+  "border-[#f5e6ad] bg-[#fff7df] text-[#805500]",
+  "border-[#cfe0ff] bg-[#eef4ff] text-[#1d3f8f]",
+];
+
+function MetricCard({ label, value, helper, tone = 0 }) {
+  const toneClass = METRIC_TONE_CLASSES[tone % METRIC_TONE_CLASSES.length];
+
   return (
-    <PublicCard className="p-5">
-      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
+    <div
+      className={`group relative overflow-hidden rounded-xl border p-5 transition duration-200 motion-safe:hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(8,12,65,0.1)] ${toneClass}`}
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-current opacity-[0.07] transition-transform duration-500 motion-safe:group-hover:scale-125"
+      />
+      <p className="relative z-[1] flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] opacity-80">
+        <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
         {label}
       </p>
-      <p className="mt-3 text-2xl font-black leading-tight text-[#030454]">
+      <p className="relative z-[1] mt-3 text-2xl font-black leading-tight">
         {value}
       </p>
       {helper ? (
-        <p className="mt-2 text-xs leading-5 text-slate-600">{helper}</p>
+        <p className="relative z-[1] mt-2 text-xs leading-5 opacity-80">{helper}</p>
       ) : null}
-    </PublicCard>
+    </div>
   );
 }
 
@@ -1733,11 +1751,13 @@ function SummaryMetrics({ summary }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       <MetricCard
+        tone={1}
         label="Total Emissions"
         value={hasNumber(total) ? `${formatNumber(total, 2)} tCO2e` : "Not available"}
         helper="Approved inventory total only."
       />
       <MetricCard
+        tone={2}
         label="Sectors Represented"
         value={
           hasNumber(summary?.sectors_represented)
@@ -1747,6 +1767,7 @@ function SummaryMetrics({ summary }) {
         helper="Sectors with approved records in the selected period."
       />
       <MetricCard
+        tone={3}
         label="Leading Sector"
         value={largestSector?.sector_label || "Not available"}
         helper={
