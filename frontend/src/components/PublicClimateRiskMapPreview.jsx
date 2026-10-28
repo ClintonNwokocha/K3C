@@ -204,7 +204,7 @@ export default function PublicClimateRiskMapPreview({
       activeLayer?.source === "remote_sensing" && !info.metric
         ? "No remote sensing metric has been imported yet for this LGA."
         : activeLayer?.source === "risk" && !info.profile
-        ? "No Climate Intelligence profile is available for this LGA."
+        ? "No Climate Hazard Assessment and Risk Tracking profile is available for this LGA."
         : "";
 
     return `

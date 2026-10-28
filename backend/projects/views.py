@@ -453,7 +453,7 @@ def _impact_is_unassessed(impact_type, expected, verified):
 def project_ghg_sector_summary(request):
     """
     Read-only aggregation of registered projects by GHG inventory sector,
-    for the Projects-as-bridge view between Climate Intelligence and GHG.
+    for the Projects-as-bridge view between Climate Hazard Assessment and Risk Tracking and GHG.
     Never subtracts from or otherwise touches the statewide GHG inventory
     (core app) — this is a projects-only rollup of self-reported
     expected/verified tCO2e fields.

@@ -5,7 +5,7 @@ const categoryLabels = {
   flood: "Flood",
   drought: "Drought",
   heat: "Heat",
-  erosion: "Erosion",
+  erratic_rainfall: "Erratic Rainfall",
   exposure: "Exposure",
   vulnerability: "Vulnerability",
   adaptive_capacity: "Adaptive Capacity",
@@ -89,9 +89,9 @@ function getRecommendedActions(profile) {
     );
   }
 
-  if (Number(profile.erosion_risk_score || 0) >= 60) {
+  if (Number(profile.erratic_rainfall_risk_score || 0) >= 60) {
     actions.push(
-      "Target erosion-control works, slope stabilization, vegetation restoration, and high-risk gully/soil-loss monitoring."
+      "Issue seasonal advisories on planting dates, promote early-maturing and drought-tolerant varieties, and support small-scale water harvesting."
     );
   }
 
@@ -196,7 +196,7 @@ function buildPrintHtml(profile, records, groupedRecords, recommendations) {
     <!doctype html>
     <html>
       <head>
-        <title>${escapeHtml(profile.lga_name)} Climate Intelligence Evidence Brief</title>
+        <title>${escapeHtml(profile.lga_name)} Climate Hazard Assessment and Risk Tracking Evidence Brief</title>
         <style>
           body {
             font-family: Arial, sans-serif;
@@ -252,7 +252,7 @@ function buildPrintHtml(profile, records, groupedRecords, recommendations) {
         </style>
       </head>
       <body>
-        <h1>${escapeHtml(profile.lga_name)} Climate Intelligence Evidence Brief</h1>
+        <h1>${escapeHtml(profile.lga_name)} Climate Hazard Assessment and Risk Tracking Evidence Brief</h1>
         <p class="muted">Year: ${escapeHtml(profile.year)} | Data source: ${escapeHtml(
     profile.data_source || "Not specified"
   )}</p>
@@ -260,7 +260,7 @@ function buildPrintHtml(profile, records, groupedRecords, recommendations) {
         <h2>Risk Summary</h2>
         <div class="grid">
           <div class="card">
-            <div class="muted">Overall Climate Intelligence Index</div>
+            <div class="muted">Overall Climate Risk Index</div>
             <div class="score">${formatNumber(profile.overall_risk_score, 2)} / 100</div>
           </div>
           <div class="card">
@@ -277,7 +277,7 @@ function buildPrintHtml(profile, records, groupedRecords, recommendations) {
           <div class="card"><div class="muted">Flood</div><div class="score">${formatNumber(profile.flood_risk_score, 2)} / 100</div></div>
           <div class="card"><div class="muted">Drought</div><div class="score">${formatNumber(profile.drought_risk_score, 2)} / 100</div></div>
           <div class="card"><div class="muted">Heat</div><div class="score">${formatNumber(profile.heat_risk_score, 2)} / 100</div></div>
-          <div class="card"><div class="muted">Erosion</div><div class="score">${formatNumber(profile.erosion_risk_score, 2)} / 100</div></div>
+          <div class="card"><div class="muted">Erratic Rainfall</div><div class="score">${formatNumber(profile.erratic_rainfall_risk_score, 2)} / 100</div></div>
           <div class="card"><div class="muted">Exposure</div><div class="score">${formatNumber(profile.exposure_score, 2)} / 100</div></div>
           <div class="card"><div class="muted">Vulnerability</div><div class="score">${formatNumber(profile.vulnerability_score, 2)} / 100</div></div>
           <div class="card"><div class="muted">Adaptive Capacity</div><div class="score">${formatNumber(profile.adaptive_capacity_score, 2)} / 100</div></div>
@@ -409,7 +409,7 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Select an LGA to generate its Climate Intelligence evidence brief.
+          Select an LGA to generate its Climate Hazard Assessment and Risk Tracking evidence brief.
         </p>
       </section>
     );
@@ -424,7 +424,7 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
           </p>
 
           <h2 className="mt-2 text-2xl font-black text-[#030454]">
-            {selectedProfile.lga_name} Climate Intelligence Brief
+            {selectedProfile.lga_name} Climate Hazard Assessment and Risk Tracking Brief
           </h2>
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
@@ -468,7 +468,7 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ScoreCard
-          label="Overall Climate Intelligence Index"
+          label="Overall Climate Risk Index"
           value={selectedProfile.overall_risk_score}
         />
 
@@ -505,7 +505,7 @@ export default function ClimateRiskEvidenceBrief({ selectedProfile }) {
         <ScoreCard label="Flood Risk Index" value={selectedProfile.flood_risk_score} />
         <ScoreCard label="Drought Risk Index" value={selectedProfile.drought_risk_score} />
         <ScoreCard label="Heat Risk Index" value={selectedProfile.heat_risk_score} />
-        <ScoreCard label="Erosion Risk Index" value={selectedProfile.erosion_risk_score} />
+        <ScoreCard label="Erratic Rainfall Risk Index" value={selectedProfile.erratic_rainfall_risk_score} />
         <ScoreCard label="Exposure Index" value={selectedProfile.exposure_score} />
         <ScoreCard label="Vulnerability Index" value={selectedProfile.vulnerability_score} />
         <ScoreCard

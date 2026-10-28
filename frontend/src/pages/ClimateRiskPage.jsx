@@ -111,7 +111,7 @@ const climateRiskTabs = [
 
 function IndexExplanationBox() {
   return (
-    <CommandNotice title="How to read the Climate Intelligence scores" tone="blue">
+    <CommandNotice title="How to read the Climate Hazard Assessment and Risk Tracking scores" tone="blue">
       <p>
         Risk values shown on this page are normalized indexes from{" "}
         <strong>0 to 100</strong>. A higher hazard, exposure, or vulnerability
@@ -172,7 +172,7 @@ function LGADetailPanel({ selectedLgaName, selectedProfile, onViewProjects }) {
     return (
       <CommandSection
         title="No LGA selected"
-        description="Click any LGA polygon on the map or any row in the table to view its Climate Intelligence details."
+        description="Click any LGA polygon on the map or any row in the table to view its Climate Hazard Assessment and Risk Tracking details."
       >
         <div />
       </CommandSection>
@@ -182,7 +182,7 @@ function LGADetailPanel({ selectedLgaName, selectedProfile, onViewProjects }) {
   if (!selectedProfile) {
     return (
       <CommandNotice title={selectedLgaName} tone="yellow">
-        This LGA was selected, but no matching Climate Intelligence profile was found.
+        This LGA was selected, but no matching Climate Hazard Assessment and Risk Tracking profile was found.
         Check that the GeoJSON LGA name matches the database LGA name.
       </CommandNotice>
     );
@@ -212,7 +212,7 @@ function LGADetailPanel({ selectedLgaName, selectedProfile, onViewProjects }) {
     >
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-5">
         <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-          Overall Climate Intelligence Index
+          Overall Climate Risk Index
         </p>
 
         <p className="mt-3 text-4xl font-black text-[#030454]">
@@ -245,9 +245,9 @@ function LGADetailPanel({ selectedLgaName, selectedProfile, onViewProjects }) {
         />
 
         <MetricRow
-          label="Erosion Risk Index"
-          value={selectedProfile.erosion_risk_score}
-          helperText="Higher score means higher erosion concern."
+          label="Erratic Rainfall Risk Index"
+          value={selectedProfile.erratic_rainfall_risk_score}
+          helperText="Higher score means a less reliable rainy season."
         />
 
         <MetricRow
@@ -327,7 +327,7 @@ function TopLgasPanel({
   return (
     <CommandSection
       title="Highest-risk LGAs"
-      description="Top LGAs by overall Climate Intelligence index."
+      description="Top LGAs by overall climate risk index."
       actions={
         showOpenTable && typeof setActiveTab === "function" ? (
           <CommandButton variant="outline" onClick={() => setActiveTab("table")}>
@@ -430,7 +430,7 @@ function OverviewSection({
           ) : opportunityCiUnavailable ? (
             <p className="p-6 text-sm text-slate-500">
               Climate intelligence evidence is currently unavailable for {selectedProfile.lga_name}.
-              Risk scoring and other Climate Intelligence workspace features above are unaffected.
+              Risk scoring and other Climate Hazard Assessment and Risk Tracking workspace features above are unaffected.
             </p>
           ) : opportunityPathways.some((p) => getOpportunityForPathway(p.id)?.category) ? (
             <ClimateActionOpportunitiesPanel
@@ -473,11 +473,11 @@ function RiskMapSection({
           onChange={(event) => setMapMetric(event.target.value)}
           className="rounded-md border border-slate-200 bg-white px-4 py-3 text-sm text-[#030454] outline-none focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/10"
         >
-          <option value="overall">Overall Climate Intelligence Index</option>
+          <option value="overall">Overall Climate Risk Index</option>
           <option value="flood">Flood Risk Index</option>
           <option value="drought">Drought Risk Index</option>
           <option value="heat">Heat Risk Index</option>
-          <option value="erosion">Erosion Risk Index</option>
+          <option value="erratic_rainfall">Erratic Rainfall Risk Index</option>
           <option value="exposure">Exposure Index</option>
           <option value="vulnerability">Vulnerability Index</option>
           <option value="adaptive_capacity">Adaptive Capacity Index</option>
@@ -532,8 +532,8 @@ function ParametersSection({
   return (
     <>
       <CommandSection
-        title="Climate Intelligence dataset upload"
-        description="Upload Climate Intelligence profile datasets when validated data is available."
+        title="Climate Hazard Assessment and Risk Tracking dataset upload"
+        description="Upload Climate Hazard Assessment and Risk Tracking profile datasets when validated data is available."
       >
         <ClimateRiskDatasetUploadPanel
           canManage={canManageRisk}
@@ -542,7 +542,7 @@ function ParametersSection({
       </CommandSection>
 
       <CommandSection
-        title="Climate Intelligence parameter records"
+        title="Climate Hazard Assessment and Risk Tracking parameter records"
         description="Store raw hazard, exposure, vulnerability, and adaptive-capacity evidence behind final normalized scores."
       >
         <ClimateRiskParameterPanel
@@ -573,7 +573,7 @@ function ScoringSection({
 
       <CommandSection
         title="Recalculate risk indexes from parameter records"
-        description="Use normalized parameter values to update flood, drought, heat, erosion, exposure, vulnerability and adaptive capacity indexes."
+        description="Use normalized parameter values to update flood, drought, heat, erosion, exposure, vulnerability and adaptive capacity indexes. Computed profiles (extreme heat, flood, drought, erratic rainfall from satellite and reanalysis data) are refreshed by compute_climate_risk_profiles."
       >
         <ClimateRiskScoringPanel
           selectedProfile={selectedProfile}
@@ -609,7 +609,7 @@ function InfrastructureSection({
 
       <CommandSection
         title="Exposed assets layer"
-        description="Map and manage infrastructure assets exposed to Climate Intelligence."
+        description="Map and manage infrastructure assets exposed to Climate Hazard Assessment and Risk Tracking."
       >
         <ClimateInfrastructureAtRiskLayer
           key={`infrastructure-${
@@ -642,7 +642,7 @@ function RiskTableSection({
     <div className="grid items-start gap-6 xl:grid-cols-3">
       <CommandSection
         title="LGA risk table"
-        description="Filter and compare Climate Intelligence across LGAs. Click a row to update the selected LGA detail panel."
+        description="Filter and compare Climate Hazard Assessment and Risk Tracking across LGAs. Click a row to update the selected LGA detail panel."
         className="xl:col-span-2"
         actions={
           <div className="flex flex-wrap gap-3">
@@ -681,7 +681,7 @@ function RiskTableSection({
       >
         {isLoading ? (
           <p className="text-sm text-slate-500">
-            Loading Climate Intelligence profiles...
+            Loading Climate Hazard Assessment and Risk Tracking profiles...
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -694,7 +694,7 @@ function RiskTableSection({
                   <th className="px-3 py-3 font-bold">Flood /100</th>
                   <th className="px-3 py-3 font-bold">Drought /100</th>
                   <th className="px-3 py-3 font-bold">Heat /100</th>
-                  <th className="px-3 py-3 font-bold">Erosion /100</th>
+                  <th className="px-3 py-3 font-bold">Erratic Rainfall /100</th>
                   <th className="px-3 py-3 font-bold">Exposure /100</th>
                   <th className="px-3 py-3 font-bold">Vulnerability /100</th>
                   <th className="px-3 py-3 font-bold">
@@ -766,7 +766,7 @@ function RiskTableSection({
                         {formatNumber(profile.heat_risk_score, 2)} / 100
                       </td>
                       <td className="px-3 py-4">
-                        {formatNumber(profile.erosion_risk_score, 2)} / 100
+                        {formatNumber(profile.erratic_rainfall_risk_score, 2)} / 100
                       </td>
                       <td className="px-3 py-4">
                         {formatNumber(profile.exposure_score, 2)} / 100
@@ -882,7 +882,7 @@ export default function ClimateRiskPage({
       }
     } catch (err) {
       console.error(err);
-      setError("Could not load Climate Intelligence profiles.");
+      setError("Could not load Climate Hazard Assessment and Risk Tracking profiles.");
     } finally {
       setIsLoading(false);
     }
@@ -910,7 +910,7 @@ export default function ClimateRiskPage({
       .catch((err) => {
         if (!cancelled) {
           console.error(err);
-          setError("Could not load Climate Intelligence profiles.");
+          setError("Could not load Climate Hazard Assessment and Risk Tracking profiles.");
         }
       })
       .finally(() => {
@@ -1092,8 +1092,8 @@ export default function ClimateRiskPage({
   return (
     <div className="space-y-6">
       <CommandPageHeader
-        title="Kaduna LGA Climate Intelligence Profiles"
-        description="Climate Intelligence workspace for flood, drought, heat, erosion, exposure, vulnerability and adaptive-capacity scoring across Kaduna LGAs."
+        title="Kaduna LGA Climate Hazard Assessment and Risk Tracking Profiles"
+        description="Climate Hazard Assessment and Risk Tracking workspace for extreme heat, flood, drought and erratic rainfall hazards, exposure, vulnerability and adaptive-capacity scoring across Kaduna LGAs."
         actions={
           <CommandButton onClick={loadRiskProfiles} variant="primary">
             Refresh Risk Data
@@ -1102,7 +1102,7 @@ export default function ClimateRiskPage({
       />
 
       {error && (
-        <CommandNotice title="Error loading Climate Intelligence profiles" tone="red">
+        <CommandNotice title="Error loading Climate Hazard Assessment and Risk Tracking profiles" tone="red">
           {error}
         </CommandNotice>
       )}
@@ -1203,7 +1203,7 @@ export default function ClimateRiskPage({
 
       {activeTab === "quality" && (
         <CommandSection
-          title="Climate Intelligence data quality review"
+          title="Climate Hazard Assessment and Risk Tracking data quality review"
           description="Review missing fields, data completeness and scoring readiness."
         >
           <ClimateRiskDataQualityPanel profiles={profiles} />
@@ -1213,7 +1213,7 @@ export default function ClimateRiskPage({
       {activeTab === "transparency" && (
         <CommandSection
           title="Risk scoring transparency"
-          description="Inspect how final Climate Intelligence scores are derived."
+          description="Inspect how final Climate Hazard Assessment and Risk Tracking scores are derived."
         >
           <ClimateRiskScoringTransparencyPanel
             key={`${selectedProfile?.lga ?? "none"}-${selectedProfile?.year ?? "none"}`}
@@ -1225,7 +1225,7 @@ export default function ClimateRiskPage({
       {activeTab === "projects" && (
         <CommandSection
           title="Climate projects linked to selected LGA"
-          description="Review action responses connected to the selected Climate Intelligence profile."
+          description="Review action responses connected to the selected Climate Hazard Assessment and Risk Tracking profile."
         >
           <ClimateRiskLinkedProjectsPanel
             key={selectedProfile?.lga ?? "none"}
@@ -1463,7 +1463,7 @@ function ScreeningMatrixSection({ ciData, ciLoading, setSelectedLgaName, setActi
       ) : (
       <CommandSection
         title="Climate Action Screening Matrix"
-        description={`LGA-level rule-based action-pathway screening · ${evidencePeriod} · Click an LGA name to open its full Climate Intelligence evidence context.`}
+        description={`LGA-level rule-based action-pathway screening · ${evidencePeriod} · Click an LGA name to open its full Climate Hazard Assessment and Risk Tracking evidence context.`}
         actions={
           <div className="flex flex-wrap gap-3">
             <input
@@ -1501,11 +1501,11 @@ function ScreeningMatrixSection({ ciData, ciLoading, setSelectedLgaName, setActi
       >
         {ciLoading ? (
           <p className="text-sm text-slate-500">
-            Loading climate intelligence data...
+            Loading Climate Hazard Assessment and Risk Tracking data...
           </p>
         ) : !ciData?.results?.length ? (
           <CommandNotice title="No CI data available" tone="grey">
-            No climate intelligence records were found. Ensure GEE metrics have been
+            No Climate Hazard Assessment and Risk Tracking records were found. Ensure GEE metrics have been
             synchronised before using this view.
           </CommandNotice>
         ) : (
@@ -1661,7 +1661,7 @@ function ScreeningMatrixSection({ ciData, ciLoading, setSelectedLgaName, setActi
         Historical Surface Water (JRC GSW v1.4) data is not included in the statewide
         screening matrix. This column requires additional field-methodology validation
         before aggregated HSW data can be used as a planning-discussion screening input.
-        Individual LGA Climate Intelligence Briefs in the Public Climate Atlas include
+        Individual LGA Climate Hazard Assessment and Risk Tracking Briefs in the Public Climate Atlas include
         this indicator where the data layer has been loaded.
       </CommandNotice>
     </>
@@ -1823,7 +1823,7 @@ function ScreeningEvidencePanel({ row, evidencePeriod, onViewFull }) {
           onClick={onViewFull}
           className="mt-4 text-xs font-bold text-[#030454] underline decoration-dotted hover:text-[#173B91]"
         >
-          View full Climate Intelligence evidence for {admin_name} →
+          View full Climate Hazard Assessment and Risk Tracking evidence for {admin_name} →
         </button>
       </div>
     </div>

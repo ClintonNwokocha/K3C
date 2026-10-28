@@ -71,7 +71,7 @@ export default function DashboardRecentInsights({
         </p>
 
         {errors.risk ? (
-          <InsightErrorNotice label="Climate Intelligence data" />
+          <InsightErrorNotice label="Climate Hazard Assessment and Risk Tracking data" />
         ) : loading ? (
           <p className="mt-2 text-sm text-slate-400">Loading…</p>
         ) : topLgas.length === 0 ? (

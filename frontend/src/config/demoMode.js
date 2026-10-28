@@ -2,7 +2,7 @@
 //
 // Controlled by VITE_PUBLIC_DEMO_MODE:
 //   "full"        - normal application (default when unset)
-//   "milestone1"  - public nav/homepage show only Home, Climate Intelligence,
+//   "milestone1"  - public nav/homepage show only Home, Climate Hazard Assessment and Risk Tracking,
 //                    Staff Login; GHG/Projects/Reports stay in the codebase
 //                    and remain reachable by direct URL, just hidden from nav.
 //

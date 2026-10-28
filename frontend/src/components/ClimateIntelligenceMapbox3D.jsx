@@ -41,7 +41,7 @@ const CLIMATE_SLIDES = [
     title: "Project Activity",
     value: "Adaptation response",
     description:
-      "Connect Climate Intelligences with active and planned interventions across sectors and local government areas.",
+      "Connect Climate Hazard Assessment and Risk Trackings with active and planned interventions across sectors and local government areas.",
     color: "green",
     href: "/public/projects",
     cta: "View projects",
@@ -205,7 +205,7 @@ export default function ClimateIntelligenceMapbox3D({ height = "560px" }) {
       <div className="climate-mapbox-header">
         <div>
           <p className="climate-mapbox-kicker">
-            Mapbox 3D Climate Intelligence
+            Mapbox 3D Climate Hazard Assessment and Risk Tracking
           </p>
 
           <h2>Live-looking climate command map</h2>

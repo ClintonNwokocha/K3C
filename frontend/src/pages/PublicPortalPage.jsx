@@ -41,7 +41,7 @@ const publicNewsItems = [
     date: "May 2026",
     title: "Climate evidence portal supports coordinated decision-making",
     summary:
-      "The public portal improves access to approved Climate Intelligence summaries, GHG information and published evidence documents.",
+      "The public portal improves access to approved Climate Hazard Assessment and Risk Tracking summaries, GHG information and published evidence documents.",
     href: "/public/reports",
   },
   {
@@ -56,10 +56,10 @@ const publicNewsItems = [
 
 const gatewayCards = [
   {
-    title: "Climate Intelligence",
+    title: "Climate Hazard Assessment and Risk Tracking",
     description:
       "Explore Kaduna's vegetation monitoring, climate risk profiles, and data availability across 23 LGAs.",
-    buttonLabel: "Explore Climate Intelligence",
+    buttonLabel: "Explore Climate Hazard Assessment and Risk Tracking",
     href: "/public/climate-risk",
     tone: "blue",
   },
@@ -108,7 +108,7 @@ function navigateTo(href) {
 function HomeTopNav() {
   const fullNavItems = [
     { label: "Home", href: "/public", active: true },
-    { label: "Climate Intelligence", href: "/public/climate-risk" },
+    { label: "Climate Hazard Assessment and Risk Tracking", href: "/public/climate-risk" },
     { label: "GHG Inventory", href: "/public/ghg-inventory" },
     { label: "Projects", href: "/public/projects" },
     { label: "Reports", href: "/public/reports" },
@@ -116,7 +116,7 @@ function HomeTopNav() {
   // Milestone 1 demo hides GHG/Projects/Reports from nav only — routes and
   // components stay intact, see frontend/src/config/demoMode.js.
   const navItems = isMilestoneOneDemo
-    ? fullNavItems.filter((item) => item.label === "Home" || item.label === "Climate Intelligence")
+    ? fullNavItems.filter((item) => item.label === "Home" || item.label === "Climate Hazard Assessment and Risk Tracking")
     : fullNavItems;
 
   return (
@@ -138,7 +138,7 @@ function HomeTopNav() {
               Kaduna Climate Command Centre
             </span>
             <span className="block text-xs text-white/65">
-              Climate Intelligence, Evidence and Reporting Portal
+              Climate Hazard Assessment and Risk Tracking, Evidence and Reporting Portal
             </span>
           </span>
         </button>
@@ -190,7 +190,7 @@ function HomeHero() {
           <p className="mt-5 max-w-3xl text-base leading-7 text-white/78 sm:text-lg sm:leading-8">
             {isMilestoneOneDemo
              ? "KCCC brings climate and environmental evidence together for Kaduna State, integrating satellite-derived indicators, LGA-level risk context, and climate-action signals covering all 23 LGAs."
-    : "KCCC brings satellite-derived climate data, Climate Intelligence, greenhouse gas information, climate projects, and public evidence for Kaduna State into one portal covering all 23 LGAs."}
+    : "KCCC brings satellite-derived climate data, Climate Hazard Assessment and Risk Tracking, greenhouse gas information, climate projects, and public evidence for Kaduna State into one portal covering all 23 LGAs."}
           </p>
 
           <div className="mt-8 flex">
@@ -199,7 +199,7 @@ function HomeHero() {
               showArrow
               className="px-7 py-3.5 text-sm tracking-[0.13em] focus-visible:ring-offset-[#030454]"
             >
-              Climate Change Intelligence System
+              Climate Hazard Assessment and Risk Tracking
             </PublicPrimaryButton>
           </div>
         </div>
@@ -217,7 +217,7 @@ function MilestoneFramingSection() {
         </p>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
           Demonstrating the application framework, frontend–backend integration and the
-          first operational climate intelligence module.
+          first operational Climate Hazard Assessment and Risk Tracking module.
         </p>*/}
       </div>
     </section>
@@ -225,7 +225,7 @@ function MilestoneFramingSection() {
 }
 
 const architecturePreviewCards = [
-  { title: "Climate Intelligence", status: "Operational", href: "/public/climate-risk", tone: "blue" },
+  { title: "Climate Hazard Assessment and Risk Tracking", status: "Operational", href: "/public/climate-risk", tone: "blue" },
   { title: "GHG Inventory", status: "In development", href: null, tone: "green" },
   { title: "Projects", status: "In development", href: null, tone: "yellow" },
   { title: "Reports", status: "In development", href: null, tone: "yellow" },
@@ -257,7 +257,7 @@ function ArchitecturePreviewCard({ item }) {
           showArrow
           className="mt-6 w-fit px-4 py-2.5"
         >
-          Explore Climate Intelligence
+          Explore Climate Hazard Assessment and Risk Tracking
         </PublicNavyButton>
       ) : (
         <p className="mt-6 text-xs leading-5 text-slate-400">Not yet part of the Milestone 1 demonstration.</p>
@@ -311,7 +311,7 @@ function MovingIntelligenceSummary({ summaryData }) {
     {
       label: "Latest Assessment Year",
       value: climateRisk.latest_year || "Latest approved",
-      description: "Latest approved Climate Intelligence assessment",
+      description: "Latest approved Climate Hazard Assessment and Risk Tracking assessment",
     },
     {
       label: "Assessed LGAs",
@@ -711,7 +711,7 @@ export default function PublicPortalPage() {
       {isLoading ? (
         <section className="px-4 py-14 sm:px-8 lg:px-10">
           <div className="mx-auto max-w-7xl rounded-md border border-[#CAD2D7] bg-white p-8 text-sm text-slate-500 shadow-sm">
-            Loading public climate intelligence...
+            Loading public Climate Hazard Assessment and Risk Tracking...
           </div>
         </section>
       ) : isMilestoneOneDemo ? (

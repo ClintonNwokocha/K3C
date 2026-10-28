@@ -29,6 +29,7 @@ from .climate_context import (
     resolve_climate_context,
     sanitize_map_legend,
 )
+from . import hazards as H
 from .gee_service import _KADUNA_BBOX, gee_service
 from .lulc_providers import LAND_COVER_PROVIDERS
 from .models import LandCoverDataset, LandCoverSnapshot, RemoteSensingLayer, RemoteSensingLGAMetric
@@ -279,6 +280,7 @@ def lga_profile(request, lga):
             "drought_risk_score": decimal_to_float(risk_profile.drought_risk_score),
             "heat_risk_score": decimal_to_float(risk_profile.heat_risk_score),
             "erosion_risk_score": decimal_to_float(risk_profile.erosion_risk_score),
+            "erratic_rainfall_risk_score": decimal_to_float(risk_profile.erratic_rainfall_risk_score),
             "exposure_score": decimal_to_float(risk_profile.exposure_score),
             "vulnerability_score": decimal_to_float(risk_profile.vulnerability_score),
             "adaptive_capacity_score": decimal_to_float(risk_profile.adaptive_capacity_score),
@@ -381,7 +383,7 @@ def ai_hotspots(request):
 
 
 # ---------------------------------------------------------------------------
-# Classification helpers — Climate Intelligence Engine E1
+# Classification helpers — Climate Hazard Assessment and Risk Tracking Engine E1
 # Rule-based only. No AI or LLM is called.
 # ---------------------------------------------------------------------------
 
@@ -444,7 +446,81 @@ def _overall_status(spi_cond, ra_cond, ndvi_cond, lst_cond) -> str:
     return "generally stable climate conditions"
 
 
-def _build_ci_summary(indicators: dict) -> dict:
+# Season each hazard is read from when the requested season is not one of its own.
+_HAZARD_PRIMARY_SEASON = {
+    "extreme_heat": "hot_season",
+    "flood": "wet_season",
+    "drought": "wet_season",
+    "erratic_rainfall": "wet_season",
+}
+_SEVERITY_RANK = {"Extreme": 3, "Severe": 2, "Moderate": 1, "Normal": 0}
+
+
+def _hazard_season(hazard: str, season: str) -> str:
+    mapped = H.DISPLAY_SEASON[hazard].get(season)
+    if mapped:
+        return mapped
+    return season if season in H.HAZARD_SEASONS[hazard] else _HAZARD_PRIMARY_SEASON[hazard]
+
+
+def _load_hazards(year, season, admin_codes=None) -> dict:
+    """{admin_code: {hazard: block}} for the four Climate Hazard Assessment and Risk Tracking hazards."""
+    if year is None:
+        return {}
+    qs = RemoteSensingLGAMetric.objects.select_related("layer").filter(
+        layer__key__in=H.HAZARD_LAYER_KEYS.values(), layer__is_public=True, layer__is_active=True,
+        admin_level="lga", year=year,
+    )
+    if admin_codes is not None:
+        qs = qs.filter(admin_code__in=admin_codes)
+    by_key = {v: k for k, v in H.HAZARD_LAYER_KEYS.items()}
+    out: dict = {}
+    for m in qs:
+        hazard = by_key[m.layer.key]
+        if m.season != _hazard_season(hazard, season):
+            continue
+        meta = m.metadata or {}
+        out.setdefault(m.admin_code, {})[hazard] = {
+            "label": H.HAZARD_LABELS[hazard],
+            "admin_name": m.admin_name,
+            "season": m.season,
+            "class": meta.get("class"),
+            "score": decimal_to_float(m.mean_value),
+            "z": decimal_to_float(m.anomaly_value),
+            "driver": meta.get("driver"),
+            "driver_label": meta.get("driver_label"),
+            "failed_season": meta.get("failed_season", False),
+            "indicators": meta.get("indicators", {}),
+            "data_source": m.data_source,
+        }
+    return out
+
+
+def _hazard_line(block: dict) -> str:
+    label, cls = block["label"], block.get("class") or "No data"
+    driver = (block.get("indicators") or {}).get(block.get("driver") or "", {})
+    if block.get("failed_season"):
+        return f"{label}: {cls}. No rainy-season onset was detected by 31 July."
+    if cls == "Normal" or not driver or driver.get("value") is None:
+        return f"{label}: {cls}."
+    unit = driver.get("unit") or ""
+    unit = "" if unit in ("SPI", "day of year") else f" {unit}"
+    driver_label = driver["label"][:1].lower() + driver["label"][1:]
+    return (f"{label}: {cls}, driven by {driver_label} "
+            f"{driver['value']:g}{unit} (normal {driver['baseline_mean']:g}{unit}).")
+
+
+def _hazard_status(hazards: dict) -> str:
+    worst = max(hazards.values(), key=lambda b: _SEVERITY_RANK.get(b.get("class"), -1), default=None)
+    if not worst or _SEVERITY_RANK.get(worst.get("class"), 0) == 0:
+        return "no unusual climate hazard"
+    flagged = sorted((b for b in hazards.values() if _SEVERITY_RANK.get(b.get("class"), 0) >= 1),
+                     key=lambda b: -_SEVERITY_RANK[b["class"]])
+    return "hazard signal: " + ", ".join(f"{b['label'].lower()} ({b['class']})" for b in flagged)
+
+
+def _build_ci_summary(indicators: dict, hazards: dict | None = None) -> dict:
+    hazards = hazards or {}
     ndvi_cond = (indicators.get("ndvi") or {}).get("condition")
     spi_cond  = (indicators.get("spi")  or {}).get("condition")
     ra_cond   = (indicators.get("rainfall_anomaly") or {}).get("condition")
@@ -469,13 +545,19 @@ def _build_ci_summary(indicators: dict) -> dict:
         "heat_condition":       lst_cond  or "no data",
         "drought_condition":    drought_condition,
         "dominant_land_cover":  (lulc or {}).get("dominant_label"),
-        "overall_status":       _overall_status(spi_cond, ra_cond, ndvi_cond, lst_cond),
+        "hazard_classes":       {k: b.get("class") for k, b in hazards.items()},
+        "overall_status":       (_hazard_status(hazards) if hazards
+                                 else _overall_status(spi_cond, ra_cond, ndvi_cond, lst_cond)),
     }
 
 
-def _build_ci_briefing(indicators: dict):
-    lines = []
+def _build_ci_briefing(indicators: dict, hazards: dict | None = None):
+    lines = [_hazard_line(hazards[k]) for k in H.HAZARD_LABELS if hazards and k in hazards]
     cautions = []
+    if hazards:
+        cautions.append(
+            "Hazard classes compare each LGA with its own 1991-2020 normal. They are not forecasts or warnings."
+        )
 
     ra = indicators.get("rainfall_anomaly")
     r  = indicators.get("rainfall")
@@ -536,7 +618,7 @@ def _build_ci_briefing(indicators: dict):
 @permission_classes([AllowAny])
 def climate_intelligence(request):
     """
-    Climate Intelligence Engine E1.
+    Climate Hazard Assessment and Risk Tracking Engine E1.
 
     Aggregates LGA-level climate indicators (rainfall, rainfall anomaly, SPI,
     NDVI, LST, and optionally LULC) into one structured object per LGA.
@@ -651,10 +733,17 @@ def climate_intelligence(request):
                     ),
                 }
 
+    hazards_by_admin = _load_hazards(year, season) if admin_level == "lga" else {}
+    for code, blocks in hazards_by_admin.items():
+        if code not in by_admin:
+            name = next(iter(blocks.values()), {}).get("admin_name")
+            by_admin[code] = {"admin_name": name or code, "metrics": {}}
+
     results = []
     for admin_code, entry in sorted(by_admin.items(), key=lambda x: x[1]["admin_name"]):
         m = entry["metrics"]
         indicators: dict = {}
+        hazards = hazards_by_admin.get(admin_code, {})
 
         r = m.get("rainfall")
         if r is not None:
@@ -710,13 +799,14 @@ def climate_intelligence(request):
             if lulc_data:
                 indicators["lulc"] = lulc_data
 
-        briefing, cautions = _build_ci_briefing(indicators)
+        briefing, cautions = _build_ci_briefing(indicators, hazards)
 
         results.append({
             "admin_code":  admin_code,
             "admin_name":  entry["admin_name"],
+            "hazards":     hazards,
             "indicators":  indicators,
-            "summary":     _build_ci_summary(indicators),
+            "summary":     _build_ci_summary(indicators, hazards),
             "briefing":    briefing,
             "cautions":    cautions,
         })
@@ -729,6 +819,8 @@ def climate_intelligence(request):
 
 
 _CI_PROFILE_METHOD_NOTES = [
+    "Climate hazards (extreme heat, flood, drought, erratic rainfall) compare each LGA with its own 1991-2020 normal; classes Moderate, Severe and Extreme mean 1, 1.5 and 2 standard deviations beyond normal.",
+    "Extreme heat uses ERA5-Land daily maximum air temperature; flood, drought and erratic rainfall use CHIRPS daily rainfall averaged over the LGA, which understates local cloudbursts.",
     "Rainfall metrics are derived from CHIRPS satellite-rainfall estimates aggregated to LGA boundaries.",
     "SPI (Standardised Precipitation Index) is a precipitation-only index and does not represent hydrological or agricultural drought.",
     "LST values are land surface temperature measured by satellite sensor and are not equivalent to air temperature.",
@@ -741,7 +833,7 @@ _CI_PROFILE_METHOD_NOTES = [
 @permission_classes([AllowAny])
 def climate_intelligence_profile(request):
     """
-    Climate Intelligence Engine E5 — focused LGA-level profile.
+    Climate Hazard Assessment and Risk Tracking Engine E5 — focused LGA-level profile.
 
     Returns one complete intelligence profile for a single LGA identified
     by admin_code or admin_name.
@@ -793,7 +885,7 @@ def climate_intelligence_profile(request):
     if probe is None:
         identifier = f"admin_code={admin_code_param!r}" if admin_code_param else f"admin_name={admin_name_param!r}"
         return Response(
-            {"status": "error", "message": f"No climate intelligence data found for {identifier}."},
+            {"status": "error", "message": f"No Climate Hazard Assessment and Risk Tracking data found for {identifier}."},
             status=404,
         )
 
@@ -913,8 +1005,9 @@ def climate_intelligence_profile(request):
                 }
                 indicators["lulc"] = lulc_data
 
-    briefing, cautions = _build_ci_briefing(indicators)
-    summary = _build_ci_summary(indicators)
+    hazards = _load_hazards(year, season, [resolved_code]).get(resolved_code, {})
+    briefing, cautions = _build_ci_briefing(indicators, hazards)
+    summary = _build_ci_summary(indicators, hazards)
     headline = summary.get("overall_status", "generally stable climate conditions").capitalize()
 
     return Response({
@@ -925,6 +1018,7 @@ def climate_intelligence_profile(request):
             "year":          year,
             "season":        season,
             "headline":      headline,
+            "hazards":       hazards,
             "sections": {
                 "rainfall":    {
                     "total":   indicators.get("rainfall"),
@@ -974,7 +1068,7 @@ def climate_action_screening(request):
     Every successful access writes exactly one AuditLog entry with action
     "climate_action_screening_view".
 
-    The public Climate Intelligence endpoint (/remote-sensing/climate-intelligence/)
+    The public Climate Hazard Assessment and Risk Tracking endpoint (/remote-sensing/climate-intelligence/)
     is NOT modified by this endpoint and remains independently accessible.
 
     Query params:

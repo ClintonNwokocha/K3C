@@ -109,7 +109,7 @@ function getMetricField(metric) {
     flood: "flood_risk_score",
     drought: "drought_risk_score",
     heat: "heat_risk_score",
-    erosion: "erosion_risk_score",
+    erratic_rainfall: "erratic_rainfall_risk_score",
     exposure: "exposure_score",
     vulnerability: "vulnerability_score",
     adaptive_capacity: "adaptive_capacity_score",
@@ -120,17 +120,17 @@ function getMetricField(metric) {
 
 function getMetricLabel(metric) {
   const labels = {
-    overall: "Overall Climate Intelligence Index",
+    overall: "Overall Climate Risk Index",
     flood: "Flood Risk Index",
     drought: "Drought Risk Index",
     heat: "Heat Risk Index",
-    erosion: "Erosion Risk Index",
+    erratic_rainfall: "Erratic Rainfall Risk Index",
     exposure: "Exposure Index",
     vulnerability: "Vulnerability Index",
     adaptive_capacity: "Adaptive Capacity Index",
   };
 
-  return labels[metric] || "Overall Climate Intelligence Index";
+  return labels[metric] || "Overall Climate Risk Index";
 }
 
 function getScoreClass(value, metric) {
@@ -438,7 +438,7 @@ export default function ClimateRiskMap({
       return `
         <div style="min-width: 220px;">
           <strong>${escapeHtml(lgaName)}</strong><br/>
-          <span>No matching Climate Intelligence profile found.</span><br/>
+          <span>No matching Climate Hazard Assessment and Risk Tracking profile found.</span><br/>
           <span>Check GeoJSON LGA name and database LGA name.</span>
         </div>
       `;

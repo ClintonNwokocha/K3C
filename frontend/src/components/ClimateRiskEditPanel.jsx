@@ -6,6 +6,7 @@ const initialForm = {
   drought_risk_score: "",
   heat_risk_score: "",
   erosion_risk_score: "",
+  erratic_rainfall_risk_score: "",
   exposure_score: "",
   vulnerability_score: "",
   adaptive_capacity_score: "",
@@ -47,6 +48,7 @@ function buildFormFromProfile(profile) {
     drought_risk_score: scoreToFormValue(profile.drought_risk_score),
     heat_risk_score: scoreToFormValue(profile.heat_risk_score),
     erosion_risk_score: scoreToFormValue(profile.erosion_risk_score),
+    erratic_rainfall_risk_score: scoreToFormValue(profile.erratic_rainfall_risk_score),
     exposure_score: scoreToFormValue(profile.exposure_score),
     vulnerability_score: scoreToFormValue(profile.vulnerability_score),
     adaptive_capacity_score: scoreToFormValue(profile.adaptive_capacity_score),
@@ -77,7 +79,7 @@ export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
         <h2 className="text-xl font-black text-[#030454]">Edit Risk Scores</h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Select an LGA to edit its Climate Intelligence profile.
+          Select an LGA to edit its Climate Hazard Assessment and Risk Tracking profile.
         </p>
       </div>
     );
@@ -96,6 +98,7 @@ export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
       drought_risk_score: Number(form.drought_risk_score),
       heat_risk_score: Number(form.heat_risk_score),
       erosion_risk_score: Number(form.erosion_risk_score),
+      erratic_rainfall_risk_score: Number(form.erratic_rainfall_risk_score),
       exposure_score: Number(form.exposure_score),
       vulnerability_score: Number(form.vulnerability_score),
       adaptive_capacity_score: Number(form.adaptive_capacity_score),
@@ -143,7 +146,8 @@ export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
     { key: "flood_risk_score", label: "Flood Risk Index (/100)" },
     { key: "drought_risk_score", label: "Drought Risk Index (/100)" },
     { key: "heat_risk_score", label: "Heat Risk Index (/100)" },
-    { key: "erosion_risk_score", label: "Erosion Risk Index (/100)" },
+    { key: "erratic_rainfall_risk_score", label: "Erratic Rainfall Risk Index (/100)" },
+    { key: "erosion_risk_score", label: "Erosion Risk Index (/100, not in overall score)" },
     { key: "exposure_score", label: "Exposure Index (/100)" },
     { key: "vulnerability_score", label: "Vulnerability Index (/100)" },
     {
@@ -159,7 +163,7 @@ export default function ClimateRiskEditPanel({ profile, canManage, onSaved }) {
     >
       <div>
         <p className="text-xs font-black uppercase tracking-[0.14em] text-[#009B35]">
-          Climate Intelligence Management
+          Climate Hazard Assessment and Risk Tracking Management
         </p>
 
         <h2 className="mt-2 text-2xl font-black text-[#030454]">

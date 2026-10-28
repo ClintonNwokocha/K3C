@@ -57,12 +57,32 @@ export function recommendationFromPathway(pathway, context = {}) {
   };
 }
 
+// Climate hazards (class from the backend) mapped to existing pathways.
+const HAZARD_PATHWAYS = {
+  hazard_extreme_heat: ["heat_green", "Extreme Heat Response", "Plan for heat: shade, cooling and heat-health advice in exposed settlements."],
+  hazard_flood: ["water_drainage", "Flood Preparedness Review", "Review drainage, storage and emergency preparedness with local flood evidence."],
+  hazard_drought: ["drought_ag", "Drought Preparedness", "Support water access and drought-resilient farming."],
+  hazard_erratic_rainfall: ["drought_ag", "Rainy-Season Variability Adaptation", "Advise on planting dates, early-maturing varieties and water harvesting."],
+};
+const ADVERSE_HAZARD_CLASSES = new Set(["Moderate", "Severe", "Extreme"]);
+
 /** Existing classifier bands and pathway explanations; only available selected metrics trigger rules. */
 export function recommendClimateActions({ indicator, classification, severity, lga, adminCode, year, period, season, metrics = {} }) {
   const aliases = { drought: "spi", drought_index: "spi", vegetation: "ndvi", temperature: "lst" };
   const key = aliases[indicator] || indicator;
   const context = { indicator, severity, lga, adminCode, year, period, season };
   const metric = metrics[key];
+  if (HAZARD_PATHWAYS[key]) {
+    if (!ADVERSE_HAZARD_CLASSES.has(metric?.class)) return [];
+    const [id, theme, consideration] = HAZARD_PATHWAYS[key];
+    const driver = metric.driver_label ? `, driven by ${metric.driver_label.charAt(0).toLowerCase()}${metric.driver_label.slice(1)}` : "";
+    return [recommendationFromPathway({
+      id, theme,
+      triggers: [`${metric.label || theme}: ${metric.class}${driver}`],
+      actionConsideration: consideration,
+      scientificCaution: "Hazard classes compare the LGA with its own 1991-2020 normal; verify local exposure before prioritising investment.",
+    }, { ...context, severity: metric.class })].filter(Boolean);
+  }
   const value = availableNumber(metric?.value ?? metric);
   if (value === null) return [];
   const condition = classification || metric?.condition;

@@ -1,9 +1,9 @@
 """Create "Proposed" projects from the Climate Risk profiles and the GHG inventory.
 
 Risk-based proposals: one per high-risk LGA, for that LGA's strongest hazard
-(flood, drought, heat or erosion). The matching climate-action opportunity
+(flood, drought, heat, erratic rainfall or erosion). The matching climate-action opportunity
 (category, example interventions, GHG relationship) comes from the same
-catalog the Climate Intelligence page uses.
+catalog the Climate Hazard Assessment and Risk Tracking page uses.
 
 GHG-based proposals: one statewide mitigation proposal for each of the largest
 inventory sectors in the latest approved year.
@@ -47,6 +47,13 @@ HAZARDS = {
         "interventions": ["Urban shade and tree-canopy planning", "Cooling infrastructure review"],
         "ghg_sector": P.GHGSector.ENERGY,
     },
+    "erratic_rainfall": {
+        "category": "Agriculture / Land",
+        "sector": P.Sector.AGRICULTURE,
+        "title": "Rainfall variability and dry-spell resilience",
+        "interventions": ["Seasonal climate advisories for farmers", "Drought-tolerant and early-maturing varieties", "Small-scale water harvesting"],
+        "ghg_sector": P.GHGSector.AGRICULTURE,
+    },
     "erosion": {
         "category": "Nature-Based Solutions",
         "sector": P.Sector.LULUCF,
@@ -75,6 +82,7 @@ def strongest_hazard(profile):
         "flood": profile.flood_risk_score,
         "drought": profile.drought_risk_score,
         "heat": profile.heat_risk_score,
+        "erratic_rainfall": profile.erratic_rainfall_risk_score,
         "erosion": profile.erosion_risk_score,
     }
     key = max(scores, key=lambda k: scores[k] or Decimal("0"))
@@ -90,7 +98,7 @@ def risk_proposal(profile):
     seed = "seed" in (profile.data_source or "").lower() or "test" in (profile.data_source or "").lower()
     basis = (
         f"{lga} 2025 climate risk profile: overall {profile.overall_risk_score} ({profile.get_risk_level_display()}); "
-        f"{hazard} risk score {score}. Data source: {profile.data_source}"
+        f"{hazard.replace('_', ' ')} risk score {score}. Data source: {profile.data_source}"
         + (" (development/test data, not yet validated)." if seed else ".")
     )
     ghg = h["ghg_sector"]
@@ -101,7 +109,7 @@ def risk_proposal(profile):
         "sector": h["sector"],
         "priority": P.Priority.VERY_HIGH if profile.risk_level == "very_high" else P.Priority.HIGH,
         "lga": profile.lga,
-        "public_summary": f"Proposed {h['category'].lower()} concept for {lga}, responding to a high {hazard} risk score.",
+        "public_summary": f"Proposed {h['category'].lower()} concept for {lga}, responding to a high {hazard.replace('_', ' ')} risk score.",
         "public_description": f"{basis}\n\nExample interventions to consider: {'; '.join(h['interventions'])}.\n\n{DISCLAIMER}",
         "description": basis,
         "climate_risk_relevance": basis,

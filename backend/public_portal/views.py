@@ -121,6 +121,7 @@ def build_public_climate_summary():
           "drought_risk_score": decimal_to_float(profile.drought_risk_score),
           "heat_risk_score": decimal_to_float(profile.heat_risk_score),
           "erosion_risk_score": decimal_to_float(profile.erosion_risk_score),
+          "erratic_rainfall_risk_score": decimal_to_float(profile.erratic_rainfall_risk_score),
           "vulnerability_score": decimal_to_float(profile.vulnerability_score),
           "adaptive_capacity_score": decimal_to_float(
               profile.adaptive_capacity_score
@@ -1289,6 +1290,7 @@ def public_climate_risk_profiles(request):
             "drought_risk_score": decimal_to_float(profile.drought_risk_score),
             "heat_risk_score": decimal_to_float(profile.heat_risk_score),
             "erosion_risk_score": decimal_to_float(profile.erosion_risk_score),
+            "erratic_rainfall_risk_score": decimal_to_float(profile.erratic_rainfall_risk_score),
             "exposure_score": decimal_to_float(profile.exposure_score),
             "vulnerability_score": decimal_to_float(profile.vulnerability_score),
             "adaptive_capacity_score": decimal_to_float(

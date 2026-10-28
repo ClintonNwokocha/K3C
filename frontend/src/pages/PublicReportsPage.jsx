@@ -17,7 +17,7 @@ import { getPublicReportDocuments } from "../services/api";
 import { PUBLIC_EVENT_NAMES, trackPublicEvent } from "../config/analytics";
 
 const reportTypeOptions = [
-  { value: "climate_risk", label: "Climate Intelligence Report" },
+  { value: "climate_risk", label: "Climate Hazard Assessment and Risk Tracking Report" },
   { value: "ghg_inventory", label: "GHG Inventory Report" },
   { value: "project_portfolio", label: "Project Portfolio Report" },
   { value: "ndc_progress", label: "NDC Progress Report" },
@@ -29,7 +29,7 @@ const reportTypeOptions = [
 const reportUseCases = {
   climate_risk: {
     label: "Risk planning",
-    title: "Supports Climate Intelligence prioritisation",
+    title: "Supports Climate Hazard Assessment and Risk Tracking prioritisation",
     body: "Useful for identifying LGAs, hazards and risk drivers that may require preparedness, adaptation planning or further technical assessment.",
     tone: "green",
   },
@@ -75,12 +75,12 @@ const audienceGuidance = [
   {
     label: "Residents",
     title: "Read public summaries first",
-    body: "Start with executive briefs and Climate Intelligence reports to understand what the evidence means for your community or LGA.",
+    body: "Start with executive briefs and Climate Hazard Assessment and Risk Tracking reports to understand what the evidence means for your community or LGA.",
   },
   {
     label: "Policy teams",
     title: "Use reports for prioritisation",
-    body: "Use Climate Intelligence, GHG and project portfolio reports to support adaptation planning, budgeting discussions and coordination.",
+    body: "Use Climate Hazard Assessment and Risk Tracking, GHG and project portfolio reports to support adaptation planning, budgeting discussions and coordination.",
   },
   {
     label: "Partners",
@@ -252,7 +252,7 @@ function ReportsExecutiveHero({ reports, summary, years }) {
               window.location.href = "/public/climate-risk";
             }}
           >
-            Climate Intelligence
+            Climate Hazard Assessment and Risk Tracking
           </PublicSecondaryButton>
         </div>
       </div>
@@ -307,7 +307,7 @@ function EvidenceRibbon({ reports, summary, years }) {
     `Published documents: ${summary.published_reports || reports.length || 0}`,
     `Report types: ${reportTypes}`,
     `Latest year: ${latestYear}`,
-    `Climate Intelligence evidence: ${
+    `Climate Hazard Assessment and Risk Tracking evidence: ${
       reports.some((report) => report.report_type === "climate_risk")
         ? "Available"
         : "Pending"
@@ -742,7 +742,7 @@ function ReportLibrary({
         <div className="flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <PublicSectionHeading
             title="Evidence library"
-            description="Browse public-facing Climate Intelligence reports, greenhouse gas inventory outputs, project portfolio reports, executive briefs and data exports."
+            description="Browse public-facing Climate Hazard Assessment and Risk Tracking reports, greenhouse gas inventory outputs, project portfolio reports, executive briefs and data exports."
           />
 
           <PublicBadge className="rounded-lg px-4 py-3 uppercase tracking-[0.1em] text-[#030454]">
@@ -921,11 +921,11 @@ export default function PublicReportsPage() {
       >
           <div>
             <h3 className="text-balance font-['Playfair_Display'] text-3xl font-bold">
-              Return to climate intelligence portal
+              Return to Climate Hazard Assessment and Risk Tracking portal
             </h3>
 
             <p className="mt-3 max-w-2xl text-sm font-light leading-7 text-white/70">
-              Go back to the public portal to view the Climate Intelligence map, public
+              Go back to the public portal to view the Climate Hazard Assessment and Risk Tracking map, public
               project summary and partner information.
             </p>
           </div>

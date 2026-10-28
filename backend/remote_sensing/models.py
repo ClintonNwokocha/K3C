@@ -18,6 +18,11 @@ class RemoteSensingLayer(models.Model):
         ELEVATION = "elevation", "Elevation / Terrain"
         TREE_COVER = "tree_cover", "Tree Cover"
         FOREST_CHANGE = "forest_change", "Forest Change"
+        # Climate hazards derived from LGADailyClimate (remote_sensing/hazards.py).
+        HAZARD_EXTREME_HEAT = "hazard_extreme_heat", "Extreme Heat"
+        HAZARD_FLOOD = "hazard_flood", "Flood"
+        HAZARD_DROUGHT = "hazard_drought", "Drought"
+        HAZARD_ERRATIC_RAINFALL = "hazard_erratic_rainfall", "Erratic Rainfall"
 
     key = models.CharField(max_length=80, choices=LayerKey.choices, unique=True)
     label = models.CharField(max_length=150)
@@ -50,6 +55,7 @@ class RemoteSensingLGAMetric(models.Model):
         ANNUAL = "annual", "Annual"
         WET_SEASON = "wet_season", "Wet Season"
         DRY_SEASON = "dry_season", "Dry Season"
+        HOT_SEASON = "hot_season", "Hot Season"
 
     layer = models.ForeignKey(
         RemoteSensingLayer,
@@ -152,6 +158,36 @@ class RemoteSensingSyncLog(models.Model):
     def __str__(self):
         layer_key = self.layer.key if self.layer else "all"
         return f"{layer_key} - {self.status}"
+
+
+class LGADailyClimate(models.Model):
+    """
+    Daily LGA-mean rainfall (CHIRPS v2.0) and maximum air temperature
+    (ERA5-Land), written by sync_daily_climate.  The input to the climate
+    hazard indicators in remote_sensing/hazards.py.
+    """
+
+    lga = models.ForeignKey(
+        "core.LGARegistry",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="daily_climate",
+    )
+    admin_code = models.CharField(max_length=50)
+    admin_name = models.CharField(max_length=150)
+    date = models.DateField()
+    rainfall_mm = models.FloatField(null=True, blank=True)
+    tmax_c = models.FloatField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["admin_code", "date"]
+        constraints = [
+            models.UniqueConstraint(fields=["admin_code", "date"], name="uniq_daily_climate_admin_date"),
+        ]
+
+    def __str__(self):
+        return f"{self.admin_name} {self.date}"
 
 
 # ---------------------------------------------------------------------------

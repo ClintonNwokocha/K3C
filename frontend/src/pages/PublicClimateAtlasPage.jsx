@@ -1,5 +1,5 @@
 ﻿import L from "leaflet";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Camera,
   ChevronDown,
@@ -53,6 +53,9 @@ import {
   ELEVATION_INTERNAL_CONFIG,
   FLOOD_OCCURRENCE_INTERNAL_CONFIG,
   getAtlasAvailableLayerConfigs,
+  getAtlasSeasonParam,
+  getHazardClass,
+  getHazardColor,
   getAtlasLayerConfig,
   getAtlasLegendState,
   getAtlasNoDataMessage,
@@ -100,6 +103,7 @@ const ATLAS_VARIABLES = CLIMATE_ATLAS_LAYER_ORDER.map((key) => {
     unit: config.unit,
     dataSource: config.dataSource,
     coverageNote: config.coverageNote,
+    group: config.group || "supporting",
   };
 });
 
@@ -510,10 +514,88 @@ function SelectField({ label, value, onChange, children }) {
   );
 }
 
+const SEASON_LABELS = {
+  annual: "Full year",
+  wet_season: "Wet season (May-Oct)",
+  dry_season: "Dry season (Nov-Mar)",
+  hot_season: "Hot season (Mar-May)",
+};
+
+function formatIndicatorValue(item) {
+  if (item?.value === null || item?.value === undefined) return "–";
+  if (item.unit === "day of year") {
+    const date = new Date(Date.UTC(2021, 0, Number(item.value)));
+    return date.toLocaleDateString(undefined, { day: "numeric", month: "short", timeZone: "UTC" });
+  }
+  const unit = item.unit === "SPI" ? "" : ` ${item.unit}`;
+  return `${Number(item.value).toLocaleString(undefined, { maximumFractionDigits: 1 })}${unit}`;
+}
+
+function HazardPopupDetails({ metric, popupConfig }) {
+  const meta = metric.metadata || {};
+  const hazardClass = meta.class || getHazardClass(metric.mean_value);
+  const indicators = Object.entries(meta.indicators || {});
+  return (
+    <>
+      <div className="col-span-2 rounded-md bg-[#F7F9FA] p-3">
+        {popupConfig.valueLabel}<br />
+        <strong className="text-lg">{hazardClass}</strong>
+        <span className="ml-2 text-xs text-slate-500">score {formatNumber(metric.mean_value)}</span>
+      </div>
+      {meta.failed_season ? (
+        <div className="col-span-2 rounded-md bg-red-50 p-3 text-xs font-bold text-red-700">
+          No rainy-season onset was detected by 31 July (failed season).
+        </div>
+      ) : meta.driver_label && hazardClass !== "Normal" ? (
+        <div className="col-span-2 rounded-md bg-[#F7F9FA] p-3 text-xs font-bold text-slate-600">
+          Driven by: {meta.driver_label}
+        </div>
+      ) : null}
+      {indicators.length > 0 && (
+        <div className="col-span-2 rounded-md bg-[#F7F9FA] p-3 text-xs">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 gap-y-1">
+            <span className="font-black text-slate-500">Indicator</span>
+            <span className="text-right font-black text-slate-500">This year</span>
+            <span className="text-right font-black text-slate-500">Normal</span>
+            {indicators.map(([key, item]) => (
+              <Fragment key={key}>
+                <span className={key === meta.driver ? "font-bold text-[#030454]" : "text-slate-600"}>{item.label}</span>
+                <span className="text-right font-bold">{formatIndicatorValue(item)}</span>
+                <span className="text-right text-slate-500">
+                  {formatIndicatorValue({ value: item.baseline_mean, unit: item.unit })}
+                </span>
+              </Fragment>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="rounded-md bg-[#F7F9FA] p-3 text-xs">
+        {popupConfig.seasonLabel}<br /><strong>{SEASON_LABELS[metric.season] || metric.season}</strong>
+      </div>
+      <div className="rounded-md bg-[#F7F9FA] p-3 text-xs">
+        {popupConfig.yearLabel}<br /><strong>{metric.year}</strong>
+      </div>
+      <div className="col-span-2 rounded-md bg-[#F7F9FA] p-3 text-xs text-slate-500">
+        {popupConfig.sourceLabel}: {popupConfig.sourceValue}<br />
+        Normal: {meta.baseline || "1991-2020"} average for this LGA
+      </div>
+      {popupConfig.description && (
+        <div className="col-span-2 rounded-md bg-[#F7F9FA] p-3 text-[10px] leading-4 text-slate-400">
+          {popupConfig.description}
+        </div>
+      )}
+    </>
+  );
+}
+
 function IndicatorSelect({ value, onChange, options }) {
   const [open, setOpen] = useState(false);
+  const [showSupporting, setShowSupporting] = useState(false);
   const containerRef = useRef(null);
   const selected = options.find((o) => o.key === value);
+  const hazardOptions = options.filter((o) => o.group === "hazard");
+  const supportingOptions = options.filter((o) => o.group !== "hazard");
+  const supportingOpen = showSupporting || selected?.group !== "hazard";
 
   useEffect(() => {
     if (!open) return;
@@ -526,10 +608,28 @@ function IndicatorSelect({ value, onChange, options }) {
     return () => document.removeEventListener("mousedown", handleOutside);
   }, [open]);
 
+  function renderOption(option) {
+    return (
+      <li key={option.key}>
+        <button
+          type="button"
+          onClick={() => { onChange(option.key); setOpen(false); }}
+          className={`block w-full px-3 py-2.5 text-left text-sm leading-snug ${
+            option.key === value
+              ? "bg-[#030454] font-black text-white"
+              : "font-bold text-[#030454] hover:bg-[#EEF3FF]"
+          }`}
+        >
+          {option.label}
+        </button>
+      </li>
+    );
+  }
+
   return (
     <div ref={containerRef} className="relative border-b border-[#E6EAEC] px-5 py-4">
       <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-        Environmental Indicator
+        Climate Hazard or Indicator
       </span>
       <button
         type="button"
@@ -541,22 +641,25 @@ function IndicatorSelect({ value, onChange, options }) {
         {open ? <ChevronUp size={14} className="ml-2 mt-0.5 shrink-0 text-slate-400" /> : <ChevronDown size={14} className="ml-2 mt-0.5 shrink-0 text-slate-400" />}
       </button>
       {open && (
-        <ul className="absolute left-5 right-5 z-[960] mt-1 max-h-60 overflow-y-auto rounded-md border border-[#CAD2D7] bg-white py-1 shadow-xl">
-          {options.map((option) => (
-            <li key={option.key}>
+        <ul className="absolute left-5 right-5 z-[960] mt-1 max-h-80 overflow-y-auto rounded-md border border-[#CAD2D7] bg-white py-1 shadow-xl">
+          {hazardOptions.length > 0 && (
+            <li className="px-3 pb-1 pt-2 text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">Climate hazards</li>
+          )}
+          {hazardOptions.map(renderOption)}
+          {supportingOptions.length > 0 && (
+            <li>
               <button
                 type="button"
-                onClick={() => { onChange(option.key); setOpen(false); }}
-                className={`block w-full px-3 py-2.5 text-left text-sm leading-snug ${
-                  option.key === value
-                    ? "bg-[#030454] font-black text-white"
-                    : "font-bold text-[#030454] hover:bg-[#EEF3FF]"
-                }`}
+                onClick={() => setShowSupporting((v) => !v)}
+                className="flex w-full items-center justify-between px-3 pb-1 pt-3 text-left text-[10px] font-black uppercase tracking-[0.14em] text-slate-500"
+                aria-expanded={supportingOpen}
               >
-                {option.label}
+                Supporting data
+                {supportingOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
               </button>
             </li>
-          ))}
+          )}
+          {supportingOpen && supportingOptions.map(renderOption)}
         </ul>
       )}
     </div>
@@ -829,7 +932,7 @@ function CICardBody({ ciItem, ciLoading, showLulc }) {
 
 function CIProfilePanel({ profile, loading, error, showLulc, lulcPublic }) {
   if (loading) {
-    return <p className="text-[10px] text-slate-400">Loading climate intelligence profile...</p>;
+    return <p className="text-[10px] text-slate-400">Loading Climate Hazard Assessment and Risk Tracking profile...</p>;
   }
   if (error === "notfound" || (!loading && !profile && !error)) {
     return <p className="text-[10px] text-slate-400">Climate intelligence profile is not available for this LGA/year.</p>;
@@ -943,7 +1046,7 @@ export default function PublicClimateAtlasPage() {
   const INTERNAL_FLOOD_PREVIEW_PARAM = searchParams.get("internal_flood_preview") === "1";
   const INTERNAL_ELEVATION_PREVIEW_PARAM = searchParams.get("internal_elevation_preview") === "1";
   const requestedVariable = searchParams.get("indicator") || searchParams.get("variable") || "";
-  const initialVariableKey = VARIABLE_KEYS.has(requestedVariable) ? requestedVariable : "rainfall";
+  const initialVariableKey = VARIABLE_KEYS.has(requestedVariable) ? requestedVariable : CLIMATE_ATLAS_LAYER_ORDER[0];
   const requestedSeason = searchParams.get("season") || "";
   const initialSeason = SEASON_FROM_PARAM[String(requestedSeason).toLowerCase()] || "Full Year";
   const requestedYear = Number(searchParams.get("year") || "2025");
@@ -1070,6 +1173,7 @@ export default function PublicClimateAtlasPage() {
           unit: configItem.unit,
           dataSource: configItem.dataSource,
           coverageNote: configItem.coverageNote,
+          group: configItem.group || "supporting",
         }));
     // Only inject internal LULC config if the preview param is set AND LULC is not
     // already present in the public catalogue (which would cause a duplicate entry).
@@ -1188,7 +1292,7 @@ export default function PublicClimateAtlasPage() {
     return lookup;
   }, [exposureBreakdown]);
   // Urgent Climate Action Signal — computed once per LGA from already-loaded
-  // public data (risk profiles, climate intelligence indicators, exposure
+  // public data (risk profiles, Climate Hazard Assessment and Risk Tracking indicators, exposure
   // breakdown). See frontend/src/decision-support/climateActionSignal.js.
   const signalLookup = useMemo(() => {
     const lookup = {};
@@ -1200,6 +1304,7 @@ export default function PublicClimateAtlasPage() {
         admin_code: profile.lga,
         admin_name: profile.lga_name,
         riskProfile: profile,
+        hazards: ciItem?.hazards || null,
         indicators: ciItem?.indicators || null,
         exposure: exposureByName[key] || null,
       });
@@ -1428,9 +1533,30 @@ export default function PublicClimateAtlasPage() {
         setBriefingAnswer("Ask about elevation, terrain, altitude, or LGA-level topographic conditions. This is static SRTM terrain data (~2000) — not a climate variable or hazard forecast.");
       } else if (variable.key === "flood_occurrence") {
         setBriefingAnswer("Ask about surface water occurrence, flood, or LGA-level conditions. This is a static archive (1984–2021) — not a real-time flood indicator.");
+      } else if (variable.group === "hazard") {
+        setBriefingAnswer(`Ask about ${variable.label.toLowerCase()} in an LGA or across Kaduna, what drives it, or how it compares with the 1991-2020 normal.`);
       } else {
-        setBriefingAnswer("Ask about rainfall, rainfall anomaly, NDVI, vegetation, land surface temperature, or LGA-level climate conditions.");
+        setBriefingAnswer("Ask about extreme heat, flood, drought, erratic rainfall, or the supporting rainfall, vegetation and temperature data.");
       }
+      return;
+    }
+
+    if (variable.group === "hazard" && remoteStats.length > 0) {
+      const byClass = { Extreme: [], Severe: [], Moderate: [], Normal: [] };
+      for (const item of remoteStats) {
+        const cls = item.metadata?.class || getHazardClass(item.mean_value);
+        if (byClass[cls]) byClass[cls].push(item.admin_name || item.lga_name);
+      }
+      const flagged = ["Extreme", "Severe", "Moderate"]
+        .filter((cls) => byClass[cls].length)
+        .map((cls) => `${cls}: ${byClass[cls].join(", ")}`);
+      setBriefingAnswer(
+        `${variable.label} (${config.season} ${config.year}): ` +
+        (flagged.length
+          ? `${flagged.join("; ")}. ${byClass.Normal.length} LGAs are within their normal range.`
+          : `all ${remoteStats.length} LGAs are within their 1991-2020 normal range.`) +
+        " Classes compare each LGA with its own 1991-2020 normal; they are not forecasts or warnings."
+      );
       return;
     }
 
@@ -1756,7 +1882,7 @@ export default function PublicClimateAtlasPage() {
         if (cancelled) return;
         console.error(err);
         setPublicLayerCatalog([]);
-        setError(err.message || "Could not load Kaduna Climate Change Intelligence System.");
+        setError(err.message || "Could not load Kaduna Climate Hazard Assessment and Risk Tracking.");
       });
 
     return () => {
@@ -1790,7 +1916,7 @@ export default function PublicClimateAtlasPage() {
       : variable.key;
     const params = {
       layer: resolvedLayerKey,
-      season: SEASON_PARAM[config.season] || "annual",
+      season: getAtlasSeasonParam(variable.key, SEASON_PARAM[config.season] || "annual"),
       admin_level: config.admin_level,
     };
     // "Latest" omits year so the backend resolves the most recent stored year.
@@ -2122,6 +2248,8 @@ export default function PublicClimateAtlasPage() {
       ? getFloodOccurrenceColor(info.value)
       : variable.source !== "remote_sensing"
         ? info.color
+        : variable.group === "hazard"
+          ? getHazardColor(info.value)
         : variable.key === "rainfall"
           ? getRainfallColor(info.value, rainfallBreaks)
           : variable.key === "rainfall_anomaly"
@@ -2154,6 +2282,7 @@ export default function PublicClimateAtlasPage() {
     }
     const val = resolved?.value;
     if (val === null || val === undefined || !Number.isFinite(Number(val))) return "No data";
+    if (variable.group === "hazard") return `${getHazardClass(val)} (score ${Number(val).toFixed(0)})`;
     if (variable.key === "elevation") return `${Number(val).toFixed(0)} m`;
     if (variable.key === "flood_occurrence") return `${Number(val).toFixed(1)}%`;
     if (variable.key === "rainfall") return formatRainfall(val);
@@ -2337,7 +2466,7 @@ export default function PublicClimateAtlasPage() {
       <header className={`flex h-12 shrink-0 items-center justify-between border-b border-[#E6EAEC] bg-white px-5${isExportMode ? " hidden" : ""}`}>
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-[#030454] text-xs font-black text-white">KS</div>
-          <h1 className="text-sm font-black">Kaduna Climate Change Intelligence System - KCCC</h1>
+          <h1 className="text-sm font-black">Kaduna Climate Hazard Assessment and Risk Tracking - KCCC</h1>
         </div>
 
         <div className="text-center text-sm font-black text-[#030454]">
@@ -2353,7 +2482,7 @@ export default function PublicClimateAtlasPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <a href="/public/climate-risk" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">&lt; Back to Climate Intelligence</a>
+          <a href="/public/climate-risk" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">&lt; Back to Climate Hazard Assessment and Risk Tracking</a>
           {!isMilestoneOneDemo && (
             <>
               <a href="/public/reports" className="rounded-full bg-[#F7F9FA] px-3 py-1 text-xs font-black hover:bg-[#DFE3E4]">Reports</a>
@@ -2381,8 +2510,8 @@ export default function PublicClimateAtlasPage() {
           {sidebarOpen && (
             <>
               <div className="shrink-0 border-b border-[#E6EAEC] px-5 py-5">
-                <h2 className="text-lg font-black text-[#8A0028]">KCCC Climate Change Intelligence System</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">Select climate variables and view Kaduna LGA-level map intelligence.</p>
+                <h2 className="text-lg font-black text-[#8A0028]">KCCC Climate Hazard Assessment and Risk Tracking</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-600">Track extreme heat, flood, drought and erratic rainfall for every Kaduna LGA, compared with its own 1991-2020 normal. Rainfall, vegetation and other layers are under Supporting data.</p>
               </div>
 
               <div className="min-h-0 flex-1 overflow-y-auto pb-6">
@@ -3069,7 +3198,7 @@ export default function PublicClimateAtlasPage() {
                         : " · Raw Dynamic World (unfiltered)"}
                     </p>
                   </>
-                ) : legendState?.type === "drought_index" ? (
+                ) : legendState?.type === "drought_index" || legendState?.type === "hazard" ? (
                   <>
                     <div className="grid grid-cols-1 gap-1 text-[10px] text-slate-600">
                       {legendState.rows.map(([color, range, label]) => (
@@ -3401,7 +3530,9 @@ export default function PublicClimateAtlasPage() {
                     )
                   ) : variable.source === "remote_sensing" ? (
                     selectedLga.metric ? (
-                      variable.key === "rainfall" ? (
+                      variable.group === "hazard" ? (
+                        <HazardPopupDetails metric={selectedLga.metric} popupConfig={popupConfig} />
+                      ) : variable.key === "rainfall" ? (
                         <>
                           <div className="col-span-2 rounded-md bg-[#F7F9FA] p-3">
                             {popupConfig.valueLabel}<br />
@@ -3675,7 +3806,7 @@ export default function PublicClimateAtlasPage() {
                 {(selectedLgaCiItem || ciLoading) && (
                   <div className="mt-3 border-t border-[#E6EAEC] pt-3">
                     <div className="mb-2 flex items-center justify-between">
-                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#173B91]">Climate Intelligence Summary</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#173B91]">Climate Hazard Assessment and Risk Tracking Summary</p>
                       <span className="rounded-full bg-[#F7F9FA] px-2 py-0.5 text-[9px] font-bold text-slate-500">Rule-based</span>
                     </div>
                     <CICardBody ciItem={selectedLgaCiItem} ciLoading={ciLoading} showLulc={isLulcAvailable} />
@@ -3689,7 +3820,7 @@ export default function PublicClimateAtlasPage() {
                             : "border-[#D8DDE2] bg-white text-[#173B91] hover:border-[#173B91] hover:bg-[#EEF1FD]"
                         }`}
                       >
-                        {ciBriefOpen ? "▲ Close Climate Intelligence Brief" : "▼ View Climate Intelligence Brief"}
+                        {ciBriefOpen ? "▲ Close Climate Hazard Assessment and Risk Tracking Brief" : "▼ View Climate Hazard Assessment and Risk Tracking Brief"}
                       </button>
                     )}
                   </div>

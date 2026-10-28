@@ -22,13 +22,31 @@ from decimal import Decimal
 
 from django.db.models import Max
 
+from . import hazards as H
 from .lulc_providers import LAND_COVER_PROVIDERS
 from .models import LandCoverDataset, RemoteSensingLGAMetric, RemoteSensingLayer
 
 RAINFALL_BASELINE_YEARS = "1991-2020"
 
 # Mirrors frontend/src/config/climateAtlasLayers.js — kept in sync by hand.
+_HAZARD_NOTES = {
+    "extreme_heat": "Hot days, heatwave days, days at or above 40 °C and the hottest day from ERA5-Land daily maximum air temperature, against the LGA's own 1991-2020 normal.",
+    "flood": "Heavy-rainfall flood triggers (wettest day, wettest 5 days, very wet days) from CHIRPS daily rainfall averaged over the LGA, which understates local cloudbursts. Not a flood extent or forecast.",
+    "drought": "Meteorological drought from the rainfall-only SPI against 1991-2020. Not soil-moisture, crop-stress or groundwater drought.",
+    "erratic_rainfall": "Rainy-season onset, end, length and dry spells from CHIRPS daily rainfall, against the LGA's own 1991-2020 normal.",
+}
+
 INDICATOR_METADATA = {
+    **{
+        H.HAZARD_LAYER_KEYS[h]: {
+            "label": H.HAZARD_LABELS[h],
+            "unit": "score",
+            "data_source": "CHIRPS v2.0 daily rainfall; ERA5-Land daily maximum temperature",
+            "layer_key": H.HAZARD_LAYER_KEYS[h],
+            "note": _HAZARD_NOTES[h] + " Classes Moderate/Severe/Extreme are 1/1.5/2 standard deviations beyond normal; not a forecast or warning.",
+        }
+        for h in H.HAZARD_LABELS
+    },
     "rainfall": {
         "label": "Rainfall Total",
         "unit": "mm",
@@ -94,7 +112,17 @@ _GENERIC_SUGGESTED_QUESTIONS = [
     "How does this compare with the historical baseline?",
     "What limitations should I consider?",
 ]
+_HAZARD_QUESTIONS = [
+    "Which LGAs are most affected this year?",
+    "What is driving this hazard?",
+    "How does this compare with the 1991-2020 normal?",
+    "What actions could planners consider?",
+]
 SUGGESTED_QUESTIONS_BY_INDICATOR = {
+    "hazard_extreme_heat": _HAZARD_QUESTIONS,
+    "hazard_flood": _HAZARD_QUESTIONS,
+    "hazard_drought": _HAZARD_QUESTIONS + ["What does this mean for farmers?"],
+    "hazard_erratic_rainfall": _HAZARD_QUESTIONS + ["What does this mean for planting dates?"],
     "rainfall": _GENERIC_SUGGESTED_QUESTIONS + ["What does this mean for farming?"],
     "rainfall_anomaly": _GENERIC_SUGGESTED_QUESTIONS + ["What does this mean for farming?"],
     "drought_index": _GENERIC_SUGGESTED_QUESTIONS + [
@@ -161,6 +189,14 @@ _CLASSIFIERS = {
 }
 
 
+_HAZARD_BY_LAYER = {v: k for k, v in H.HAZARD_LAYER_KEYS.items()}
+
+
+def _indicator_season(indicator: str, season: str) -> str:
+    hazard = _HAZARD_BY_LAYER.get(indicator)
+    return H.DISPLAY_SEASON[hazard].get(season, season) if hazard else season
+
+
 def _resolve_layer_key(indicator: str, year: int | None) -> str | None:
     if indicator == "ndvi":
         # No explicit year (None) defaults to the current Sentinel-2 era —
@@ -185,6 +221,11 @@ def _build_metric_entry(metric, indicator: str) -> dict:
     }
     if classifier is not None and value is not None:
         entry["condition"] = classifier(value)
+    if indicator in _HAZARD_BY_LAYER:
+        meta = metric.metadata or {}
+        entry["condition"] = meta.get("class") or H.classify_score(value)
+        if entry["condition"] != "Normal" and meta.get("driver_label"):
+            entry["driver"] = meta["driver_label"]
     return entry
 
 
@@ -317,6 +358,7 @@ def resolve_climate_context(
             "scope": scope,
         }
 
+    season = _indicator_season(indicator, season)
     base_qs = RemoteSensingLGAMetric.objects.filter(
         layer=layer, admin_level="lga", season=season, mean_value__isnull=False
     )
@@ -384,6 +426,10 @@ def resolve_climate_context(
         }
         if classifier is not None and mean_value is not None:
             primary["condition"] = classifier(mean_value)
+        if indicator in _HAZARD_BY_LAYER:
+            classes = [(r.metadata or {}).get("class") or H.classify_score(_decimal_to_float(r.mean_value)) for r in rows]
+            flagged = sum(c in ("Moderate", "Severe", "Extreme") for c in classes)
+            primary["condition"] = f"{flagged} of {len(classes)} LGAs Moderate or worse"
         adjacent = []
 
     map_insight = build_map_insight(
@@ -405,7 +451,9 @@ def resolve_climate_context(
         "data_source": primary.get("data_source"),
         "lga_count": primary.get("lga_count"),
         "latest_available_year": latest_available,
-        "baseline_reference": RAINFALL_BASELINE_YEARS if indicator in ("rainfall_anomaly", "drought_index") else None,
+        "baseline_reference": (RAINFALL_BASELINE_YEARS
+                               if indicator in ("rainfall_anomaly", "drought_index") or indicator in _HAZARD_BY_LAYER
+                               else None),
         "methodology_note": meta["note"],
         "adjacent_indicators": adjacent,
         "map_insight": map_insight,
@@ -502,9 +550,27 @@ def _resolve_lulc_context(*, scope, admin_code, lga_name, year):
 # the existing Climate Action Signal framework's intent (deriveActionPathways
 # in frontend/src/utils/climatePathways.js) without duplicating its scoring;
 # this only maps an already-computed condition to suggested-action wording.
+_HAZARD_ACTIONS = {
+    "extreme_heat": ["heat-health advisories", "cooling and shade in public spaces", "water supply planning"],
+    "flood": ["drainage inspection", "flood preparedness", "early warning dissemination"],
+    "drought": ["soil moisture conservation", "irrigation planning", "drought-resilient crop choices"],
+    "erratic_rainfall": ["seasonal advisories on planting dates", "early-maturing varieties", "water harvesting"],
+}
+
+
+def _hazard_flagged(condition) -> bool:
+    if condition in ("Moderate", "Severe", "Extreme"):
+        return True
+    return isinstance(condition, str) and "LGAs" in condition and not condition.startswith("0 of")
+
+
 def _action_considerations(indicator: str, context: dict) -> list[str]:
     condition = context.get("condition")
     value = context.get("value")
+
+    hazard = _HAZARD_BY_LAYER.get(indicator)
+    if hazard:
+        return _HAZARD_ACTIONS[hazard] if _hazard_flagged(condition) else []
 
     if indicator == "drought_index" and condition and "drought" in condition:
         return ["soil moisture conservation", "irrigation planning", "drought-resilient crop choices"]
@@ -523,6 +589,11 @@ def _action_considerations(indicator: str, context: dict) -> list[str]:
 
 def _farmer_interpretation(indicator: str, context: dict) -> str | None:
     condition = context.get("condition")
+
+    if indicator == "hazard_erratic_rainfall" and _hazard_flagged(condition):
+        return "The rainy season departed from its usual pattern (late start, early end or long dry spells); planting dates and variety choice may need adjusting."
+    if indicator == "hazard_drought" and _hazard_flagged(condition):
+        return "Rainfall was well below normal; this is a rainfall-only signal, not a confirmed crop or soil-moisture drought."
 
     if indicator == "ndvi" and condition:
         if condition == "healthy vegetation":

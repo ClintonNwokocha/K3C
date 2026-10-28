@@ -35,12 +35,12 @@ const pageDetails = {
   dashboard: {
     title: "Executive Dashboard",
     description:
-      "High-level platform summary for Climate Intelligence, emissions, projects, reports, and alerts.",
+      "High-level platform summary for Climate Hazard Assessment and Risk Tracking, emissions, projects, reports, and alerts.",
   },
   risk: {
-    title: "Climate Intelligence Map",
+    title: "Climate Hazard Assessment and Risk Tracking Map",
     description:
-      "Interactive LGA-level Climate Intelligence map showing flood, drought, heat, exposure, and vulnerability indicators.",
+      "Interactive LGA-level Climate Hazard Assessment and Risk Tracking map showing flood, drought, heat, exposure, and vulnerability indicators.",
   },
   ghg: {
     title: "GHG Inventory",
