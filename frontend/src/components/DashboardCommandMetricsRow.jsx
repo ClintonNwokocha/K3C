@@ -57,7 +57,7 @@ export default function DashboardCommandMetricsRow({
   return (
     <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <CommandMetric
-        label="Climate Intelligence"
+        label="Climate Hazard Assessment and Risk Tracking"
         value={loading ? "—" : formatNumber(riskSummary.high_or_very_high_count, 0)}
         helper={
           loading
@@ -65,7 +65,7 @@ export default function DashboardCommandMetricsRow({
             : `High / very high risk LGAs of ${formatNumber(riskSummary.total_lgas, 0)} assessed statewide.`
         }
         tone="green"
-        errorNotice={errors.risk ? "Couldn't load Climate Intelligence data." : null}
+        errorNotice={errors.risk ? "Couldn't load Climate Hazard Assessment and Risk Tracking data." : null}
       />
 
       <CommandMetric

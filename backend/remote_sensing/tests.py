@@ -4261,7 +4261,7 @@ class LulcTileUrlApiTests(TestCase):
 
 
 # ===========================================================================
-# Climate Intelligence Engine E1 — classification + endpoint tests
+# Climate Hazard Assessment and Risk Tracking Engine E1 — classification + endpoint tests
 # ===========================================================================
 
 
@@ -4432,7 +4432,7 @@ def _ci_make_metric(layer, admin_code, admin_name, year, season, value, unit="")
 class ClimateIntelligenceEndpointTests(TestCase):
     """
     Integration tests for GET /api/remote-sensing/climate-intelligence/
-    (Climate Intelligence Engine E1).
+    (Climate Hazard Assessment and Risk Tracking Engine E1).
     """
 
     URL = "/api/remote-sensing/climate-intelligence/"
@@ -4640,7 +4640,7 @@ class ClimateIntelligenceEndpointTests(TestCase):
         for phrase in self.FORBIDDEN_PHRASES:
             self.assertNotIn(
                 phrase, body,
-                msg=f"Forbidden phrase {phrase!r} found in climate intelligence response",
+                msg=f"Forbidden phrase {phrase!r} found in Climate Hazard Assessment and Risk Tracking response",
             )
 
     # --- 12. Endpoint does not mutate DB ---
@@ -4682,14 +4682,14 @@ class ClimateIntelligenceEndpointTests(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# Climate Intelligence Engine E5 — single-LGA focused profile
+# Climate Hazard Assessment and Risk Tracking Engine E5 — single-LGA focused profile
 # ---------------------------------------------------------------------------
 
 
 class ClimateIntelligenceProfileTests(TestCase):
     """
     Integration tests for GET /api/remote-sensing/climate-intelligence/profile/
-    (Climate Intelligence Engine E5).
+    (Climate Hazard Assessment and Risk Tracking Engine E5).
     """
 
     URL = "/api/remote-sensing/climate-intelligence/profile/"

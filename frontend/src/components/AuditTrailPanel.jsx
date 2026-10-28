@@ -197,7 +197,7 @@ export default function AuditTrailPanel() {
 
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
             Review recorded create, update, import and system actions across
-            Climate Intelligence, project portfolio, reports and other platform modules.
+            Climate Hazard Assessment and Risk Tracking, project portfolio, reports and other platform modules.
           </p>
         </div>
 

@@ -61,7 +61,7 @@ export default function LgaClimateBrief({
 }) {
   if (!ciProfile) return null;
 
-  const { sections, briefing, cautions, method_notes, year, season, headline } = ciProfile;
+  const { sections, briefing, cautions, method_notes, year, season, headline, hazards } = ciProfile;
   const { rainfall, vegetation, temperature, drought, land_cover } = sections || {};
 
   const displaySeason =
@@ -73,7 +73,24 @@ export default function LgaClimateBrief({
       ? "Dry Season"
       : season;
 
-  // Build evidence row data
+  // Climate hazards first (class against the LGA's 1991-2020 normal).
+  const hazardRows = Object.entries(hazards || {}).map(([key, block]) => {
+    const driver = block.indicators?.[block.driver];
+    const flagged = ["Moderate", "Severe", "Extreme"].includes(block.class);
+    return {
+      key: `hazard_${key}`,
+      label: block.label,
+      value: block.score != null ? `score ${Math.round(block.score)}` : null,
+      condition: block.class,
+      note: block.failed_season
+        ? "No rainy-season onset by 31 July"
+        : flagged && driver
+          ? `${driver.label}: ${driver.value} (normal ${driver.baseline_mean})`
+          : "vs. 1991–2020 LGA normal",
+    };
+  });
+
+  // Supporting evidence rows
   const evidenceRows = [];
 
   if (rainfall?.total?.value != null) {
@@ -186,7 +203,7 @@ export default function LgaClimateBrief({
       {/* Header */}
       <div className="bg-[#F0F3FF] px-4 py-3">
         <p className="text-[9px] font-black uppercase tracking-[0.15em] text-[#173B91]">
-          Climate Intelligence Brief
+          Climate Hazard Assessment and Risk Tracking Brief
         </p>
         <p className="mt-0.5 text-xs font-black text-slate-800">{lgaName}</p>
         <p className="mt-0.5 text-[9px] text-slate-500">
@@ -198,9 +215,10 @@ export default function LgaClimateBrief({
           </p>
         )}
         <p className="mt-2 text-[9px] leading-[1.4] text-slate-500">
-          This brief is generated from satellite-derived indicators. It is a screening
-          tool for planning discussions — not a hazard assessment, vulnerability ranking,
-          or implementation plan. All action considerations require field verification.
+          This brief compares this LGA&apos;s climate hazards with its own 1991–2020 normal,
+          from satellite and reanalysis data. It is a screening tool for planning
+          discussions — not a forecast, warning or implementation plan. All action
+          considerations require field verification.
         </p>
       </div>
 
@@ -208,10 +226,16 @@ export default function LgaClimateBrief({
       <div className="px-4 py-3">
         <SectionHeading>A. Evidence Snapshot</SectionHeading>
         <div>
+          {hazardRows.map((row) => (
+            <EvidenceRow key={row.key} {...row} />
+          ))}
+          {hazardRows.length > 0 && evidenceRows.length > 0 && (
+            <p className="mt-2 text-[9px] font-black uppercase tracking-wide text-slate-400">Supporting data</p>
+          )}
           {evidenceRows.map((row) => (
             <EvidenceRow key={row.key} {...row} />
           ))}
-          {evidenceRows.length === 0 && (
+          {hazardRows.length === 0 && evidenceRows.length === 0 && (
             <p className="italic text-slate-400">No indicator data available for this LGA.</p>
           )}
         </div>

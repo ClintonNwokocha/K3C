@@ -2,7 +2,7 @@ const scoreFields = [
   { key: "flood_risk_score", label: "Flood" },
   { key: "drought_risk_score", label: "Drought" },
   { key: "heat_risk_score", label: "Heat" },
-  { key: "erosion_risk_score", label: "Erosion" },
+  { key: "erratic_rainfall_risk_score", label: "Erratic Rainfall" },
   { key: "exposure_score", label: "Exposure" },
   { key: "vulnerability_score", label: "Vulnerability" },
   { key: "adaptive_capacity_score", label: "Adaptive Capacity" },
@@ -153,12 +153,12 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
         </p>
 
         <h2 className="mt-2 text-2xl font-black text-[#030454]">
-          Climate Intelligence Data Completeness
+          Climate Hazard Assessment and Risk Tracking Data Completeness
         </h2>
 
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-          This panel checks whether each LGA has the required Climate Intelligence
-          index fields for flood, drought, heat, erosion, exposure,
+          This panel checks whether each LGA has the required Climate Hazard Assessment and Risk Tracking
+          index fields for flood, drought, heat, erratic rainfall, exposure,
           vulnerability and adaptive capacity.
         </p>
       </div>
@@ -303,7 +303,7 @@ export default function ClimateRiskDataQualityPanel({ profiles = [] }) {
                   colSpan="6"
                   className="px-3 py-8 text-center text-slate-500"
                 >
-                  No Climate Intelligence profiles available for quality checks.
+                  No Climate Hazard Assessment and Risk Tracking profiles available for quality checks.
                 </td>
               </tr>
             )}

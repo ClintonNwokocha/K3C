@@ -37,9 +37,9 @@ urlpatterns = [
     path("dashboard/kpis/", dashboard_kpis, name="remote-sensing-dashboard-kpis"),
     path("ai/hotspots/", ai_hotspots, name="remote-sensing-ai-hotspots"),
 
-    # Climate Intelligence Engine E1 — read-only aggregation, no GEE, no writes.
+    # Climate Hazard Assessment and Risk Tracking Engine E1 — read-only aggregation, no GEE, no writes.
     path("remote-sensing/climate-intelligence/", climate_intelligence, name="remote-sensing-climate-intelligence"),
-    # Climate Intelligence Engine E5 — single-LGA focused profile.
+    # Climate Hazard Assessment and Risk Tracking Engine E5 — single-LGA focused profile.
     path("remote-sensing/climate-intelligence/profile/", climate_intelligence_profile, name="remote-sensing-climate-intelligence-profile"),
 
     # Climate Briefing Assistant — public, AI-assisted with rule-based fallback.

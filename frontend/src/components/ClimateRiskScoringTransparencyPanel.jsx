@@ -21,10 +21,10 @@ const categoryConfig = [
     meaning: "Higher score means higher heat concern.",
   },
   {
-    key: "erosion",
-    label: "Erosion",
-    profileField: "erosion_risk_score",
-    meaning: "Higher score means higher erosion concern.",
+    key: "erratic_rainfall",
+    label: "Erratic Rainfall",
+    profileField: "erratic_rainfall_risk_score",
+    meaning: "Higher score means a less reliable rainy season.",
   },
   {
     key: "exposure",
@@ -301,7 +301,7 @@ export default function ClimateRiskScoringTransparencyPanel({
       selectedProfile.flood_risk_score,
       selectedProfile.drought_risk_score,
       selectedProfile.heat_risk_score,
-      selectedProfile.erosion_risk_score,
+      selectedProfile.erratic_rainfall_risk_score,
     ]);
   }, [selectedProfile]);
 
@@ -327,7 +327,7 @@ export default function ClimateRiskScoringTransparencyPanel({
         </h2>
 
         <p className="mt-2 text-sm leading-6 text-slate-500">
-          Select an LGA to inspect how its Climate Intelligence scores are supported by
+          Select an LGA to inspect how its Climate Hazard Assessment and Risk Tracking scores are supported by
           parameter evidence.
         </p>
       </section>
@@ -386,7 +386,7 @@ export default function ClimateRiskScoringTransparencyPanel({
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <ScoreCard
-          label="Overall Climate Intelligence Index"
+          label="Overall Climate Risk Index"
           value={selectedProfile.overall_risk_score}
           helper="Final backend-calculated score."
           tone="blue"
@@ -395,7 +395,7 @@ export default function ClimateRiskScoringTransparencyPanel({
         <ScoreCard
           label="Hazard Average"
           value={hazardAverage}
-          helper="Average of flood, drought, heat and erosion indexes."
+          helper="Average of flood, drought, heat and erratic rainfall indexes."
           tone="green"
         />
 

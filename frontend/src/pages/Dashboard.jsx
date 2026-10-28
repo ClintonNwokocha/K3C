@@ -134,7 +134,7 @@ function FocusItem({ icon: Icon, title, description, tone = "blue" }) {
 
 const EXECUTIVE_TABS = [
   { key: "overview", label: "Overview" },
-  { key: "climate", label: "Climate Intelligence" },
+  { key: "climate", label: "Climate Hazard Assessment and Risk Tracking" },
   { key: "ghg", label: "GHG Inventory" },
   { key: "projectsReports", label: "Projects & Reports" },
 ];
@@ -202,7 +202,7 @@ export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
             </h1>
 
             <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-              Monitor Climate Intelligence, greenhouse gas inventory, climate action
+              Monitor Climate Hazard Assessment and Risk Tracking, greenhouse gas inventory, climate action
               projects, reports, public transparency outputs and audit-ready
               governance workflows from one internal command dashboard.
             </p>
@@ -246,8 +246,8 @@ export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               <ModuleCard
                 icon={CloudSun}
-                title="Climate Intelligence"
-                description="Review LGA Climate Intelligence scores, maps, raw parameter records and scoring outputs."
+                title="Climate Hazard Assessment and Risk Tracking"
+                description="Review LGA Climate Hazard Assessment and Risk Tracking scores, maps, raw parameter records and scoring outputs."
                 actionLabel="Open risk module"
                 tone="green"
                 onClick={() => navigateTo("risk")}
@@ -292,7 +292,7 @@ export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
               <div className="space-y-4">
                 <FocusItem
                   icon={Globe2}
-                  title="Where are the highest Climate Intelligences?"
+                  title="Where are the highest climate risks?"
                   description="Use LGA risk maps and scores to identify priority locations and risk drivers."
                   tone="green"
                 />
@@ -315,7 +315,7 @@ export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <SectionHeader
-                title="Recent climate intelligence and action"
+                title="Recent Climate Hazard Assessment and Risk Tracking and action"
                 description="Signals decision-makers should see first — highest-risk LGAs, the latest emissions position, and the newest projects and reports."
               />
 
@@ -341,8 +341,8 @@ export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
       {activeExecutiveTab === "climate" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <SectionHeader
-            title="Executive Climate Intelligence summary"
-            description="Leadership-level view of LGA Climate Intelligence scores, highest-risk LGAs and adaptation signals."
+            title="Executive Climate Hazard Assessment and Risk Tracking summary"
+            description="Leadership-level view of LGA Climate Hazard Assessment and Risk Tracking scores, highest-risk LGAs and adaptation signals."
           />
 
           <ExecutiveClimateRiskSummary />

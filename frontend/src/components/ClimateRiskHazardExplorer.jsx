@@ -5,18 +5,18 @@ const hazardOptions = [
   {
     key: "overall",
     label: "Overall",
-    title: "Overall Climate Intelligence Index",
+    title: "Overall Climate Risk Index",
     description:
-      "Composite Climate Intelligence index combining hazard, exposure, vulnerability and adaptive capacity gap.",
+      "Composite Climate Hazard Assessment and Risk Tracking index combining hazard, exposure, vulnerability and adaptive capacity gap.",
     field: "overall_risk_score",
-    higherMeaning: "Higher score means higher overall Climate Intelligence.",
+    higherMeaning: "Higher score means higher overall Climate Hazard Assessment and Risk Tracking.",
   },
   {
     key: "flood",
     label: "Flood",
     title: "Flood Risk Index",
     description:
-      "Shows relative flood risk based on flood-related parameter records such as flood occurrence, flood-prone area, exposed population and other flood evidence.",
+      "How often and how strongly heavy-rainfall flood triggers (wettest day, wettest 5 days, very wet days) exceeded the LGA's 1991-2020 normal over the last 10 years. 50 = typical.",
     field: "flood_risk_score",
     higherMeaning: "Higher score means higher flood concern.",
   },
@@ -25,7 +25,7 @@ const hazardOptions = [
     label: "Drought",
     title: "Drought Risk Index",
     description:
-      "Shows relative drought stress based on drought-related indicators such as rainfall anomaly, dry days, SPI/NDVI evidence and vegetation stress.",
+      "How dry the last 10 wet seasons were against the LGA's 1991-2020 normal, from the rainfall-only SPI. 50 = typical.",
     field: "drought_risk_score",
     higherMeaning: "Higher score means higher drought concern.",
   },
@@ -34,18 +34,18 @@ const hazardOptions = [
     label: "Heat",
     title: "Heat Risk Index",
     description:
-      "Shows relative heat risk based on heat-related indicators such as land surface temperature, temperature anomaly and urban heat exposure.",
+      "How often hot days and heatwaves exceeded the LGA's 1991-2020 normal over the last 10 years (ERA5-Land air temperature). 50 = typical.",
     field: "heat_risk_score",
     higherMeaning: "Higher score means higher heat concern.",
   },
   {
-    key: "erosion",
-    label: "Erosion",
-    title: "Erosion Risk Index",
+    key: "erratic_rainfall",
+    label: "Erratic Rainfall",
+    title: "Erratic Rainfall Risk Index",
     description:
-      "Shows relative erosion risk based on slope, soil erodibility, rainfall erosivity, land-cover condition and erosion evidence.",
-    field: "erosion_risk_score",
-    higherMeaning: "Higher score means higher erosion concern.",
+      "How far rainy-season onset, end, length and dry spells departed from the LGA's 1991-2020 normal over the last 10 years. 50 = typical.",
+    field: "erratic_rainfall_risk_score",
+    higherMeaning: "Higher score means a less reliable rainy season.",
   },
   {
     key: "exposure",
@@ -179,7 +179,7 @@ export default function ClimateRiskHazardExplorer({
         </p>
 
         <h2 className="mt-2 text-2xl font-black text-[#030454]">
-          Explore Climate Intelligence by Hazard
+          Explore Climate Hazard Assessment and Risk Tracking by Hazard
         </h2>
 
         <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">

@@ -1,4 +1,8 @@
 ﻿export const CLIMATE_ATLAS_LAYER_ORDER = [
+  "hazard_extreme_heat",
+  "hazard_flood",
+  "hazard_drought",
+  "hazard_erratic_rainfall",
   "rainfall",
   "ndvi",
   "lst",
@@ -9,7 +13,111 @@
   "flood_occurrence",
 ];
 
+// Climate hazards (backend remote_sensing/hazards.py, layer keys hazard_*).
+// Score 0-100 is the percentile of the LGA's departure from its own 1991-2020
+// normal; classes Moderate / Severe / Extreme = 1 / 1.5 / 2 standard deviations
+// (scores 84.1 / 93.3 / 97.7).  Everything else in the atlas is supporting data.
+export const HAZARD_CLASS_ROWS = [
+  ["#f1f5f9", "Score < 84", "Normal"],
+  ["#fcd34d", "84 – 93", "Moderate"],
+  ["#f97316", "93 – 98", "Severe"],
+  ["#b91c1c", "98 +", "Extreme"],
+];
+
+export function getHazardClass(score) {
+  const n = Number(score);
+  if (score === null || score === undefined || score === "" || !Number.isFinite(n)) return "No data";
+  if (n >= 97.7) return "Extreme";
+  if (n >= 93.3) return "Severe";
+  if (n >= 84.1) return "Moderate";
+  return "Normal";
+}
+
+export function getHazardColor(score) {
+  const row = HAZARD_CLASS_ROWS.find(([, , label]) => label === getHazardClass(score));
+  return row ? row[0] : "#d9dee3";
+}
+
+function hazardConfig({ key, label, dataSource, description, coverageNote, seasonMap, caution }) {
+  return {
+    key,
+    group: "hazard",
+    selectorLabel: label,
+    displayLabel: label,
+    backendLayerKeys: [key],
+    unit: "score",
+    description,
+    scientificCaution: caution,
+    dataSource,
+    coverageNote,
+    seasonMap,
+    statistic: {
+      label: "Hazard class",
+      detail: "Departure from the LGA's own 1991-2020 normal; the most unusual indicator sets the class.",
+    },
+    legend: {
+      type: "hazard",
+      rows: HAZARD_CLASS_ROWS,
+      caption: "Compared with each LGA's own 1991-2020 normal. Not a forecast or warning.",
+    },
+    popup: {
+      title: label,
+      valueLabel: "Hazard class",
+      sourceLabel: "Source",
+      sourceValue: dataSource,
+      seasonLabel: "Season",
+      yearLabel: "Year",
+      noDataMessage: `No ${label} assessment available for this selection.`,
+      mapCaption: `${label} class`,
+      description: caution,
+    },
+    availability: {
+      requiredLayerKeys: [key],
+    },
+  };
+}
+
+const HAZARD_LAYER_CONFIGS = {
+  hazard_extreme_heat: hazardConfig({
+    key: "hazard_extreme_heat",
+    label: "Extreme Heat",
+    dataSource: "ERA5-Land daily maximum air temperature",
+    description: "Hot days, heatwave days, days at or above 40 °C and the hottest day.",
+    coverageNote: "Coverage: 1981-2025 · Dry Season shows the hot season (Mar-May)",
+    seasonMap: { annual: "annual", dry_season: "hot_season", wet_season: "annual" },
+    caution: "Air temperature from the ERA5-Land reanalysis (about 9 km), averaged over the LGA. Hot days are above the LGA's own 90th percentile.",
+  }),
+  hazard_flood: hazardConfig({
+    key: "hazard_flood",
+    label: "Flood",
+    dataSource: "CHIRPS v2.0 daily rainfall",
+    description: "Heavy-rainfall flood triggers: wettest day, wettest 5 days and very wet days.",
+    coverageNote: "Coverage: 1981-2025 · Dry Season shows the full year",
+    seasonMap: { annual: "annual", dry_season: "annual", wet_season: "wet_season" },
+    caution: "Rainfall that can trigger flooding, averaged over the LGA, which understates local cloudbursts. Not a mapped flood extent or forecast.",
+  }),
+  hazard_drought: hazardConfig({
+    key: "hazard_drought",
+    label: "Drought",
+    dataSource: "CHIRPS v2.0 rainfall, Standardized Precipitation Index",
+    description: "Meteorological drought from the Standardized Precipitation Index.",
+    coverageNote: "Coverage: Annual/Wet 1981-2025, Dry 1982-2025",
+    seasonMap: { annual: "annual", dry_season: "dry_season", wet_season: "wet_season" },
+    caution: "Rainfall-only drought. It does not measure soil moisture, crop stress, streamflow or groundwater.",
+  }),
+  hazard_erratic_rainfall: hazardConfig({
+    key: "hazard_erratic_rainfall",
+    label: "Erratic Rainfall",
+    dataSource: "CHIRPS v2.0 daily rainfall",
+    description: "Rainy-season onset, end and length, and dry spells within the season.",
+    coverageNote: "Coverage: 1981-2025 · always the rainy season",
+    seasonMap: { annual: "wet_season", dry_season: "wet_season", wet_season: "wet_season" },
+    caution: "Onset: first 20 mm in 3 days from 1 April without a dry spell over 7 days in the next 30. No onset by 31 July is a failed season.",
+  }),
+};
+
 export const CLIMATE_ATLAS_LAYER_CONFIGS = {
+  ...HAZARD_LAYER_CONFIGS,
   rainfall: {
     key: "rainfall",
     selectorLabel: "Rainfall Total (mm)",
@@ -374,7 +482,14 @@ export function getAtlasSelectorOptions(publicLayerKeys) {
     key: config.key,
     label: config.selectorLabel,
     unit: config.unit,
+    group: config.group || "supporting",
   }));
+}
+
+// Backend season for a variable: hazards map the atlas season to one they are
+// assessed for (see each hazard's seasonMap); other layers use it unchanged.
+export function getAtlasSeasonParam(key, season) {
+  return getAtlasLayerConfig(key)?.seasonMap?.[season] || season;
 }
 
 export function getAtlasRuntimeCopy(key, year) {

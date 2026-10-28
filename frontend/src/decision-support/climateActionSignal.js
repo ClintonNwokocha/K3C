@@ -6,18 +6,12 @@
 // current-evidence prioritisation on top of the existing validated
 // ClimateRiskProfile — it does not replace or compete with it.
 //
-// Hazard/stress thresholds and wording are copied verbatim from the backend's
-// _classify_ndvi / _classify_spi / _classify_rainfall_anomaly / _classify_lst
-// (remote_sensing/views.py) — the same functions that already populate the
-// "condition" field on every indicator this module consumes via ciLookup /
-// climateIntelligenceData, so the adverse/severe groupings below are the
-// existing _overall_status()/_build_ci_summary() bucketing, not a new
-// classification. Component-score bucketing reuses
-// ClimateRiskProfile.classify_risk_level()'s 75/60/40 bands. Note: the
-// frontend's own classifyNdvi/classifyRainfallAnomaly/classifySpi/classifyLst
-// in PublicClimateRiskPage.jsx use different wording and thresholds from the
-// backend — they are a separate display-only classification and are
-// intentionally NOT reused here (see final report).
+// Hazard evidence is the four Climate Hazard Assessment and Risk Tracking
+// hazards (extreme heat, flood, drought, erratic rainfall) with classes from
+// the backend (remote_sensing/hazards.py). Vegetation (NDVI) is environmental
+// stress evidence only. Component-score bucketing reuses
+// ClimateRiskProfile.classify_risk_level()'s 75/60/40 bands. The classify*
+// helpers below are kept for the supporting-data displays.
 
 export const SIGNAL_LEVEL = {
   URGENT_ACTION: "urgent_action",
@@ -117,7 +111,7 @@ export function classifyLst(value) {
 }
 
 // Reuses ClimateRiskProfile.classify_risk_level()'s 75/60/40 score bands to
-// bucket the 0-100 component scores (flood/drought/heat/erosion/vulnerability).
+// bucket the 0-100 component scores (flood/drought/heat/erratic rainfall/vulnerability).
 function bucketRiskScore(score) {
   const n = Number(score);
   if (!Number.isFinite(n)) return null;
@@ -127,31 +121,24 @@ function bucketRiskScore(score) {
   return "low";
 }
 
-// Matches remote_sensing/views.py _overall_status()'s existing drought bucket.
-const SPI_DROUGHT_CONDITIONS = new Set([
-  "extreme drought condition",
-  "severe drought condition",
-  "moderate drought condition",
-]);
-const SPI_SEVERE_DROUGHT_CONDITIONS = new Set(["extreme drought condition", "severe drought condition"]);
-
-function isSpiAdverse(condition) {
-  return SPI_DROUGHT_CONDITIONS.has(condition);
-}
-function isSpiSevere(condition) {
-  return SPI_SEVERE_DROUGHT_CONDITIONS.has(condition);
-}
-function isRainfallAnomalyAdverse(condition) {
-  return condition === "drier than baseline";
-}
-function isLstAdverse(condition) {
-  return condition === "relatively hotter surface conditions";
-}
 function isNdviStressed(condition) {
   return condition === "sparse/stressed vegetation";
 }
 
-const ELIGIBLE_HAZARD_INDICATOR_COUNT = 3; // rainfall_anomaly, spi, lst — NDVI is stress evidence, not hazard
+// The four Climate Hazard Assessment and Risk Tracking hazards, with classes
+// from the backend (remote_sensing/hazards.py): each LGA against its own
+// 1991-2020 normal; Moderate / Severe / Extreme = 1 / 1.5 / 2 standard
+// deviations beyond normal.  NDVI stays as environmental stress evidence.
+export const HAZARD_KEYS = ["extreme_heat", "flood", "drought", "erratic_rainfall"];
+export const HAZARD_LABELS = {
+  extreme_heat: "Extreme Heat",
+  flood: "Flood",
+  drought: "Drought",
+  erratic_rainfall: "Erratic Rainfall",
+};
+const ADVERSE_CLASSES = new Set(["Moderate", "Severe", "Extreme"]);
+const SEVERE_CLASSES = new Set(["Severe", "Extreme"]);
+const ELIGIBLE_HAZARD_INDICATOR_COUNT = HAZARD_KEYS.length;
 
 /**
  * Compute the Urgent Climate Action Signal for one LGA from normalized
@@ -162,63 +149,44 @@ const ELIGIBLE_HAZARD_INDICATOR_COUNT = 3; // rainfall_anomaly, spi, lst — NDV
  * @param {string} evidence.admin_name
  * @param {object|null} evidence.riskProfile - ClimateRiskProfile-shaped record
  *   (overall_risk_score, risk_level, risk_level_display, flood_risk_score,
- *   drought_risk_score, heat_risk_score, erosion_risk_score, vulnerability_score)
- * @param {object|null} evidence.indicators - climate_intelligence "indicators"
- *   shape: { rainfall_anomaly, spi, lst, ndvi } each optionally
- *   { value, condition }
+ *   drought_risk_score, heat_risk_score, erratic_rainfall_risk_score, vulnerability_score)
+ * @param {object|null} evidence.hazards - climate_intelligence "hazards" shape:
+ *   { extreme_heat, flood, drought, erratic_rainfall } each { class, label, ... }
+ * @param {object|null} evidence.indicators - climate_intelligence "indicators";
+ *   only ndvi is used (environmental stress evidence)
  * @param {object|null} evidence.exposure - { estimated_people, mapped_buildings }
  *   present only where an approved high-risk-LGA exposure breakdown entry exists
  */
 export function computeClimateActionSignal(evidence) {
-  const { admin_code, admin_name, riskProfile, indicators, exposure } = evidence;
+  const { admin_code, admin_name, riskProfile, hazards, indicators, exposure } = evidence;
 
   const riskLevel = riskProfile?.risk_level || null;
   const riskLevelDisplay = riskProfile?.risk_level_display || "Not yet available";
   const isHighOrVeryHigh = riskLevel === "high" || riskLevel === "very_high";
 
-  // --- Hazard evidence: rainfall_anomaly, spi, lst are true hazard signals.
-  // NDVI is environmental stress evidence (Section 5) — tracked separately,
-  // never counted toward hazard_adverse_count.
   const hazardEvidence = [];
   let hazardAdverseCount = 0;
   let hasSevereHazard = false;
   let availableHazardIndicators = 0;
 
-  const ra = indicators?.rainfall_anomaly;
-  if (ra && Number.isFinite(Number(ra.value))) {
+  for (const key of HAZARD_KEYS) {
+    const block = hazards?.[key];
+    if (!block?.class || block.class === "No data") continue;
     availableHazardIndicators += 1;
-    const condition = ra.condition || classifyRainfallAnomaly(ra.value);
-    const adverse = isRainfallAnomalyAdverse(condition);
-    // No approved severity split exists for rainfall anomaly (only a single
-    // "drier than baseline" bucket) — it can contribute to the adverse count
-    // but never independently marks the LGA as having a "severe" signal.
-    if (adverse) hazardAdverseCount += 1;
-    hazardEvidence.push({ key: "rainfall_anomaly", label: "Rainfall anomaly", category: "hazard", condition, adverse, value: ra.value });
-  }
-
-  const spi = indicators?.spi;
-  if (spi && Number.isFinite(Number(spi.value))) {
-    availableHazardIndicators += 1;
-    const condition = spi.condition || classifySpi(spi.value);
-    const adverse = isSpiAdverse(condition);
+    const adverse = ADVERSE_CLASSES.has(block.class);
     if (adverse) {
       hazardAdverseCount += 1;
-      if (isSpiSevere(condition)) hasSevereHazard = true;
+      if (SEVERE_CLASSES.has(block.class)) hasSevereHazard = true;
     }
-    hazardEvidence.push({ key: "spi", label: "SPI (meteorological drought)", category: "hazard", condition, adverse, value: spi.value });
-  }
-
-  const lst = indicators?.lst;
-  if (lst && Number.isFinite(Number(lst.value))) {
-    availableHazardIndicators += 1;
-    const condition = lst.condition || classifyLst(lst.value);
-    const adverse = isLstAdverse(condition);
-    // LST has a single adverse bucket ("High surface temperature") — treat as severe by definition.
-    if (adverse) {
-      hazardAdverseCount += 1;
-      hasSevereHazard = true;
-    }
-    hazardEvidence.push({ key: "lst", label: "Land surface temperature", category: "hazard", condition, adverse, value: lst.value });
+    hazardEvidence.push({
+      key,
+      label: HAZARD_LABELS[key],
+      category: "hazard",
+      condition: block.class,
+      adverse,
+      value: block.score,
+      driver: block.driver_label || null,
+    });
   }
 
   let ndviStressed = false;
@@ -254,7 +222,7 @@ export function computeClimateActionSignal(evidence) {
       ["flood_risk_score", "Flood risk component"],
       ["drought_risk_score", "Drought risk component"],
       ["heat_risk_score", "Heat risk component"],
-      ["erosion_risk_score", "Erosion risk component"],
+      ["erratic_rainfall_risk_score", "Erratic rainfall risk component"],
     ];
     for (const [field, label] of componentFields) {
       const bucket = bucketRiskScore(riskProfile[field]);
@@ -276,13 +244,9 @@ export function computeClimateActionSignal(evidence) {
       : "Limited";
 
   // --- Dominant concern (Section 15) — existing component classifications only, no causal inference.
-  const droughtAdverse = hazardEvidence.some((e) => e.category === "hazard" && e.adverse && (e.key === "spi" || e.key === "rainfall_anomaly"));
-  const heatAdverse = hazardEvidence.some((e) => e.category === "hazard" && e.adverse && e.key === "lst");
-  const concernFlags = [];
-  if (droughtAdverse) concernFlags.push("Drought");
-  if (heatAdverse) concernFlags.push("Heat");
-  if (!droughtAdverse && !heatAdverse && ndviStressed) concernFlags.push("Vegetation stress");
-  const dominantConcern = concernFlags.length === 0 ? null : concernFlags.length > 1 ? "Multiple climate stresses" : concernFlags[0];
+  const concernFlags = hazardEvidence.filter((e) => e.category === "hazard" && e.adverse).map((e) => e.label);
+  if (concernFlags.length === 0 && ndviStressed) concernFlags.push("Vegetation stress");
+  const dominantConcern = concernFlags.length === 0 ? null : concernFlags.length > 1 ? "Multiple climate hazards" : concernFlags[0];
 
   // --- Decision matrix (Section 7) ------------------------------------------------
   const exposureOrVulnerability = exposurePresent || vulnerabilityPresent;
@@ -300,7 +264,9 @@ export function computeClimateActionSignal(evidence) {
   }
 
   // --- Explanation (Section 13) ---
-  const hazardLines = hazardEvidence.filter((e) => e.category === "hazard").map((e) => `${e.label}: ${e.condition}`);
+  const hazardLines = hazardEvidence
+    .filter((e) => e.category === "hazard")
+    .map((e) => `${e.label}: ${e.condition}${e.adverse && e.driver ? ` (driven by ${e.driver.charAt(0).toLowerCase()}${e.driver.slice(1)})` : ""}`);
   const stressLines = hazardEvidence
     .filter((e) => e.category === "environmental_stress")
     .map((e) => `${e.label} (environmental stress evidence): ${e.condition}`);

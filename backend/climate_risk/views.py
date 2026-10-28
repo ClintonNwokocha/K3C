@@ -341,6 +341,7 @@ def serialize_profile_for_audit(profile):
         "drought_risk_score": safe_float(profile.drought_risk_score),
         "heat_risk_score": safe_float(profile.heat_risk_score),
         "erosion_risk_score": safe_float(profile.erosion_risk_score),
+        "erratic_rainfall_risk_score": safe_float(profile.erratic_rainfall_risk_score),
         "exposure_score": safe_float(profile.exposure_score),
         "vulnerability_score": safe_float(profile.vulnerability_score),
         "adaptive_capacity_score": safe_float(profile.adaptive_capacity_score),

@@ -25,6 +25,7 @@ class ClimateRiskProfile(models.Model):
     drought_risk_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     heat_risk_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     erosion_risk_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    erratic_rainfall_risk_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
     exposure_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
 
@@ -50,14 +51,14 @@ class ClimateRiskProfile(models.Model):
 
     def calculate_overall_risk(self):
         """
-        Development composite formula.
-
-        Later, Stage 23 will move these weights into a configurable scoring engine.
+        Composite of the four climate hazards (Climate Hazard Assessment and
+        Risk Tracking), exposure, vulnerability and adaptive capacity.
+        Erosion is kept for manually supplied evidence but is not weighted.
         """
         flood = self.flood_risk_score or Decimal("0")
         drought = self.drought_risk_score or Decimal("0")
         heat = self.heat_risk_score or Decimal("0")
-        erosion = self.erosion_risk_score or Decimal("0")
+        erratic = self.erratic_rainfall_risk_score or Decimal("0")
         exposure = self.exposure_score or Decimal("0")
         vulnerability = self.vulnerability_score or Decimal("0")
         adaptive_gap = Decimal("100") - (self.adaptive_capacity_score or Decimal("0"))
@@ -66,7 +67,7 @@ class ClimateRiskProfile(models.Model):
             flood * Decimal("0.20")
             + drought * Decimal("0.15")
             + heat * Decimal("0.15")
-            + erosion * Decimal("0.10")
+            + erratic * Decimal("0.10")
             + exposure * Decimal("0.20")
             + vulnerability * Decimal("0.15")
             + adaptive_gap * Decimal("0.05")
@@ -93,7 +94,7 @@ class ClimateRiskProfile(models.Model):
             "flood": self.flood_risk_score or Decimal("0"),
             "drought": self.drought_risk_score or Decimal("0"),
             "heat": self.heat_risk_score or Decimal("0"),
-            "erosion": self.erosion_risk_score or Decimal("0"),
+            "erratic_rainfall": self.erratic_rainfall_risk_score or Decimal("0"),
         }
 
         dominant_key = max(hazard_scores, key=hazard_scores.get)

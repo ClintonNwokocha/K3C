@@ -31,7 +31,7 @@ const navItems = [
   },
   {
     key: "risk",
-    name: "Climate Intelligence",
+    name: "Climate Hazard Assessment and Risk Tracking",
     description: "LGA risk intelligence",
     icon: CloudSun,
     allowedRoles: [
@@ -187,7 +187,7 @@ export default function AppShell({
             </p>
 
             <p className="mt-1.5 text-xs leading-5 text-white/65">
-              Climate Intelligence, GHG inventory, project tracking, reports and
+              Climate Hazard Assessment and Risk Tracking, GHG inventory, project tracking, reports and
               audit-ready evidence.
             </p>
           </div>
@@ -282,7 +282,7 @@ export default function AppShell({
               </h2>
 
               <p className="mt-1 truncate text-sm text-slate-500">
-                {activeNavItem?.description || "Kaduna climate intelligence"}
+                {activeNavItem?.description || "Kaduna Climate Hazard Assessment and Risk Tracking"}
               </p>
             </div>
           </div>

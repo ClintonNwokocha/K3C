@@ -241,7 +241,7 @@ function WaterDrainagePanel() {
         approved methodology and required supporting data are not yet available.
       </p>
       <p className="text-xs leading-5 text-slate-500">
-        Individual LGA Climate Intelligence Briefs in the Public Climate Atlas include the
+        Individual LGA Climate Hazard Assessment and Risk Tracking Briefs in the Public Climate Atlas include the
         JRC Global Surface Water indicator where the data layer has been loaded.
       </p>
     </div>
@@ -541,7 +541,7 @@ export default function ClimateActionLensMap({ ciData, ciLoading, setSelectedLga
         <div className="relative xl:col-span-2">
           {ciLoading ? (
             <div className="flex h-[460px] items-center justify-center rounded-xl border border-slate-200 bg-slate-50">
-              <p className="text-sm text-slate-500">Loading climate intelligence data…</p>
+              <p className="text-sm text-slate-500">Loading Climate Hazard Assessment and Risk Tracking data…</p>
             </div>
           ) : (
             <div className="relative overflow-hidden rounded-xl border border-slate-200">

@@ -31,7 +31,18 @@ const GENERIC_SUGGESTED_QUESTIONS = [
   "What limitations should I consider?",
 ];
 
+const HAZARD_QUESTIONS = [
+  "Which LGAs are most affected this year?",
+  "What is driving this hazard?",
+  "How does this compare with the 1991-2020 normal?",
+  "What actions could planners consider?",
+];
+
 const SUGGESTED_QUESTIONS_BY_INDICATOR = {
+  hazard_extreme_heat: HAZARD_QUESTIONS,
+  hazard_flood: HAZARD_QUESTIONS,
+  hazard_drought: [...HAZARD_QUESTIONS, "What does this mean for farmers?"],
+  hazard_erratic_rainfall: [...HAZARD_QUESTIONS, "What does this mean for planting dates?"],
   rainfall: [...GENERIC_SUGGESTED_QUESTIONS, "What does this mean for farming?"],
   rainfall_anomaly: [...GENERIC_SUGGESTED_QUESTIONS, "What does this mean for farming?"],
   drought_index: [...GENERIC_SUGGESTED_QUESTIONS, "What does this mean for farmers?", "What actions could planners consider?"],
