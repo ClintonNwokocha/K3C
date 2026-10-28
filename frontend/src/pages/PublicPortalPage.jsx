@@ -176,6 +176,30 @@ function HomeHero() {
   );
 }
 
+function WhyKcccSection() {
+  return (
+    <section className="border-b border-[#D8DDE2] bg-white px-4 py-8 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-[1536px]">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
+          Why KCCC
+        </p>
+
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base sm:leading-8">
+          Climate information is most useful when decision-makers, communities
+          and partners can understand where risks are emerging, what
+          interventions are underway, and what evidence exists about progress.
+        </p>
+
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base sm:leading-8">
+          The Kaduna Climate Command Centre provides a shared public platform
+          for bringing this information together and making climate action
+          easier to understand, monitor and communicate.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function MilestoneFramingSection() {
   return (
     <section className="border-b border-[#D8DDE2] bg-[#F7F9FA] px-4 py-6 sm:px-8 lg:px-10">
@@ -664,6 +688,7 @@ export default function PublicPortalPage() {
     <main className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#030454]">
       <HomeTopNav />
       <HomeHero />
+      <WhyKcccSection />
       {isMilestoneOneDemo && <MilestoneFramingSection />}
       <ErrorNotice message={error} />
 
