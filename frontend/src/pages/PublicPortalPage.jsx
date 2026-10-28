@@ -1,46 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   PublicDataNotice,
+  PublicPortalFooter,
   PublicGreenButton,
   PublicNavyButton,
   PublicPrimaryButton,
 } from "../components/PublicPortalChrome";
-import { getClimateIntelligence, getPublicPortalSummary } from "../services/api";
+import { getPublicPortalSummary } from "../services/api";
 import { isMilestoneOneDemo } from "../config/demoMode";
-
-// Composite Climate Intelligence — same fixed thresholds as the Atlas's
-// composite layer (rainfall anomaly < -10%, SPI <= -1, NDVI < 0.35,
-// LST > 36°C). Duplicated here (not imported) because the Atlas's version is
-// page-local, not a shared module, and this hotfix only touches this file.
-// Missing indicators are excluded from eligible/triggered — never zeroed.
-const HOME_COMPOSITE_ELIGIBLE_KEYS = ["rainfall_anomaly", "spi", "ndvi", "lst"];
-const HOME_COMPOSITE_YEAR = 2025;
-
-function isHomeCompositeTriggered(key, value) {
-  if (key === "rainfall_anomaly") return value < -10;
-  if (key === "spi") return value <= -1;
-  if (key === "ndvi") return value < 0.35;
-  if (key === "lst") return value > 36;
-  return false;
-}
-
-function classifyHomeComposite(indicators) {
-  let eligible = 0;
-  let triggered = 0;
-  for (const key of HOME_COMPOSITE_ELIGIBLE_KEYS) {
-    const raw = indicators?.[key]?.value;
-    const num = Number(raw);
-    if (raw === null || raw === undefined || !Number.isFinite(num)) continue;
-    eligible += 1;
-    if (isHomeCompositeTriggered(key, num)) triggered += 1;
-  }
-  if (eligible === 0) return "insufficient_data";
-  if (triggered === 0) return "low";
-  const ratio = triggered / eligible;
-  if (ratio <= 0.33) return "monitor";
-  if (ratio <= 0.66) return "elevated";
-  return "urgent";
-}
 
 const partnerLogos = [
   {
@@ -79,42 +46,6 @@ const publicNewsItems = [
     summary:
       "Validated reports, briefs and evidence documents can be published through the reports portal once approved for public access.",
     href: "/public/reports",
-  },
-];
-
-const priorityCards = [
-  {
-    key: "risk",
-    index: "01",
-    kicker: "Risk & resilience",
-    title: "Prioritise climate resilience.",
-    description:
-      "Explore Kaduna's climate risk profiles and vegetation monitoring across 23 LGAs to compare adaptation needs.",
-    linkLabel: "Explore Climate Impact",
-    href: "/public/climate-risk",
-    tone: "risk",
-  },
-  {
-    key: "emissions",
-    index: "02",
-    kicker: "Emissions",
-    title: "Make emissions visible.",
-    description:
-      "Review public greenhouse gas inventory summaries and sector-level emissions insights where approved data is available.",
-    linkLabel: "View GHG Inventory",
-    href: "/public/ghg-inventory",
-    tone: "emissions",
-  },
-  {
-    key: "accountability",
-    index: "03",
-    kicker: "Public accountability",
-    title: "Show what is changing.",
-    description:
-      "Follow climate action projects, expected beneficiaries and implementation progress across Kaduna State.",
-    linkLabel: "View Projects",
-    href: "/public/projects",
-    tone: "accountability",
   },
 ];
 
@@ -214,19 +145,6 @@ function HomeHero() {
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(0,155,53,0.24),transparent_28%),radial-gradient(circle_at_20%_20%,rgba(243,247,75,0.12),transparent_24%),linear-gradient(120deg,#030454_0%,#07105f_48%,#0f3f4b_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,4,84,0.92),rgba(3,4,84,0.72),rgba(3,4,84,0.42))]" />
 
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-40 -top-64 h-[36rem] w-[36rem] rounded-full border border-[#F3F74B]/18"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-20 -top-36 h-[24rem] w-[24rem] rounded-full border border-[#F3F74B]/14"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute right-10 -top-10 h-[13rem] w-[13rem] rounded-full border border-[#F3F74B]/10"
-      />
-
       <div className="relative mx-auto max-w-[1536px]">
         <div className="max-w-5xl">
           <p className="text-xs font-black uppercase tracking-[0.22em] text-[#F3F74B]">
@@ -258,6 +176,30 @@ function HomeHero() {
   );
 }
 
+function WhyKcccSection() {
+  return (
+    <section className="border-b border-[#D8DDE2] bg-white px-4 py-8 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-[1536px]">
+        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
+          Why KCCC
+        </p>
+
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base sm:leading-8">
+          Climate information is most useful when decision-makers, communities
+          and partners can understand where risks are emerging, what
+          interventions are underway, and what evidence exists about progress.
+        </p>
+
+        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base sm:leading-8">
+          The Kaduna Climate Command Centre provides a shared public platform
+          for bringing this information together and making climate action
+          easier to understand, monitor and communicate.
+        </p>
+      </div>
+    </section>
+  );
+}
+
 function MilestoneFramingSection() {
   return (
     <section className="border-b border-[#D8DDE2] bg-[#F7F9FA] px-4 py-6 sm:px-8 lg:px-10">
@@ -267,7 +209,7 @@ function MilestoneFramingSection() {
         </p>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
           Demonstrating the application framework, frontend–backend integration and the
-          first operational climate intelligence module.
+          first operational Climate Impact module.
         </p>*/}
       </div>
     </section>
@@ -352,88 +294,92 @@ function ErrorNotice({ message }) {
   );
 }
 
-function MovingIntelligenceSummary({ summaryData, hasError, compositeSummary }) {
+function MovingIntelligenceSummary({ summaryData }) {
+  const climateRisk = summaryData?.climate_risk || {};
   const projects = summaryData?.projects || {};
-
-  // Never let a failed/missing API value fall through to `|| 0` — that would
-  // render a fabricated "0" indistinguishable from a genuine zero count.
-  // hasError (the fetch itself failed) takes priority over a merely-absent
-  // field (fetch succeeded but this particular value wasn't published).
-  function metricValue(rawValue, formatter) {
-    if (hasError) return "Temporarily unavailable";
-    if (rawValue === null || rawValue === undefined) return "Not yet published";
-    return formatter(rawValue);
-  }
 
   const summaryItems = [
     {
       label: "Estimated Year",
-      value: compositeSummary?.latestYear != null
-        ? String(compositeSummary.latestYear)
-        : metricValue(summaryData?.climate_risk?.latest_year, (value) => String(value)),
-      description: "Latest Composite Climate Impact assessment",
+      value: climateRisk.latest_year || "Latest approved",
+      description: "Latest approved Climate Impact assessment",
     },
     {
       label: "Expected Project Beneficiaries",
-      value: metricValue(projects.total_expected_beneficiaries, (value) => formatCompactNumber(value)),
+      value: formatCompactNumber(projects.total_expected_beneficiaries),
       description: "Planned beneficiaries reported for public projects",
     },
     {
       label: "Estimated GHG Reductions",
-      value: metricValue(
-        projects.total_expected_ghg_reduction_tco2e,
-        (value) => `${formatCompactNumber(value)} tCO₂e`
-      ),
+      value: `${formatCompactNumber(
+        projects.total_expected_ghg_reduction_tco2e
+      )} tCO₂e`,
       description: "Expected reductions from public project records",
     },
   ];
 
-  const toneClasses = [
-    "border-[#d9dcff] bg-[#eef0ff] text-[#28266f]",
-    "border-[#c9eed8] bg-[#e8f8ef] text-[#075f37]",
-    "border-[#ffd6dc] bg-[#fff0f1] text-[#982b43]",
-  ];
-
   return (
-    <section
-      aria-label="Climate portal metrics"
-      className="border-y border-[#D8DDE2] bg-[#F4F6FB] px-4 py-6 sm:px-8 lg:px-10"
-    >
-      <div className="mx-auto max-w-[1536px]">
-        <div className="grid gap-4 sm:grid-cols-3">
-          {summaryItems.map((item, index) => {
-            const toneClass = toneClasses[index % toneClasses.length];
-            const cardClassName =
-              "group relative flex h-full flex-col overflow-hidden rounded-xl border p-5 transition duration-300 motion-safe:hover:-translate-y-1 hover:shadow-[0_14px_28px_rgba(8,12,65,0.12)] " +
-              toneClass;
+    <section className="border-y border-[#D8DDE2] bg-white px-4 py-6 sm:px-8 lg:px-10">
+      <div className="mx-auto grid max-w-[1536px] gap-4 sm:grid-cols-3">
+        {summaryItems.map((item) => (
+          <div
+            key={item.label}
+            className="flex h-full flex-col items-start gap-1 rounded-md border border-[#E6EAEC] px-6 py-5"
+          >
+            <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              <span className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#009B35]" />
+              {item.label}
+            </span>
 
-            return (
-              <div key={item.label} className={cardClassName}>
-                <span
-                  aria-hidden="true"
-                  className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-current opacity-[0.06] transition-transform duration-500 motion-safe:group-hover:scale-125"
-                />
+            <strong className="block text-2xl font-black tracking-tight text-[#030454]">
+              {item.value}
+            </strong>
 
-                <p className="relative z-[1] flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.14em] opacity-80">
-                  <span className="h-2 w-2 shrink-0 rounded-full bg-current" aria-hidden="true" />
-                  {item.label}
-                </p>
-
-                <strong className="relative z-[1] mt-2 block text-[1.9rem] font-black leading-tight tracking-tight sm:text-[2.1rem]">
-                  {item.value}
-                </strong>
-
-                <p className="relative z-[1] mt-1 text-xs leading-5 opacity-80">
-                  {item.description}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+            <span className="block text-xs leading-5 text-slate-500">
+              {item.description}
+            </span>
+          </div>
+        ))}
       </div>
     </section>
   );
 }
+
+const priorityCards = [
+  {
+    key: "risk",
+    index: "01",
+    kicker: "Risk & resilience",
+    title: "Prioritise climate resilience.",
+    description:
+      "Explore Kaduna's climate risk profiles and vegetation monitoring across 23 LGAs to compare adaptation needs.",
+    linkLabel: "Explore Climate Impact",
+    href: "/public/climate-risk",
+    tone: "risk",
+  },
+  {
+    key: "emissions",
+    index: "02",
+    kicker: "Emissions",
+    title: "Make emissions visible.",
+    description:
+      "Review public greenhouse gas inventory summaries and sector-level emissions insights where approved data is available.",
+    linkLabel: "View GHG Inventory",
+    href: "/public/ghg-inventory",
+    tone: "emissions",
+  },
+  {
+    key: "accountability",
+    index: "03",
+    kicker: "Public accountability",
+    title: "Show what is changing.",
+    description:
+      "Follow climate action projects, expected beneficiaries and implementation progress across Kaduna State.",
+    linkLabel: "View Projects",
+    href: "/public/projects",
+    tone: "accountability",
+  },
+];
 
 function PriorityCard({ item }) {
   const toneClasses = {
@@ -554,12 +500,9 @@ function NewsCard({ item }) {
       <button
         type="button"
         onClick={() => navigateTo(item.href)}
-        className="mt-6 flex items-center justify-between border-t border-[#E6EAEC] pt-4 text-xs font-black uppercase tracking-[0.08em] text-[#009B35] transition-colors duration-200 hover:text-[#00722A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35] focus-visible:ring-offset-2"
+        className="mt-6 flex items-center justify-between border-t border-[#E6EAEC] pt-4 text-xs font-black uppercase tracking-[0.08em] text-[#009B35]"
       >
-        View Update{" "}
-        <span aria-hidden="true" className="transition-transform duration-200 group-hover:translate-x-1">
-          →
-        </span>
+        View Update <span>→</span>
       </button>
     </article>
   );
@@ -567,7 +510,7 @@ function NewsCard({ item }) {
 
 function NewsPolicySection() {
   return (
-    <section id="updates" className="bg-[#F7F9FA] px-4 py-12 sm:px-8 lg:px-10 lg:py-16">
+    <section className="bg-[#F7F9FA] px-4 py-12 sm:px-8 lg:px-10 lg:py-16">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
           <h2 className="font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
@@ -577,7 +520,7 @@ function NewsPolicySection() {
           <button
             type="button"
             onClick={() => navigateTo("/public/reports")}
-            className="w-fit rounded-md border border-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-[#009B35] transition hover:bg-[#009B35] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35] focus-visible:ring-offset-2"
+            className="w-fit rounded-md border border-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-[#009B35] transition hover:bg-[#009B35] hover:text-white"
           >
             View Reports
           </button>
@@ -703,193 +646,10 @@ function PartnersSection() {
   );
 }
 
-const footerClimateIntelligenceLinks = [
-  { key: "climate-intelligence", label: "Climate Impact", href: "/public/climate-intelligence" },
-  { key: "climate-atlas", label: "Climate Change Intelligence Tool", href: "/public/climate-atlas" },
-];
-
-const footerClimateActionLinks = [
-  { key: "ghg", label: "GHG Inventory", href: "/public/ghg-inventory" },
-  { key: "projects", label: "Projects", href: "/public/projects" },
-  { key: "reports", label: "Reports", href: "/public/reports" },
-];
-
-const milestoneOneHiddenFooterLinkKeys = new Set(["ghg", "projects", "reports"]);
-
-const visibleFooterClimateActionLinks = isMilestoneOneDemo
-  ? footerClimateActionLinks.filter((item) => !milestoneOneHiddenFooterLinkKeys.has(item.key))
-  : footerClimateActionLinks;
-
-function HomepageFooterLinkColumn({ title, items }) {
-  if (!items.length) {
-    return null;
-  }
-
-  return (
-    <div>
-      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">
-        {title}
-      </p>
-      <ul className="mt-1.5 space-y-1">
-        {items.map((item) => (
-          <li key={item.key}>
-            <button
-              type="button"
-              onClick={() => navigateTo(item.href)}
-              className="text-left text-xs text-white/65 transition-colors duration-200 hover:text-[#F3F74B] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#030454]"
-            >
-              {item.label}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function HomepagePublicFooter() {
-  return (
-    <footer className="relative overflow-hidden bg-[#030454] font-['DM_Sans'] text-white">
-      <div
-        aria-hidden="true"
-        className="h-1 w-full bg-gradient-to-r from-[#F3F74B] via-[#009B35] to-[#7db8ff]"
-      />
-
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-32 -top-32 h-96 w-96 rounded-full border border-white/10"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-14 -top-14 h-56 w-56 rounded-full border border-white/8"
-      />
-
-      <div className="relative mx-auto max-w-[1536px] px-4 py-2.5 sm:px-8 lg:px-10">
-        <div className="flex flex-col gap-2 border-b border-white/10 pb-2 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-xl">
-            <h2 className="font-['Playfair_Display'] text-base font-bold leading-[1.1] tracking-tight sm:text-lg">
-              Better evidence. <span className="text-[#A7E5BD]">Stronger climate action.</span>
-            </h2>
-
-            <button
-              type="button"
-              onClick={() => navigateTo("/public")}
-              className="mt-1 flex items-center gap-1.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#030454]"
-            >
-              <img
-                src="/logos/KCCC.png"
-                alt="Kaduna Climate Command Centre"
-                className="h-5 w-5 shrink-0 object-contain"
-              />
-              <span className="text-xs font-black uppercase tracking-[0.08em] text-white">
-                Kaduna Climate Command Centre
-              </span>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() =>
-              document.getElementById("resources")?.scrollIntoView({ behavior: "smooth", block: "start" })
-            }
-            className="group inline-flex w-fit items-center gap-2 rounded-md bg-[#F3F74B] px-3 py-1.5 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition duration-200 motion-safe:hover:-translate-y-0.5 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#030454]"
-          >
-            View all public resources
-            <span
-              aria-hidden="true"
-              className="transition-transform duration-200 motion-safe:group-hover:translate-x-1"
-            >
-              →
-            </span>
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-2 py-2 sm:grid-cols-3">
-          <HomepageFooterLinkColumn title="Climate Impact" items={footerClimateIntelligenceLinks} />
-          <HomepageFooterLinkColumn title="Climate Action" items={visibleFooterClimateActionLinks} />
-
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">
-              Access
-            </p>
-            <button
-              type="button"
-              onClick={() => navigateTo("/")}
-              className="mt-1 inline-flex items-center gap-2 rounded-md border border-white/20 bg-white/5 px-2.5 py-1 text-xs font-black uppercase tracking-[0.08em] text-white transition duration-200 hover:border-[#009B35] hover:bg-[#009B35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#030454]"
-            >
-              Staff Login
-            </button>
-          </div>
-        </div>
-
-        <div className="border-t border-white/10 pt-1.5">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">
-            Institutional collaboration
-          </p>
-          <p className="mt-0.5 max-w-3xl text-xs leading-4 text-white/55">
-            In collaboration with Kaduna State Government, MacArthur Foundation,
-            and Centre for Policy Research &amp; Development Solutions.
-          </p>
-        </div>
-
-        <div className="mt-1.5 border-t border-white/10 pt-1.5">
-          <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">
-            © 2026 Kaduna State Climate Command Centre. All rights reserved.
-          </p>
-        </div>
-      </div>
-    </footer>
-  );
-}
-
 export default function PublicPortalPage() {
   const [summaryData, setSummaryData] = useState(null);
   const [isLoading, setIsLoading] = useState(!isMilestoneOneDemo);
   const [error, setError] = useState("");
-  const [compositeSummary, setCompositeSummary] = useState(null);
-  const [, setCompositeError] = useState(false);
-
-  // Statewide Composite Climate Intelligence — same already-public
-  // /remote-sensing/climate-intelligence/ endpoint the Atlas uses, consumed
-  // independently of the (currently all-unpublished) ClimateRiskProfile
-  // summary so the homepage shows real indicator-derived counts instead of
-  // "Not yet published" / 0 while risk profiles await review.
-  useEffect(() => {
-    if (isMilestoneOneDemo) return undefined;
-
-    let isMounted = true;
-
-    getClimateIntelligence({ year: HOME_COMPOSITE_YEAR, season: "annual" })
-      .then((data) => {
-        if (!isMounted) return;
-        const results = data.results || [];
-        const counts = { low: 0, monitor: 0, elevated: 0, urgent: 0, insufficient: 0 };
-        for (const item of results) {
-          const classification = classifyHomeComposite(item.indicators || null);
-          counts[classification === "insufficient_data" ? "insufficient" : classification] += 1;
-        }
-        setCompositeSummary({
-          latestYear: results.length > 0 ? HOME_COMPOSITE_YEAR : null,
-          lowCount: counts.low,
-          monitorCount: counts.monitor,
-          elevatedCount: counts.elevated,
-          urgentCount: counts.urgent,
-          insufficientCount: counts.insufficient,
-          assessedLGAs: counts.low + counts.monitor + counts.elevated + counts.urgent,
-          highRiskLGAs: counts.elevated + counts.urgent,
-        });
-      })
-      .catch((reason) => {
-        if (!isMounted) return;
-        console.error(reason);
-        setCompositeError(true);
-        setCompositeSummary(null);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (isMilestoneOneDemo) {
@@ -909,7 +669,7 @@ export default function PublicPortalPage() {
 
         console.error(reason);
         setError("Could not load public portal summary.");
-        setSummaryData(null);
+        setSummaryData({});
       })
       .finally(() => {
         if (!isMounted) return;
@@ -928,13 +688,14 @@ export default function PublicPortalPage() {
     <main className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#030454]">
       <HomeTopNav />
       <HomeHero />
+      <WhyKcccSection />
       {isMilestoneOneDemo && <MilestoneFramingSection />}
       <ErrorNotice message={error} />
 
       {isLoading ? (
         <section className="px-4 py-14 sm:px-8 lg:px-10">
           <div className="mx-auto max-w-7xl rounded-md border border-[#CAD2D7] bg-white p-8 text-sm text-slate-500 shadow-sm">
-            Loading public climate intelligence...
+            Loading public Climate Impact data...
           </div>
         </section>
       ) : isMilestoneOneDemo ? (
@@ -945,11 +706,7 @@ export default function PublicPortalPage() {
         </>
       ) : (
         <>
-          <MovingIntelligenceSummary
-            summaryData={safeSummaryData}
-            hasError={Boolean(error)}
-            compositeSummary={compositeSummary}
-          />
+          <MovingIntelligenceSummary summaryData={safeSummaryData} />
           <ClimateActionPrioritySection />
           <NewsPolicySection />
           <PartnersSection />
@@ -957,7 +714,7 @@ export default function PublicPortalPage() {
         </>
       )}
 
-      <HomepagePublicFooter />
+      <PublicPortalFooter />
     </main>
   );
 }
