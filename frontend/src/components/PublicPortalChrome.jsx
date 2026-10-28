@@ -57,12 +57,12 @@ const footerExploreItems = [
   { key: "home", label: "Home", href: "/public" },
   {
     key: "climate-intelligence",
-    label: "Climate Hazard Assessment and Risk Tracking",
+    label: "Climate Impact",
     href: "/public/climate-intelligence",
   },
   {
     key: "climate-atlas",
-    label: "Climate Hazard Assessment and Risk Tracking",
+    label: "Climate Change Intelligence Tool",
     href: "/public/climate-atlas",
   },
 ];
@@ -434,26 +434,21 @@ export function PublicPortalFooter() {
   const navItems = [...footerExploreItems, ...visibleFooterResourceItems];
 
   return (
-    <footer className="bg-[#030454] px-4 py-3 font-['DM_Sans'] text-xs text-white/55 sm:px-8 lg:px-10">
+    <footer className="bg-[#030454] px-4 py-1.5 font-['DM_Sans'] text-xs text-white/55 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-[1536px]">
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2.5">
+        <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2">
             <img
               src="/logos/KCCC.png"
               alt="Kaduna Climate Command Centre"
-              className="h-7 w-7 shrink-0 object-contain"
+              className="h-5 w-5 shrink-0 object-contain"
             />
-            <div>
-              <p className="text-[11px] font-black uppercase tracking-[0.06em] text-white">
-                Kaduna Climate Command Centre
-              </p>
-              <p className="text-[10px] leading-4 text-white/55">
-                Public climate evidence, reporting and decision-support portal.
-              </p>
-            </div>
+            <p className="text-[11px] font-black uppercase tracking-[0.06em] text-white">
+              Kaduna Climate Command Centre
+            </p>
           </div>
 
-          <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px]">
+          <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
             {navItems.map((item, index) => (
               <span key={item.key} className="flex items-center gap-x-4">
                 <a href={item.href} className="text-white/70 outline-none transition hover:text-white focus-visible:ring-2 focus-visible:ring-[#009B35]/50">
@@ -468,14 +463,14 @@ export function PublicPortalFooter() {
             <a
               key={item.key}
               href={item.href}
-              className="shrink-0 rounded-md border border-white/20 px-3 py-1.5 text-[11px] font-bold text-white outline-none transition hover:border-white/40 focus-visible:ring-2 focus-visible:ring-[#009B35]/50"
+              className="shrink-0 rounded-md border border-white/20 px-2.5 py-1 text-[11px] font-bold text-white outline-none transition hover:border-white/40 focus-visible:ring-2 focus-visible:ring-[#009B35]/50"
             >
               {item.label}
             </a>
           ))}
         </div>
 
-        <div className="mt-2.5 border-t border-white/10 pt-2 text-[10px] leading-4 text-white/45">
+        <div className="mt-1 border-t border-white/10 pt-1 text-[10px] leading-4 text-white/45">
           <span>
             In collaboration with Kaduna State Government, MacArthur Foundation, and Centre for Policy
             Research &amp; Development Solutions.

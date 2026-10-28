@@ -16,11 +16,6 @@ const partnerLogos = [
     src: "/logos/MacArth.png",
   },
   {
-    name: "Kaduna State Government",
-    shortName: "KDSG",
-    src: "/logos/KCCC.png",
-  },
-  {
     name: "Centre for Policy Research & Development Solutions",
     shortName: "CPRDS",
     src: "/logos/CPRDS.png",
@@ -41,7 +36,7 @@ const publicNewsItems = [
     date: "May 2026",
     title: "Climate evidence portal supports coordinated decision-making",
     summary:
-      "The public portal improves access to approved Climate Hazard Assessment and Risk Tracking summaries, GHG information and published evidence documents.",
+      "The public portal improves access to approved Climate Impact summaries, GHG information and published evidence documents.",
     href: "/public/reports",
   },
   {
@@ -51,33 +46,6 @@ const publicNewsItems = [
     summary:
       "Validated reports, briefs and evidence documents can be published through the reports portal once approved for public access.",
     href: "/public/reports",
-  },
-];
-
-const gatewayCards = [
-  {
-    title: "Climate Hazard Assessment and Risk Tracking",
-    description:
-      "Explore Kaduna's vegetation monitoring, climate risk profiles, and data availability across 23 LGAs.",
-    buttonLabel: "Explore Climate Hazard Assessment and Risk Tracking",
-    href: "/public/climate-risk",
-    tone: "blue",
-  },
-  {
-    title: "GHG Inventory",
-    description:
-      "View public greenhouse gas inventory summaries and sector-level emissions insights where approved data is available.",
-    buttonLabel: "View GHG Inventory",
-    href: "/public/ghg-inventory",
-    tone: "green",
-  },
-  {
-    title: "Climate Action Portfolio",
-    description:
-      "Explore climate action projects, expected beneficiaries and estimated greenhouse gas reduction outcomes.",
-    buttonLabel: "View Projects",
-    href: "/public/projects",
-    tone: "yellow",
   },
 ];
 
@@ -108,7 +76,7 @@ function navigateTo(href) {
 function HomeTopNav() {
   const fullNavItems = [
     { label: "Home", href: "/public", active: true },
-    { label: "Climate Hazard Assessment and Risk Tracking", href: "/public/climate-risk" },
+    { label: "Climate Impact", href: "/public/climate-risk" },
     { label: "GHG Inventory", href: "/public/ghg-inventory" },
     { label: "Projects", href: "/public/projects" },
     { label: "Reports", href: "/public/reports" },
@@ -116,7 +84,7 @@ function HomeTopNav() {
   // Milestone 1 demo hides GHG/Projects/Reports from nav only — routes and
   // components stay intact, see frontend/src/config/demoMode.js.
   const navItems = isMilestoneOneDemo
-    ? fullNavItems.filter((item) => item.label === "Home" || item.label === "Climate Hazard Assessment and Risk Tracking")
+    ? fullNavItems.filter((item) => item.label === "Home" || item.label === "Climate Impact")
     : fullNavItems;
 
   return (
@@ -138,7 +106,7 @@ function HomeTopNav() {
               Kaduna Climate Command Centre
             </span>
             <span className="block text-xs text-white/65">
-              Climate Hazard Assessment and Risk Tracking, Evidence and Reporting Portal
+              Climate Impact, Evidence and Reporting Portal
             </span>
           </span>
         </button>
@@ -190,7 +158,7 @@ function HomeHero() {
           <p className="mt-5 max-w-3xl text-base leading-7 text-white/78 sm:text-lg sm:leading-8">
             {isMilestoneOneDemo
              ? "KCCC brings climate and environmental evidence together for Kaduna State, integrating satellite-derived indicators, LGA-level risk context, and climate-action signals covering all 23 LGAs."
-    : "KCCC brings satellite-derived climate data, Climate Hazard Assessment and Risk Tracking, greenhouse gas information, climate projects, and public evidence for Kaduna State into one portal covering all 23 LGAs."}
+    : "KCCC brings satellite-derived climate data, Climate Impact, greenhouse gas information, climate projects, and public evidence for Kaduna State into one portal covering all 23 LGAs."}
           </p>
 
           <div className="mt-8 flex">
@@ -199,7 +167,7 @@ function HomeHero() {
               showArrow
               className="px-7 py-3.5 text-sm tracking-[0.13em] focus-visible:ring-offset-[#030454]"
             >
-              Climate Hazard Assessment and Risk Tracking
+              Climate Change Intelligence Tool
             </PublicPrimaryButton>
           </div>
         </div>
@@ -217,7 +185,7 @@ function MilestoneFramingSection() {
         </p>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
           Demonstrating the application framework, frontend–backend integration and the
-          first operational Climate Hazard Assessment and Risk Tracking module.
+          first operational Climate Impact module.
         </p>*/}
       </div>
     </section>
@@ -225,7 +193,7 @@ function MilestoneFramingSection() {
 }
 
 const architecturePreviewCards = [
-  { title: "Climate Hazard Assessment and Risk Tracking", status: "Operational", href: "/public/climate-risk", tone: "blue" },
+  { title: "Climate Impact", status: "Operational", href: "/public/climate-risk", tone: "blue" },
   { title: "GHG Inventory", status: "In development", href: null, tone: "green" },
   { title: "Projects", status: "In development", href: null, tone: "yellow" },
   { title: "Reports", status: "In development", href: null, tone: "yellow" },
@@ -257,7 +225,7 @@ function ArchitecturePreviewCard({ item }) {
           showArrow
           className="mt-6 w-fit px-4 py-2.5"
         >
-          Explore Climate Hazard Assessment and Risk Tracking
+          Explore Climate Impact
         </PublicNavyButton>
       ) : (
         <p className="mt-6 text-xs leading-5 text-slate-400">Not yet part of the Milestone 1 demonstration.</p>
@@ -305,28 +273,12 @@ function ErrorNotice({ message }) {
 function MovingIntelligenceSummary({ summaryData }) {
   const climateRisk = summaryData?.climate_risk || {};
   const projects = summaryData?.projects || {};
-  const reports = summaryData?.reports || {};
 
   const summaryItems = [
     {
-      label: "Latest Assessment Year",
+      label: "Estimated Year",
       value: climateRisk.latest_year || "Latest approved",
-      description: "Latest approved Climate Hazard Assessment and Risk Tracking assessment",
-    },
-    {
-      label: "Assessed LGAs",
-      value: formatNumber(climateRisk.total_lgas || 0, 0),
-      description: "Kaduna LGAs with published assessment records",
-    },
-    {
-      label: "High / Very High Risk LGAs",
-      value: formatNumber(climateRisk.high_or_very_high_lgas || 0, 0),
-      description: "LGAs requiring closer adaptation attention",
-    },
-    {
-      label: "Public Climate Projects",
-      value: formatNumber(projects.total_projects || 0, 0),
-      description: "Approved projects visible on the public portal",
+      description: "Latest approved Climate Impact assessment",
     },
     {
       label: "Expected Project Beneficiaries",
@@ -334,137 +286,36 @@ function MovingIntelligenceSummary({ summaryData }) {
       description: "Planned beneficiaries reported for public projects",
     },
     {
-      label: "Estimated GHG Reduction",
+      label: "Estimated GHG Reductions",
       value: `${formatCompactNumber(
         projects.total_expected_ghg_reduction_tco2e
       )} tCO₂e`,
       description: "Expected reductions from public project records",
     },
-    {
-      label: "Public Evidence Reports",
-      value: formatNumber(reports.total_public_reports || 0, 0),
-      description: "Approved reports and evidence documents",
-    },
-    {
-      label: "Satellite Vegetation Coverage",
-      value: "Annual · Wet · Dry seasons",
-      description: "Sentinel-2 NDVI summaries for Kaduna LGAs",
-    },
   ];
 
-  const movingItems = [...summaryItems, ...summaryItems];
-
   return (
-    <section className="overflow-hidden border-y border-[#D8DDE2] bg-white">
-      <style>
-        {`
-          @keyframes kccc-large-summary-marquee {
-            0% {
-              transform: translateX(0);
-            }
-
-            100% {
-              transform: translateX(-50%);
-            }
-          }
-
-          .kccc-large-summary-track {
-            width: max-content;
-            animation: kccc-large-summary-marquee 60s linear infinite;
-            will-change: transform;
-          }
-
-          .kccc-large-summary-track:hover {
-            animation-play-state: paused;
-          }
-
-          @media (prefers-reduced-motion: reduce) {
-            .kccc-large-summary-track {
-              animation: none;
-              flex-wrap: wrap;
-              width: 100%;
-            }
-          }
-        `}
-      </style>
-
-      <div className="kccc-large-summary-track flex">
-        {movingItems.map((item, index) => (
+    <section className="border-y border-[#D8DDE2] bg-white px-4 py-6 sm:px-8 lg:px-10">
+      <div className="mx-auto grid max-w-[1536px] gap-4 sm:grid-cols-3">
+        {summaryItems.map((item) => (
           <div
-            key={`${item.label}-${item.value}-${index}`}
-            className="flex min-w-[330px] items-start gap-4 border-r border-[#E6EAEC] px-7 py-5"
+            key={item.label}
+            className="flex h-full flex-col items-start gap-1 rounded-md border border-[#E6EAEC] px-6 py-5"
           >
-            <span className="mt-1.5 h-3.5 w-3.5 shrink-0 rounded-full bg-[#009B35]" />
+            <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
+              <span className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#009B35]" />
+              {item.label}
+            </span>
 
-            <span>
-              <span className="block text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-                {item.label}
-              </span>
+            <strong className="block text-2xl font-black tracking-tight text-[#030454]">
+              {item.value}
+            </strong>
 
-              <strong className="mt-1 block text-xl font-black tracking-tight text-[#030454]">
-                {item.value}
-              </strong>
-
-              <span className="mt-1 block max-w-[260px] text-xs leading-5 text-slate-500">
-                {item.description}
-              </span>
+            <span className="block text-xs leading-5 text-slate-500">
+              {item.description}
             </span>
           </div>
         ))}
-      </div>
-    </section>
-  );
-}
-
-function GatewayCard({ item }) {
-  const toneClasses = {
-    blue: "hover:border-[#030454]",
-    green: "hover:border-[#009B35]",
-    yellow: "hover:border-[#F3F74B]",
-  };
-
-  return (
-    <article
-      className={`group flex h-full flex-col overflow-hidden rounded-md border border-[#D8DDE2] bg-white p-8 shadow-sm transition hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(3,4,84,0.12)] ${
-        toneClasses[item.tone] || toneClasses.blue
-      }`}
-    >
-      <div className="mb-5 h-1.5 w-20 rounded-full bg-[#009B35]" />
-
-      <h3 className="font-['Playfair_Display'] text-3xl font-bold leading-tight text-[#030454]">
-        {item.title}
-      </h3>
-
-      <p className="mt-4 flex-1 text-sm leading-7 text-slate-600">
-        {item.description}
-      </p>
-
-      <PublicNavyButton
-        onClick={() => navigateTo(item.href)}
-        showArrow
-        className="mt-8 w-fit"
-      >
-        {item.buttonLabel}
-      </PublicNavyButton>
-    </article>
-  );
-}
-
-function ExploreSection() {
-  return (
-    <section className="bg-white px-4 py-14 sm:px-8 lg:px-10 lg:py-20">
-      <div className="mx-auto max-w-7xl">
-        <div className="mx-auto max-w-3xl text-center">
-          <h2 className="font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
-            Explore public climate information
-          </h2>
-        </div>
-
-        <div className="mt-10 grid gap-6 lg:grid-cols-3">
-          {gatewayCards.map((item) => (
-            <GatewayCard key={item.title} item={item} />
-          ))}
-        </div>
       </div>
     </section>
   );
@@ -640,29 +491,6 @@ function PartnersSection() {
   );
 }
 
-function ReportsCallout() {
-  return (
-    <section className="bg-[#030454] px-4 py-12 text-white sm:px-8 lg:px-10 lg:py-14">
-      <div className="mx-auto max-w-7xl">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F3F74B]">
-            Stay informed
-          </p>
-
-          <h3 className="mt-3 font-['Playfair_Display'] text-4xl font-bold tracking-tight">
-            Access reports, briefs and public evidence
-          </h3>
-
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-white/70">
-            Published reports and validated official documents are available for
-            public access where they have been approved for publication.
-          </p>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 export default function PublicPortalPage() {
   const [summaryData, setSummaryData] = useState(null);
   const [isLoading, setIsLoading] = useState(!isMilestoneOneDemo);
@@ -711,7 +539,7 @@ export default function PublicPortalPage() {
       {isLoading ? (
         <section className="px-4 py-14 sm:px-8 lg:px-10">
           <div className="mx-auto max-w-7xl rounded-md border border-[#CAD2D7] bg-white p-8 text-sm text-slate-500 shadow-sm">
-            Loading public Climate Hazard Assessment and Risk Tracking...
+            Loading public Climate Impact data...
           </div>
         </section>
       ) : isMilestoneOneDemo ? (
@@ -723,10 +551,8 @@ export default function PublicPortalPage() {
       ) : (
         <>
           <MovingIntelligenceSummary summaryData={safeSummaryData} />
-          <ExploreSection />
           <NewsPolicySection />
           <PartnersSection />
-          <ReportsCallout />
           <PublicDataNotice />
         </>
       )}
