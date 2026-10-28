@@ -487,7 +487,7 @@ function PriorityLgaTable({ rows, limit, totalCount, onToggleLimit }) {
                   <th scope="row" className="px-4 py-3 text-left font-black">
                     <a
                       href={buildAtlasHref(concern.atlasKey, { lgaName: profile.lga_name })}
-                      aria-label={`Inspect ${profile.lga_name} in Climate Impact`}
+                      aria-label={`Inspect ${profile.lga_name} in Climate Change Intelligence Tool`}
                       className="text-[#030454] underline-offset-4 transition-colors duration-200 hover:text-[#009B35] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
                     >
                       {profile.lga_name}
@@ -566,8 +566,8 @@ function HowToReadScoresCard() {
 
 function DataLayerAvailabilityTable({ layers, selectedLga }) {
   const actionLabelByStatus = {
-    available: "Open in Climate Impact",
-    partial: "Open in Climate Impact",
+    available: "Open in Climate Change Intelligence Tool",
+    partial: "Open in Climate Change Intelligence Tool",
     processing_required: "View processing requirements",
     planned: "View processing requirements",
     internal_preview: "View source layer",
@@ -613,7 +613,7 @@ function DataLayerAvailabilityTable({ layers, selectedLga }) {
                     href={href}
                     className="text-xs font-black text-[#009B35] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
                   >
-                    {canOpenAtlas ? "Open in Climate Impact" : actionLabelByStatus[layer.status] || "View source layer"}
+                    {canOpenAtlas ? "Open in Climate Change Intelligence Tool" : actionLabelByStatus[layer.status] || "View source layer"}
                   </a>
                 </td>
               </tr>
@@ -625,7 +625,7 @@ function DataLayerAvailabilityTable({ layers, selectedLga }) {
   );
 }
 
-function AdditionalIndicatorRow({ name, value, period, limitation, href, actionLabel = "Open in Climate Impact" }) {
+function AdditionalIndicatorRow({ name, value, period, limitation, href, actionLabel = "Open in Climate Change Intelligence Tool" }) {
   return (
     <div className="grid gap-2 border-b border-[#E6EAEC] px-4 py-3 last:border-b-0 md:grid-cols-[1.1fr_0.9fr_1fr_1.5fr_150px] md:items-center">
       <p className="font-black text-[#030454]">{name}</p>
@@ -704,7 +704,7 @@ function AreasRequiringAttentionSection({ signals }) {
             )}
             <a
               href={buildAtlasHref(DOMINANT_CONCERN_ATLAS_KEY[signal.dominant_concern] || "drought_index", { lgaName: signal.admin_name })}
-              aria-label={`Inspect ${signal.admin_name} in Climate Impact`}
+              aria-label={`Inspect ${signal.admin_name} in Climate Change Intelligence Tool`}
               className="mt-3 inline-block text-xs font-black text-[#009B35] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
             >
               Inspect
@@ -794,7 +794,7 @@ function ClimateRiskExecutiveHero({ riskProfile }) {
         </h1>
         <p className="mt-5 max-w-2xl text-pretty text-base leading-8 text-slate-600 sm:text-lg">
           Explore Kaduna State's latest climate impact, priority LGAs and key
-          environmental indicators. Use the Climate Impact for detailed maps and
+          environmental indicators. Use the Climate Change Intelligence Tool for detailed maps and
           spatial insights.
         </p>
         <div className="mt-6">
@@ -805,7 +805,7 @@ function ClimateRiskExecutiveHero({ riskProfile }) {
             showArrow
             className="px-5 py-3 text-xs"
           >
-            Climate Impact
+            Climate Change Intelligence Tool
           </PublicPrimaryButton>
         </div>
         {riskProfile.updatedAt && (
@@ -1229,7 +1229,7 @@ export default function PublicClimateRiskPage() {
         lgaName: selectedIndicatorLga?.admin_name,
         season: "annual",
       }),
-      actionLabel: "Open in Climate Impact",
+      actionLabel: "Open in Climate Change Intelligence Tool",
     },
     {
       name: "Historical Surface-Water Occurrence",
@@ -1242,7 +1242,7 @@ export default function PublicClimateRiskPage() {
         season: "annual",
         year: 2021,
       }),
-      actionLabel: "Open in Climate Impact",
+      actionLabel: "Open in Climate Change Intelligence Tool",
     },
     {
       name: "Land Cover",
@@ -1255,7 +1255,7 @@ export default function PublicClimateRiskPage() {
         season: "annual",
         year: lulcData?.dataset?.year || 2025,
       }),
-      actionLabel: "Open in Climate Impact",
+      actionLabel: "Open in Climate Change Intelligence Tool",
     },
     {
       name: "People in High-Risk LGAs",
@@ -1297,7 +1297,7 @@ export default function PublicClimateRiskPage() {
         adminCode: selectedIndicatorLga?.admin_code,
         lgaName: selectedIndicatorLga?.admin_name,
       }),
-      actionLabel: elevationCount ? "Open in Climate Impact" : "View release requirement",
+      actionLabel: elevationCount ? "Open in Climate Change Intelligence Tool" : "View release requirement",
     },
   ], [
     elevationCount,
@@ -1366,7 +1366,7 @@ export default function PublicClimateRiskPage() {
     },
     {
       title: "Processing methodology",
-      body: <div className="space-y-3"><p>NDVI values on this briefing page are derived from 2025 Sentinel-2 composites and summarized to LGA-level records for annual, wet-season, and dry-season windows.</p><p>The full Climate Impact archive keeps Landsat NDVI and Sentinel-2 NDVI scientifically distinct; they are not presented as one calibrated series.</p><p>Rainfall anomaly is database-derived from CHIRPS rainfall totals as percentage departure from the 1991-2020 LGA baseline. SPI uses fixed-window precipitation-only gamma fits for Annual, Wet Season, and Dry Season windows.</p></div>,
+      body: <div className="space-y-3"><p>NDVI values on this briefing page are derived from 2025 Sentinel-2 composites and summarized to LGA-level records for annual, wet-season, and dry-season windows.</p><p>The full Climate Change Intelligence Tool archive keeps Landsat NDVI and Sentinel-2 NDVI scientifically distinct; they are not presented as one calibrated series.</p><p>Rainfall anomaly is database-derived from CHIRPS rainfall totals as percentage departure from the 1991-2020 LGA baseline. SPI uses fixed-window precipitation-only gamma fits for Annual, Wet Season, and Dry Season windows.</p></div>,
     },
     { title: "Coverage", body: <p>Kaduna coverage is summarized at LGA level. The current public vegetation briefing reports annual, wet-season, and dry-season records where LGA data is available.</p> },
     { title: "Temporal frequency", body: <p>The current briefing view uses 2025 composites and the live public catalog state. Historical coverage noted in the catalog includes Sentinel-2 2018-2025, Landsat 1985-2017, MODIS LST 2001-2025, and CHIRPS-derived rainfall products where available.</p> },
@@ -1380,7 +1380,7 @@ export default function PublicClimateRiskPage() {
     { title: "Mapped building footprint assumptions", body: <div className="space-y-3"><p>Mapped Buildings in High-Risk LGAs uses Google Open Buildings footprints filtered by the published confidence threshold. Building footprint area is the summed mapped polygon area, not floor area, occupancy, replacement value, or service criticality.</p><p>Open Buildings identifies structures but does not classify facility function. Hospitals, schools, water, power, and emergency assets require a classified infrastructure inventory.</p></div> },
     { title: "Flood footprint exposure", body: <div className="space-y-3"><p>Flood Exposure uses the existing JRC Global Surface Water occurrence layer as a historical surface-water footprint and intersects it with WorldPop gridded population. Open Buildings structure and area aggregates are shown only after a cached building-footprint run completes successfully.</p><p>This differs from administrative exposure because it uses an actual mapped raster footprint instead of counting every person or structure within an LGA boundary.</p></div> },
     { title: "Exposure limitations", body: <div className="space-y-3"><p>Administrative indicators summarize people and mapped structures within administratively high-risk LGAs. They do not mean every person or structure is directly exposed to a specific flood, heat, drought, vegetation-stress, or forest-loss footprint.</p><p>Flood Exposure is a historical surface-water occurrence screen, not a real-time alert, flood forecast, or formal flood hazard designation. True spatial exposure estimates require dedicated hazard raster masks and asset-overlay analysis.</p></div> },
-    { title: "Difference between this briefing page and the hazard map", body: <p>This page gives a concise public briefing of the four climate hazards (extreme heat, flood, drought and erratic rainfall) with executive charts and dataset readiness. The Climate Impact map is the deeper interactive GIS experience for maps, year and season filtering, LGA drill-down, and basemap controls.</p> },
+    { title: "Difference between this briefing page and the hazard map", body: <p>This page gives a concise public briefing of the four climate hazards (extreme heat, flood, drought and erratic rainfall) with executive charts and dataset readiness. The Climate Change Intelligence Tool map is the deeper interactive GIS experience for maps, year and season filtering, LGA drill-down, and basemap controls.</p> },
   ], []);
 
   return (
@@ -1391,7 +1391,7 @@ export default function PublicClimateRiskPage() {
       <KeyFindingsSection findings={keyFindings} />
 
       <PublicSection className="bg-[#F7F9FA] py-10 lg:py-11" innerClassName="max-w-7xl">
-        <PublicSectionHeading title="Climate Indicators" description="Current condition indicators are summarised here; the Climate Impact handles maps, seasons, periods and LGA spatial exploration." />
+        <PublicSectionHeading title="Climate Indicators" description="Current condition indicators are summarised here; the Climate Change Intelligence Tool handles maps, seasons, periods and LGA spatial exploration." />
         <div className="mt-4 flex flex-col gap-2 rounded-lg border border-[#D8DDE2] bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between">
           <label className="block md:min-w-[280px]">
             <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
@@ -1421,7 +1421,7 @@ export default function PublicClimateRiskPage() {
                 href={selectedLgaProfileHref}
                 className="font-black text-[#009B35] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
               >
-                Inspect this LGA in Climate Impact
+                Inspect this LGA in Climate Change Intelligence Tool
               </a>
             )}
           </div>
@@ -1524,7 +1524,7 @@ export default function PublicClimateRiskPage() {
             as="a"
             href="/public/climate-atlas"
             showArrow
-            aria-label="Explore these indicators in the Climate Impact"
+            aria-label="Explore these indicators in the Climate Change Intelligence Tool"
             className="text-xs"
           >
             Explore These Indicators On The Map
@@ -1598,7 +1598,7 @@ export default function PublicClimateRiskPage() {
       </div>
 
       <PublicSection className="bg-[#F7F9FA]" innerClassName="max-w-7xl">
-        <PublicDisclaimerNote className="mt-0" toneClassName="bg-amber-50"><p className="mb-2 text-xs font-black uppercase tracking-[0.12em] text-amber-700">Climate risk profile records</p>The platform also holds climate risk profile records for Kaduna LGAs. These are composite assessment records built from multi-indicator scoring. They are <strong>not derived from real-time satellite measurements</strong> and have not been validated against remote-sensing data. The Climate Impact is the correct tool for satellite-based exploration.</PublicDisclaimerNote>
+        <PublicDisclaimerNote className="mt-0" toneClassName="bg-amber-50"><p className="mb-2 text-xs font-black uppercase tracking-[0.12em] text-amber-700">Climate risk profile records</p>The platform also holds climate risk profile records for Kaduna LGAs. These are composite assessment records built from multi-indicator scoring. They are <strong>not derived from real-time satellite measurements</strong> and have not been validated against remote-sensing data. The Climate Change Intelligence Tool is the correct tool for satellite-based exploration.</PublicDisclaimerNote>
       </PublicSection>
 
       <PublicPortalFooter />

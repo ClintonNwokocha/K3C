@@ -40,7 +40,7 @@ const publicPortalClasses = {
 
 const publicNavItems = [
   { key: "home", label: "Home", href: "/public" },
-  { key: "climate-intelligence", label: "Climate Hazard Assessment and Risk Tracking", href: "/public/climate-intelligence" },
+  { key: "climate-intelligence", label: "Climate Impact", href: "/public/climate-intelligence" },
   { key: "ghg", label: "GHG Inventory", href: "/public/ghg-inventory" },
   { key: "projects", label: "Projects", href: "/public/projects" },
   { key: "reports", label: "Reports", href: "/public/reports" },
@@ -119,7 +119,7 @@ function PublicHeaderBrand({ compact = false }) {
           Kaduna Climate Command Centre
         </span>
         <span className="block text-xs leading-5 text-white/65">
-          Climate Hazard Assessment and Risk Tracking, Evidence and Reporting Portal
+          Climate Impact, Evidence and Reporting Portal
         </span>
       </span>
     </button>
