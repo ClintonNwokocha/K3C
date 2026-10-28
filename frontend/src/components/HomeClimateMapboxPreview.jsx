@@ -41,7 +41,7 @@ const PREVIEW_SLIDES = [
     description:
       "Preview how rainfall patterns can support flood preparedness, early warning and LGA-level climate planning.",
     href: "/public/climate-risk",
-    cta: "Explore Climate Hazard Assessment and Risk Tracking",
+    cta: "Explore Climate Impact",
   },
   {
     key: "flood",
@@ -69,7 +69,7 @@ const PREVIEW_SLIDES = [
     status: "Portfolio linked",
     title: "Climate action visibility",
     description:
-      "Connect Climate Hazard Assessment and Risk Tracking awareness with adaptation projects, expected beneficiaries and implementation progress.",
+      "Connect Climate Impact awareness with adaptation projects, expected beneficiaries and implementation progress.",
     href: "/public/projects",
     cta: "View projects",
   },
@@ -320,7 +320,7 @@ export default function HomeClimateMapboxPreview({ height = "610px" }) {
             <span>${point.type} Signal</span>
             <strong>${point.name}</strong>
             <p>${point.note}</p>
-            <small>Click to open the Climate Hazard Assessment and Risk Tracking Explorer</small>
+            <small>Click to open the Climate Impact Explorer</small>
           </div>
         `);
 
@@ -349,31 +349,39 @@ export default function HomeClimateMapboxPreview({ height = "610px" }) {
       setMapStatus("Map error");
     });
 
-    const slideTimer = window.setInterval(() => {
-      setActiveSlideIndex((current) => (current + 1) % PREVIEW_SLIDES.length);
-    }, 5600);
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
 
-    const flyTimer = window.setInterval(() => {
-      if (!mapRef.current) return;
+    const slideTimer = prefersReducedMotion
+      ? null
+      : window.setInterval(() => {
+          setActiveSlideIndex((current) => (current + 1) % PREVIEW_SLIDES.length);
+        }, 5600);
 
-      flyIndexRef.current = (flyIndexRef.current + 1) % FLY_STOPS.length;
-      const nextStop = FLY_STOPS[flyIndexRef.current];
+    const flyTimer = prefersReducedMotion
+      ? null
+      : window.setInterval(() => {
+          if (!mapRef.current) return;
 
-      setActiveLocation(nextStop.label);
+          flyIndexRef.current = (flyIndexRef.current + 1) % FLY_STOPS.length;
+          const nextStop = FLY_STOPS[flyIndexRef.current];
 
-      mapRef.current.flyTo({
-        center: nextStop.center,
-        zoom: nextStop.zoom,
-        pitch: nextStop.pitch,
-        bearing: nextStop.bearing,
-        duration: 5200,
-        essential: true,
-      });
-    }, 8800);
+          setActiveLocation(nextStop.label);
+
+          mapRef.current.flyTo({
+            center: nextStop.center,
+            zoom: nextStop.zoom,
+            pitch: nextStop.pitch,
+            bearing: nextStop.bearing,
+            duration: 5200,
+            essential: true,
+          });
+        }, 8800);
 
     return () => {
-      window.clearInterval(slideTimer);
-      window.clearInterval(flyTimer);
+      if (slideTimer) window.clearInterval(slideTimer);
+      if (flyTimer) window.clearInterval(flyTimer);
 
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];

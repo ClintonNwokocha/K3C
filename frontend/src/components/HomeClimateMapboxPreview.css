@@ -147,6 +147,11 @@
   background: rgba(255, 255, 255, 0.14);
 }
 
+.home-mapbox-signal-panel button:focus-visible {
+  outline: 3px solid #f3f74b;
+  outline-offset: 2px;
+}
+
 .home-mapbox-signal-panel button.active {
   border-color: rgba(243, 247, 75, 0.95);
   background: #f3f74b;
@@ -274,6 +279,11 @@
   color: #030454;
 }
 
+.home-mapbox-insight-actions button:focus-visible {
+  outline: 3px solid #f3f74b;
+  outline-offset: 2px;
+}
+
 .home-mapbox-marker {
   position: relative;
   width: 18px;
@@ -294,6 +304,18 @@
   border: 1px solid rgba(243, 247, 75, 0.55);
   border-radius: 999px;
   animation: home-mapbox-marker-pulse 2.4s ease-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-mapbox-marker::after {
+    animation: none;
+    opacity: 0.6;
+  }
+
+  .home-mapbox-signal-panel button,
+  .home-mapbox-insight-actions button {
+    transition: none;
+  }
 }
 
 @keyframes home-mapbox-marker-pulse {
