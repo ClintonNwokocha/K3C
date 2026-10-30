@@ -61,6 +61,7 @@ export function CommandStatCard({
   value,
   helper,
   tone = "default",
+  errorNotice,
 }) {
   const toneClasses = {
     default: "border-slate-200 bg-white",
@@ -95,7 +96,41 @@ export function CommandStatCard({
       {helper && (
         <p className="mt-2 text-sm leading-6 text-slate-600">{helper}</p>
       )}
+
+      {errorNotice && (
+        <p className="mt-2 text-xs font-bold text-red-600">{errorNotice}</p>
+      )}
     </div>
+  );
+}
+
+// Shared presentational badge for internal/authenticated dashboards. This
+// component only renders a tone -> visual mapping; it never fetches data or
+// decides what a status "means" - callers keep owning their own
+// status/risk-classification logic and pass in one of these tone keywords.
+const COMMAND_BADGE_TONE_CLASSES = {
+  neutral: "bg-slate-100 text-slate-600",
+  success: "bg-command-green/10 text-command-green",
+  warning: "bg-command-lime/45 text-command-navy",
+  danger: "bg-red-50 text-red-700",
+  info: "bg-command-navy/10 text-command-navy",
+  accent: "bg-command-navy/10 text-command-navy",
+};
+
+export function CommandBadge({ tone = "neutral", children }) {
+  const label =
+    children === null || children === undefined || children === ""
+      ? "—"
+      : children;
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-md px-3 py-1 text-xs font-black uppercase tracking-[0.08em] ${
+        COMMAND_BADGE_TONE_CLASSES[tone] || COMMAND_BADGE_TONE_CLASSES.neutral
+      }`}
+    >
+      {label}
+    </span>
   );
 }
 

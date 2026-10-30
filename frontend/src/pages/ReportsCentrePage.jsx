@@ -1,5 +1,6 @@
 import ReportsCentreExportPanel from "../components/ReportsCentreExportPanel";
 import {
+  CommandBadge,
   CommandButton,
   CommandNotice,
   CommandPageHeader,
@@ -7,6 +8,7 @@ import {
   CommandStatCard,
   CommandTabs,
 } from "../components/CommandUI";
+import { ChartDonut } from "../components/CommandCharts";
 import { canManageReports } from "../utils/permissions";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -68,23 +70,36 @@ function getOptionLabel(options, value) {
   return options.find((item) => item.value === value)?.label || value || "—";
 }
 
-function getStatusClass(status) {
-  if (status === "published") return "bg-[#009B35]/10 text-[#009B35]";
-  if (status === "approved") return "bg-[#030454]/10 text-[#030454]";
-  if (status === "review") return "bg-[#F3F74B]/45 text-[#030454]";
-  if (status === "archived") return "bg-slate-100 text-slate-600";
-  return "bg-slate-50 text-slate-700";
+// Maps the existing status/type taxonomy onto CommandBadge/ChartDonut's
+// tone/colour vocabulary - statusOptions/reportTypeOptions above remain the
+// single source of truth for the classifications and labels themselves.
+function statusToTone(status) {
+  if (status === "published") return "success";
+  if (status === "approved") return "info";
+  if (status === "review") return "warning";
+  if (status === "archived") return "neutral";
+  return "neutral";
 }
 
-function getTypeClass(type) {
-  if (type === "climate_risk") return "bg-[#009B35]/10 text-[#009B35]";
-  if (type === "ghg_inventory") return "bg-[#030454]/10 text-[#030454]";
-  if (type === "project_portfolio") return "bg-[#F3F74B]/45 text-[#030454]";
-  if (type === "ndc_progress") return "bg-orange-50 text-orange-700";
-  if (type === "executive_brief") return "bg-indigo-50 text-indigo-700";
-  if (type === "data_export") return "bg-cyan-50 text-cyan-700";
-  return "bg-slate-100 text-slate-700";
+function typeToTone(type) {
+  if (type === "climate_risk") return "success";
+  if (type === "ghg_inventory") return "info";
+  if (type === "project_portfolio") return "warning";
+  if (type === "ndc_progress") return "danger";
+  if (type === "executive_brief") return "accent";
+  return "neutral";
 }
+
+// Same real statuses the backend's ReportDocument.Status.choices and this
+// page's own statusOptions already use - this only assigns each one a
+// chart colour, it does not add or rename a status.
+const REPORT_STATUS_DONUT_COLORS = {
+  draft: "#74809A",
+  review: "#E9FF35",
+  approved: "#080D52",
+  published: "#078B4B",
+  archived: "#94a3b8",
+};
 
 function buildFormFromReport(report) {
   return {
@@ -642,25 +657,17 @@ function ReportRegisterSection({
                   </td>
 
                   <td className="px-3 py-4">
-                    <span
-                      className={`rounded-md px-3 py-1 text-xs font-bold ${getTypeClass(
-                        report.report_type
-                      )}`}
-                    >
+                    <CommandBadge tone={typeToTone(report.report_type)}>
                       {report.report_type_display ||
                         getOptionLabel(reportTypeOptions, report.report_type)}
-                    </span>
+                    </CommandBadge>
                   </td>
 
                   <td className="px-3 py-4">
-                    <span
-                      className={`rounded-md px-3 py-1 text-xs font-bold ${getStatusClass(
-                        report.status
-                      )}`}
-                    >
+                    <CommandBadge tone={statusToTone(report.status)}>
                       {report.status_display ||
                         getOptionLabel(statusOptions, report.status)}
-                    </span>
+                    </CommandBadge>
                   </td>
 
                   <td className="px-3 py-4">
@@ -672,15 +679,9 @@ function ReportRegisterSection({
                   </td>
 
                   <td className="px-3 py-4">
-                    {report.is_public ? (
-                      <span className="rounded-md bg-[#009B35]/10 px-3 py-1 text-xs font-bold text-[#009B35]">
-                        Public
-                      </span>
-                    ) : (
-                      <span className="rounded-md bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
-                        Internal
-                      </span>
-                    )}
+                    <CommandBadge tone={report.is_public ? "success" : "neutral"}>
+                      {report.is_public ? "Public" : "Internal"}
+                    </CommandBadge>
                   </td>
 
                   <td className="px-3 py-4">
@@ -996,7 +997,7 @@ export default function ReportsCentrePage({ currentUser }) {
     <div className="space-y-6">
       <CommandPageHeader
         title="Reports Centre"
-        description="Store, manage, review and publish Climate Intelligence reports, GHG inventory outputs, project portfolio reports, NDC progress reports, executive briefs and exported datasets."
+        description="Access climate reports, assessments, technical publications, and supporting evidence."
         actions={
           <div className="flex flex-wrap gap-3">
             <CommandButton variant="outline" onClick={loadReports}>
@@ -1041,6 +1042,27 @@ export default function ReportsCentrePage({ currentUser }) {
             setActiveTab={setActiveTab}
             updateFilter={updateFilter}
           />
+
+          <CommandSection
+            title="Report status distribution"
+            description="Proportional breakdown of report records currently in view by publication status."
+          >
+            {Object.values(summary.by_status || {}).every((count) => !count) ? (
+              <p className="text-sm text-slate-500">
+                No reports in the current view.
+              </p>
+            ) : (
+              <ChartDonut
+                data={statusOptions
+                  .filter((item) => summary.by_status?.[item.value] > 0)
+                  .map((item) => ({
+                    label: item.label,
+                    value: summary.by_status[item.value],
+                    color: REPORT_STATUS_DONUT_COLORS[item.value],
+                  }))}
+              />
+            )}
+          </CommandSection>
 
           <SelectedReportDetail
             selectedReport={selectedReport}

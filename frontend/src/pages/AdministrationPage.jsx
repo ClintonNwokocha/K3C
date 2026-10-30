@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import AuditTrailPanel from "../components/AuditTrailPanel";
 import {
+  CommandBadge,
   CommandButton,
   CommandNotice,
   CommandPageHeader,
@@ -55,10 +56,28 @@ function getSectorLabel(sector) {
   return found?.label || sector || "—";
 }
 
-function getRoleBadgeClass(role) {
-  if (role === "admin") return "bg-[#030454]/10 text-[#030454]";
-  if (role === "analyst") return "bg-[#009B35]/10 text-[#009B35]";
-  return "bg-[#F3F74B]/45 text-[#030454]";
+// Maps the existing role taxonomy onto CommandBadge's tone vocabulary -
+// roleOptions above remains the single source of truth for the roles
+// themselves and their labels.
+function getRoleTone(role) {
+  if (role === "admin") return "info";
+  if (role === "analyst") return "success";
+  return "warning";
+}
+
+function formatLastLogin(value) {
+  if (!value) return "Never signed in";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Never signed in";
+
+  return date.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 function FormField({ label, children }) {
@@ -79,6 +98,13 @@ export default function AdministrationPage({ foundation }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  // Client-side only: getManagedUsers() already returns every managed user
+  // in one call (no backend search/filter params exist), so this filters
+  // the already-fetched list rather than issuing new requests.
+  const [userSearch, setUserSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [accountFilter, setAccountFilter] = useState("all");
 
   const lgas = foundation?.lgas || [];
 
@@ -105,6 +131,29 @@ export default function AdministrationPage({ foundation }) {
       sectorUsers,
     };
   }, [users]);
+
+  const filteredUsers = useMemo(() => {
+    const search = userSearch.trim().toLowerCase();
+
+    return users.filter((user) => {
+      const profile = user.profile || {};
+      const isActive = user.is_active && profile.is_active_profile !== false;
+
+      const matchesSearch =
+        !search ||
+        [user.username, user.full_name, user.email]
+          .filter(Boolean)
+          .some((value) => value.toLowerCase().includes(search));
+
+      const matchesRole = roleFilter === "all" || profile.role === roleFilter;
+
+      const matchesAccount =
+        accountFilter === "all" ||
+        (accountFilter === "active" ? isActive : !isActive);
+
+      return matchesSearch && matchesRole && matchesAccount;
+    });
+  }, [users, userSearch, roleFilter, accountFilter]);
 
   async function loadUsers() {
     setIsLoading(true);
@@ -218,8 +267,8 @@ export default function AdministrationPage({ foundation }) {
   return (
     <div className="space-y-6">
       <CommandPageHeader
-        title="User management and access control"
-        description="Create authorised platform users, assign roles, control sector access, manage active accounts, and review audit activity across the system."
+        title="Administration"
+        description="Manage platform users, access permissions, and supported system settings."
         actions={
           <div className="flex flex-wrap gap-3">
             <CommandButton variant="outline" onClick={loadUsers}>
@@ -427,16 +476,51 @@ export default function AdministrationPage({ foundation }) {
           title="Platform users"
           description="All authorised users currently registered in the system."
           actions={
-            <span className="rounded-md bg-[#030454]/10 px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#030454]">
-              {users.length} users
-            </span>
+            <div className="flex w-full flex-wrap items-center gap-3">
+              <input
+                value={userSearch}
+                onChange={(event) => setUserSearch(event.target.value)}
+                placeholder="Search username, name or email..."
+                aria-label="Search users"
+                className={`${inputClass} max-w-xs`}
+              />
+
+              <select
+                value={roleFilter}
+                onChange={(event) => setRoleFilter(event.target.value)}
+                aria-label="Filter by role"
+                className={`${inputClass} max-w-[180px]`}
+              >
+                <option value="all">All roles</option>
+                {roleOptions.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={accountFilter}
+                onChange={(event) => setAccountFilter(event.target.value)}
+                aria-label="Filter by account status"
+                className={`${inputClass} max-w-[160px]`}
+              >
+                <option value="all">All accounts</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+
+              <span className="rounded-md bg-[#030454]/10 px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#030454]">
+                {filteredUsers.length} of {users.length} users
+              </span>
+            </div>
           }
         >
           {isLoading ? (
             <p className="text-sm text-slate-500">Loading users...</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[900px] text-left text-sm">
+              <table className="w-full min-w-[1000px] text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-slate-500">
                     <th className="px-3 py-3 font-bold">User</th>
@@ -444,13 +528,14 @@ export default function AdministrationPage({ foundation }) {
                     <th className="px-3 py-3 font-bold">Sector</th>
                     <th className="px-3 py-3 font-bold">LGA</th>
                     <th className="px-3 py-3 font-bold">Department</th>
+                    <th className="px-3 py-3 font-bold">Last Login</th>
                     <th className="px-3 py-3 font-bold">Status</th>
                     <th className="px-3 py-3 font-bold">Action</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {users.map((user) => {
+                  {filteredUsers.map((user) => {
                     const profile = user.profile || {};
 
                     const isActive =
@@ -472,13 +557,9 @@ export default function AdministrationPage({ foundation }) {
                         </td>
 
                         <td className="px-3 py-4">
-                          <span
-                            className={`rounded-md px-3 py-1 text-xs font-bold ${getRoleBadgeClass(
-                              profile.role
-                            )}`}
-                          >
+                          <CommandBadge tone={getRoleTone(profile.role)}>
                             {profile.role_display || getRoleLabel(profile.role)}
-                          </span>
+                          </CommandBadge>
                         </td>
 
                         <td className="px-3 py-4">
@@ -494,16 +575,14 @@ export default function AdministrationPage({ foundation }) {
                           {profile.ministry_department || "—"}
                         </td>
 
+                        <td className="px-3 py-4 text-slate-600">
+                          {formatLastLogin(user.last_login)}
+                        </td>
+
                         <td className="px-3 py-4">
-                          <span
-                            className={`rounded-md px-3 py-1 text-xs font-bold ${
-                              isActive
-                                ? "bg-[#009B35]/10 text-[#009B35]"
-                                : "bg-red-50 text-red-700"
-                            }`}
-                          >
+                          <CommandBadge tone={isActive ? "success" : "danger"}>
                             {isActive ? "Active" : "Inactive"}
-                          </span>
+                          </CommandBadge>
                         </td>
 
                         <td className="px-3 py-4">
@@ -523,13 +602,15 @@ export default function AdministrationPage({ foundation }) {
                     );
                   })}
 
-                  {users.length === 0 && (
+                  {filteredUsers.length === 0 && (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={8}
                         className="px-3 py-8 text-center text-slate-500"
                       >
-                        No managed users found.
+                        {users.length === 0
+                          ? "No managed users found."
+                          : "No users match the current filters."}
                       </td>
                     </tr>
                   )}
