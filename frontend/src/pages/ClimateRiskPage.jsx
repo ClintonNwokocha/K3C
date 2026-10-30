@@ -15,6 +15,7 @@ import ClimateRiskLinkedProjectsPanel from "../components/ClimateRiskLinkedProje
 import ClimateActionOpportunitiesPanel from "../components/ClimateActionOpportunitiesPanel";
 import { getOpportunityForPathway } from "../decision-support/climateActionOpportunityCatalog";
 import {
+  CommandBadge,
   CommandButton,
   CommandNotice,
   CommandPageHeader,
@@ -22,6 +23,7 @@ import {
   CommandStatCard,
   CommandTabs,
 } from "../components/CommandUI";
+import { ChartBarRow } from "../components/CommandCharts";
 import {
   getClimateActionScreeningData,
   getClimateIntelligenceProfile,
@@ -55,13 +57,6 @@ function formatNumber(value, maximumFractionDigits = 2) {
   });
 }
 
-function getRiskClass(level) {
-  if (level === "very_high") return "bg-red-50 text-red-700";
-  if (level === "high") return "bg-orange-50 text-orange-700";
-  if (level === "moderate") return "bg-[#F3F74B]/45 text-[#030454]";
-  return "bg-[#009B35]/10 text-[#009B35]";
-}
-
 function getRiskBarColor(level) {
   if (level === "very_high") return "#B91C1C";
   if (level === "high") return "#EA580C";
@@ -92,6 +87,39 @@ function scoreLabel(value) {
   if (number >= 60) return "High";
   if (number >= 40) return "Moderate";
   return "Low";
+}
+
+// Maps the existing risk_level classification onto CommandBadge/ChartBarRow's
+// tone vocabulary - does not change the underlying classification, labels or
+// thresholds (see getRiskBarColor above, which this mirrors).
+function riskLevelToTone(level) {
+  if (level === "very_high" || level === "high") return "danger";
+  if (level === "moderate") return "warning";
+  return "success";
+}
+
+// Last-updated is derived deterministically from the profiles already
+// loaded for the current filter - never fetched separately, never invented.
+function latestUpdatedAt(profiles) {
+  const timestamps = profiles
+    .map((profile) => profile.updated_at)
+    .filter(Boolean)
+    .map((value) => new Date(value))
+    .filter((date) => !Number.isNaN(date.getTime()));
+
+  if (timestamps.length === 0) return null;
+
+  return new Date(Math.max(...timestamps.map((date) => date.getTime())));
+}
+
+function formatTimestamp(date) {
+  if (!date) return "Not available";
+
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 const climateRiskTabs = [
@@ -194,13 +222,9 @@ function LGADetailPanel({ selectedLgaName, selectedProfile, onViewProjects }) {
       description={`Risk profile year: ${selectedProfile.year}`}
       actions={
         <div className="flex flex-wrap items-center gap-2">
-          <span
-            className={`rounded-md px-3 py-1 text-xs font-black uppercase tracking-[0.08em] ${getRiskClass(
-              selectedProfile.risk_level
-            )}`}
-          >
+          <CommandBadge tone={riskLevelToTone(selectedProfile.risk_level)}>
             {selectedProfile.risk_level_display}
-          </span>
+          </CommandBadge>
 
           {typeof onViewProjects === "function" && (
             <CommandButton variant="outline" onClick={onViewProjects}>
@@ -337,46 +361,25 @@ function TopLgasPanel({
       }
     >
       <div className="space-y-3">
-        {topLgas.map((profile, index) => {
-          const riskWidth = `${Math.min(
-            Math.max(Number(profile.overall_risk_score || 0), 4),
-            100
-          )}%`;
+        {topLgas.map((profile, index) => (
+          <button
+            key={profile.id}
+            type="button"
+            onClick={() => setSelectedLgaName(profile.lga_name)}
+            className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-[#009B35]/60 hover:bg-[#009B35]/5"
+          >
+            <p className="mb-2 text-xs text-slate-500">
+              {index + 1}. {profile.risk_level_display}
+            </p>
 
-          return (
-            <button
-              key={profile.id}
-              type="button"
-              onClick={() => setSelectedLgaName(profile.lga_name)}
-              className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left transition hover:border-[#009B35]/60 hover:bg-[#009B35]/5"
-            >
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate font-black text-[#030454]">
-                    {index + 1}. {profile.lga_name}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {profile.risk_level_display}
-                  </p>
-                </div>
-
-                <span className="text-lg font-black text-[#030454]">
-                  {formatNumber(profile.overall_risk_score, 2)}
-                </span>
-              </div>
-
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: riskWidth,
-                    backgroundColor: getRiskBarColor(profile.risk_level),
-                  }}
-                />
-              </div>
-            </button>
-          );
-        })}
+            <ChartBarRow
+              label={profile.lga_name}
+              value={profile.overall_risk_score}
+              max={100}
+              tone={riskLevelToTone(profile.risk_level)}
+            />
+          </button>
+        ))}
 
         {topLgas.length === 0 && (
           <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
@@ -747,13 +750,9 @@ function RiskTableSection({
                       </td>
 
                       <td className="px-3 py-4">
-                        <span
-                          className={`rounded-md px-3 py-1 text-xs font-bold ${getRiskClass(
-                            profile.risk_level
-                          )}`}
-                        >
+                        <CommandBadge tone={riskLevelToTone(profile.risk_level)}>
                           {profile.risk_level_display}
-                        </span>
+                        </CommandBadge>
                       </td>
 
                       <td className="px-3 py-4">
@@ -1095,9 +1094,19 @@ export default function ClimateRiskPage({
         title="Kaduna LGA Climate Hazard Assessment and Risk Tracking Profiles"
         description="Climate Hazard Assessment and Risk Tracking workspace for extreme heat, flood, drought and erratic rainfall hazards, exposure, vulnerability and adaptive-capacity scoring across Kaduna LGAs."
         actions={
-          <CommandButton onClick={loadRiskProfiles} variant="primary">
-            Refresh Risk Data
-          </CommandButton>
+          <div className="flex flex-wrap items-center gap-3">
+            {selectedYear && (
+              <CommandBadge tone="info">Assessment year {selectedYear}</CommandBadge>
+            )}
+
+            <span className="text-xs font-bold text-slate-500">
+              Data last updated: {formatTimestamp(latestUpdatedAt(profiles))}
+            </span>
+
+            <CommandButton onClick={loadRiskProfiles} variant="primary">
+              Refresh Risk Data
+            </CommandButton>
+          </div>
         }
       />
 

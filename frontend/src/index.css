@@ -1,6 +1,19 @@
 @import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=DM+Sans:wght@300;400;500;600;700;900&family=Poppins:wght@600;700;800&display=swap");
 @import "tailwindcss";
 
+/* Internal/authenticated-dashboard design-system tokens (CommandUI /
+   CommandCharts only). Scoped under a "command" namespace so they never
+   collide with or imply replacement of the public-portal's existing
+   #030454 / #009B35 brand hexes, which remain untouched everywhere they're
+   already used. New internal-dashboard components should consume these
+   tokens instead of introducing further ad hoc hex literals. */
+@theme {
+  --color-command-navy: #080d52;
+  --color-command-green: #078b4b;
+  --color-command-lime: #e9ff35;
+  --color-command-slate: #74809a;
+}
+
 * {
   box-sizing: border-box;
 }

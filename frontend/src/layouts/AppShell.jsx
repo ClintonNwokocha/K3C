@@ -9,6 +9,8 @@ import {
   Leaf,
   LogOut,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   X,
 } from "lucide-react";
@@ -91,6 +93,12 @@ function formatRole(role) {
   return labels[role] || "Unknown";
 }
 
+// New key: no existing UI-preference persistence pattern exists in the app
+// yet (localStorage is currently only used for auth tokens), but reusing
+// localStorage itself keeps this consistent with that existing mechanism
+// rather than introducing a new storage layer for one boolean.
+const SIDEBAR_COLLAPSE_STORAGE_KEY = "kccc_sidebar_collapsed";
+
 function canSeeNavItem(item, currentUser) {
   if (currentUser?.is_superuser) {
     return true;
@@ -113,7 +121,30 @@ export default function AppShell({
   onPageChange,
 }) {
   const role = currentUser?.profile?.role || "public";
+  // Deliberately separate from mobileNavOpen: desktop collapse is a lg+-only
+  // width preference, mobile open/close is a slide-in overlay at any width.
+  // Conflating them would make the mobile overlay inherit desktop collapse
+  // styling, which the task explicitly calls out to avoid.
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [desktopCollapsed, setDesktopCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        SIDEBAR_COLLAPSE_STORAGE_KEY,
+        desktopCollapsed ? "1" : "0"
+      );
+    } catch {
+      // Storage unavailable (private browsing, disabled storage, quota) -
+      // the preference simply stays session-only for this visit.
+    }
+  }, [desktopCollapsed]);
 
   const visibleNavItems = navItems.filter((item) =>
     canSeeNavItem(item, currentUser)
@@ -152,16 +183,32 @@ export default function AppShell({
 
       <aside
         id="app-shell-nav"
-        className={`fixed inset-y-0 left-0 z-40 flex w-80 flex-col bg-[#030454] text-white shadow-2xl transition-transform duration-200 ease-in-out lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex w-80 flex-col bg-[#030454] text-white shadow-2xl transition-[transform,width] duration-200 ease-in-out motion-reduce:transition-none lg:translate-x-0 ${
           mobileNavOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } ${desktopCollapsed ? "lg:w-20" : "lg:w-80"}`}
       >
-        <div className="border-b border-white/10 px-5 py-4">
-          <div className="flex items-start justify-between gap-3">
+        <span className="sr-only" role="status" aria-live="polite">
+          {desktopCollapsed ? "Sidebar collapsed" : "Sidebar expanded"}
+        </span>
+
+        <div
+          className={`border-b border-white/10 px-5 py-4 ${
+            desktopCollapsed ? "lg:px-2" : ""
+          }`}
+        >
+          <div
+            className={`flex items-center justify-between gap-2 ${
+              desktopCollapsed ? "lg:flex-col lg:justify-center" : ""
+            }`}
+          >
+            {/* Full logo: always shown on mobile (where desktop-collapse
+                does not apply), hidden at lg+ only while collapsed. */}
             <button
               type="button"
               onClick={() => handleNavigate("dashboard")}
-              className="flex min-w-0 flex-1 items-center"
+              className={`flex min-w-0 flex-1 items-center ${
+                desktopCollapsed ? "lg:hidden" : ""
+              }`}
               aria-label="Go to dashboard"
             >
               <OfficialLogo
@@ -169,6 +216,20 @@ export default function AppShell({
                 className="max-w-[245px]"
                 compact
               />
+            </button>
+
+            {/* Icon-only stand-in for the logo: only ever shown at lg+ while
+                collapsed, never on mobile. */}
+            <button
+              type="button"
+              onClick={() => handleNavigate("dashboard")}
+              className={`${
+                desktopCollapsed ? "hidden lg:flex" : "hidden"
+              } h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white/70 transition-colors duration-200 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-command-lime focus-visible:ring-offset-2 focus-visible:ring-offset-command-navy`}
+              aria-label="Go to dashboard"
+              title="Go to dashboard"
+            >
+              <Home size={20} />
             </button>
 
             <button
@@ -179,9 +240,29 @@ export default function AppShell({
             >
               <X size={20} />
             </button>
+
+            {/* Desktop-only collapse toggle. Never rendered on mobile. */}
+            <button
+              type="button"
+              onClick={() => setDesktopCollapsed((current) => !current)}
+              aria-expanded={!desktopCollapsed}
+              aria-label={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={desktopCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              className="hidden shrink-0 rounded-lg p-1.5 text-white/60 transition-colors duration-200 hover:bg-white/10 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-command-lime focus-visible:ring-offset-2 focus-visible:ring-offset-command-navy lg:flex"
+            >
+              {desktopCollapsed ? (
+                <PanelLeftOpen size={20} />
+              ) : (
+                <PanelLeftClose size={20} />
+              )}
+            </button>
           </div>
 
-          <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+          <div
+            className={`mt-3 rounded-xl border border-white/10 bg-white/5 p-3 ${
+              desktopCollapsed ? "lg:hidden" : ""
+            }`}
+          >
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#F3F74B]">
               Internal Command System
             </p>
@@ -204,11 +285,13 @@ export default function AppShell({
                 type="button"
                 onClick={() => handleNavigate(item.key)}
                 aria-current={isActive ? "page" : undefined}
+                aria-label={item.name}
+                title={item.name}
                 className={`group flex w-full items-start gap-3 rounded-xl px-4 py-2 text-left transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#030454] ${
                   isActive
                     ? "bg-[#F3F74B] text-[#030454]"
                     : "text-white/65 hover:bg-white/10 hover:text-white"
-                }`}
+                } ${desktopCollapsed ? "lg:justify-center lg:px-0" : ""}`}
               >
                 <span
                   className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition ${
@@ -220,7 +303,7 @@ export default function AppShell({
                   <Icon size={16} />
                 </span>
 
-                <span>
+                <span className={desktopCollapsed ? "lg:hidden" : ""}>
                   <span className="block text-sm font-black">{item.name}</span>
 
                   <span
@@ -237,7 +320,11 @@ export default function AppShell({
         </nav>
 
         <div className="border-t border-white/10 p-3">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+          <div
+            className={`rounded-xl border border-white/10 bg-white/5 p-3 ${
+              desktopCollapsed ? "lg:hidden" : ""
+            }`}
+          >
             <p className="text-[10px] font-black uppercase tracking-[0.16em] text-white/35">
               Current Role
             </p>
@@ -254,15 +341,38 @@ export default function AppShell({
             onClick={() => {
               window.location.href = "/public";
             }}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-white/70 transition-colors duration-200 hover:border-[#F3F74B]/70 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#030454]"
+            title="Public Portal"
+            className={`mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-white/70 transition-colors duration-200 hover:border-[#F3F74B]/70 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B] focus-visible:ring-offset-2 focus-visible:ring-offset-[#030454] ${
+              desktopCollapsed ? "lg:hidden" : ""
+            }`}
           >
             <ExternalLink size={14} />
             Public Portal
           </button>
+
+          {/* Icon-only stand-in, lg+ only, while collapsed. */}
+          <button
+            type="button"
+            onClick={() => {
+              window.location.href = "/public";
+            }}
+            aria-label="Public Portal"
+            title="Public Portal"
+            className={`${
+              desktopCollapsed ? "hidden lg:flex" : "hidden"
+            } mt-2 w-full items-center justify-center rounded-xl border border-white/10 p-2.5 text-white/70 transition-colors duration-200 hover:border-command-lime/70 hover:bg-white/5 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-command-lime focus-visible:ring-offset-2 focus-visible:ring-offset-command-navy`}
+          >
+            <ExternalLink size={16} />
+          </button>
         </div>
       </aside>
 
-      <div className="lg:pl-80" inert={mobileNavOpen ? true : undefined}>
+      <div
+        className={`transition-[padding-left] duration-200 ease-in-out motion-reduce:transition-none ${
+          desktopCollapsed ? "lg:pl-20" : "lg:pl-80"
+        }`}
+        inert={mobileNavOpen ? true : undefined}
+      >
         <header className="sticky top-0 z-20 flex h-20 items-center justify-between gap-3 border-b border-slate-200 bg-white/95 px-4 backdrop-blur lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button

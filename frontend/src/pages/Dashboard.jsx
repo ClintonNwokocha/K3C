@@ -8,6 +8,7 @@ import {
   FolderKanban,
   Globe2,
   Leaf,
+  RefreshCw,
 } from "lucide-react";
 import ExecutiveClimateRiskSummary from "../components/ExecutiveClimateRiskSummary";
 import ExecutiveProjectPortfolioSummary from "../components/ExecutiveProjectPortfolioSummary";
@@ -17,6 +18,41 @@ import DashboardClimateAtlasDatasets from "../components/DashboardClimateAtlasDa
 import DashboardRecentInsights from "../components/DashboardRecentInsights";
 import ExecutiveGHGInventorySummary from "../components/ExecutiveGHGInventorySummary";
 import { useExecutiveDashboardData } from "../hooks/useExecutiveDashboardData";
+import { CommandBadge, CommandSection } from "../components/CommandUI";
+import { ChartBarRow, ChartDonut } from "../components/CommandCharts";
+
+// Mirrors the same risk_level groupings already used by the existing
+// Climate Intelligence classification (see DashboardRecentInsights'
+// getRiskClass) - this only maps that same meaning onto ChartBarRow's tone
+// vocabulary, it does not introduce a new risk methodology.
+function riskLevelToTone(level) {
+  if (level === "very_high" || level === "high") return "danger";
+  if (level === "moderate") return "warning";
+  return "success";
+}
+
+// Real taxonomy from ClimateProject.Status (backend/projects/models.py) and
+// the colours already associated with each status elsewhere in the app
+// (RagBadge / getProjectStatusClass: ongoing=navy, completed=green,
+// planned=gold). Suspended/cancelled have no existing chart colour, so they
+// get the app's established red/orange caution hues.
+const PROJECT_STATUS_LABELS = {
+  proposed: "Proposed",
+  planned: "Planned",
+  ongoing: "Ongoing",
+  completed: "Completed",
+  suspended: "Suspended",
+  cancelled: "Cancelled",
+};
+
+const PROJECT_STATUS_COLORS = {
+  proposed: "#74809A",
+  planned: "#E9FF35",
+  ongoing: "#080D52",
+  completed: "#078B4B",
+  suspended: "#ea580c",
+  cancelled: "#dc2626",
+};
 
 function formatRole(role) {
   const labels = {
@@ -83,22 +119,6 @@ function ModuleCard({
         {actionLabel}
       </p>
     </button>
-  );
-}
-
-function SectionHeader({ title, description }) {
-  return (
-    <div className="mb-5">
-      <h2 className="text-2xl font-black tracking-tight text-[#030454]">
-        {title}
-      </h2>
-
-      {description && (
-        <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
-          {description}
-        </p>
-      )}
-    </div>
   );
 }
 
@@ -172,9 +192,28 @@ function ExecutiveTabBar({ activeTab, onSelect }) {
 
 export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
   const role = currentUser?.profile?.role || "viewer";
-  const { data: dashboardData, loading: dashboardLoading, errors: dashboardErrors } =
-    useExecutiveDashboardData();
+  const {
+    data: dashboardData,
+    loading: dashboardLoading,
+    errors: dashboardErrors,
+    refresh: refreshDashboardData,
+  } = useExecutiveDashboardData();
   const [activeExecutiveTab, setActiveExecutiveTab] = useState("overview");
+
+  const topRiskLgas = dashboardData.risk?.top_lgas?.slice(0, 5) || [];
+  const projectStatusCounts = dashboardData.projects?.summary?.by_status || null;
+  const totalProjectsForStatusChart =
+    dashboardData.projects?.summary?.total_projects ?? null;
+
+  const projectStatusChartData = projectStatusCounts
+    ? Object.entries(projectStatusCounts)
+        .filter(([, count]) => typeof count === "number" && count > 0)
+        .map(([status, count]) => ({
+          label: PROJECT_STATUS_LABELS[status] || status,
+          value: count,
+          color: PROJECT_STATUS_COLORS[status] || "#74809A",
+        }))
+    : [];
 
   function navigateTo(pageKey) {
     if (typeof onPageChange === "function") {
@@ -228,21 +267,100 @@ export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
 
       {activeExecutiveTab === "overview" && (
         <>
-          <DashboardCommandMetricsRow
-            risk={dashboardData.risk}
-            projects={dashboardData.projects}
-            reports={dashboardData.reports}
-            ghgSummary={ghgSummary}
-            loading={dashboardLoading}
-            errors={dashboardErrors}
-          />
+          <div>
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black tracking-tight text-[#030454]">
+                  Executive indicators
+                </h2>
+                <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-600">
+                  High-level signals across KCCC work areas.
+                </p>
+              </div>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <SectionHeader
-              title="Move quickly into the active work areas"
-              description="Use these module cards to move from overview to operational work."
+              <button
+                type="button"
+                onClick={refreshDashboardData}
+                disabled={dashboardLoading}
+                className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.08em] text-command-green transition-colors duration-200 hover:text-command-navy disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={dashboardLoading ? "animate-spin" : ""} />
+                Refresh view
+              </button>
+            </div>
+
+            <DashboardCommandMetricsRow
+              risk={dashboardData.risk}
+              projects={dashboardData.projects}
+              reports={dashboardData.reports}
+              ghgSummary={ghgSummary}
+              loading={dashboardLoading}
+              errors={dashboardErrors}
             />
+          </div>
 
+          <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <CommandSection
+              title="Priority climate-risk LGAs"
+              description="Highest overall risk scores among assessed LGAs. Full detail and methodology live in Climate Intelligence."
+              actions={<CommandBadge tone="success">Risk overview</CommandBadge>}
+            >
+              {dashboardErrors.risk ? (
+                <p className="text-xs font-bold text-red-600">
+                  Couldn't load Climate Intelligence data.
+                </p>
+              ) : dashboardLoading ? (
+                <p className="text-sm text-slate-400">Loading…</p>
+              ) : topRiskLgas.length === 0 ? (
+                <p className="text-sm text-slate-400">
+                  No risk profiles available yet.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {topRiskLgas.map((profile) => (
+                    <ChartBarRow
+                      key={profile.id}
+                      label={profile.lga_name}
+                      value={profile.overall_risk_score}
+                      max={100}
+                      tone={riskLevelToTone(profile.risk_level)}
+                    />
+                  ))}
+                </div>
+              )}
+            </CommandSection>
+
+            <CommandSection
+              title="Climate action portfolio by status"
+              description="Real-time distribution of registered climate projects by status."
+              actions={<CommandBadge tone="success">Portfolio mix</CommandBadge>}
+            >
+              {dashboardErrors.projects ? (
+                <p className="text-xs font-bold text-red-600">
+                  Couldn't load Climate Action data.
+                </p>
+              ) : dashboardLoading ? (
+                <p className="text-sm text-slate-400">Loading…</p>
+              ) : projectStatusChartData.length === 0 ? (
+                <p className="text-sm text-slate-400">
+                  No projects registered yet.
+                </p>
+              ) : (
+                <>
+                  <ChartDonut data={projectStatusChartData} />
+                  <p className="mt-4 text-xs font-bold text-slate-500">
+                    {totalProjectsForStatusChart ?? "—"} total registered
+                    project{totalProjectsForStatusChart === 1 ? "" : "s"}.
+                  </p>
+                </>
+              )}
+            </CommandSection>
+          </section>
+
+          <CommandSection
+            title="Move quickly into the active work areas"
+            description="Use these module cards to move from overview to operational work."
+          >
             <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               <ModuleCard
                 icon={CloudSun}
@@ -280,15 +398,13 @@ export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
                 onClick={() => navigateTo("reports")}
               />
             </div>
-          </section>
+          </CommandSection>
 
           <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <SectionHeader
-                title="What leadership should answer quickly"
-                description="A command dashboard should immediately connect risk, action, evidence and accountability."
-              />
-
+            <CommandSection
+              title="What leadership should answer quickly"
+              description="A command dashboard should immediately connect risk, action, evidence and accountability."
+            >
               <div className="space-y-4">
                 <FocusItem
                   icon={Globe2}
@@ -311,14 +427,12 @@ export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
                   tone="blue"
                 />
               </div>
-            </div>
+            </CommandSection>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <SectionHeader
-                title="Recent Climate Hazard Assessment and Risk Tracking and action"
-                description="Signals decision-makers should see first — highest-risk LGAs, the latest emissions position, and the newest projects and reports."
-              />
-
+            <CommandSection
+              title="Recent Climate Hazard Assessment and Risk Tracking and action"
+              description="Signals decision-makers should see first — highest-risk LGAs, the latest emissions position, and the newest projects and reports."
+            >
               <DashboardRecentInsights
                 risk={dashboardData.risk}
                 projects={dashboardData.projects}
@@ -327,7 +441,7 @@ export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
                 loading={dashboardLoading}
                 errors={dashboardErrors}
               />
-            </div>
+            </CommandSection>
           </section>
 
           <DashboardClimateAtlasDatasets
@@ -339,46 +453,38 @@ export default function Dashboard({ ghgSummary, currentUser, onPageChange }) {
       )}
 
       {activeExecutiveTab === "climate" && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <SectionHeader
-            title="Executive Climate Hazard Assessment and Risk Tracking summary"
-            description="Leadership-level view of LGA Climate Hazard Assessment and Risk Tracking scores, highest-risk LGAs and adaptation signals."
-          />
-
+        <CommandSection
+          title="Executive Climate Hazard Assessment and Risk Tracking summary"
+          description="Leadership-level view of LGA Climate Hazard Assessment and Risk Tracking scores, highest-risk LGAs and adaptation signals."
+        >
           <ExecutiveClimateRiskSummary />
-        </section>
+        </CommandSection>
       )}
 
       {activeExecutiveTab === "ghg" && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <SectionHeader
-            title="GHG inventory executive summary"
-            description="Cross-sector emissions totals, review-queue status and NDC implemented-progress preview."
-          />
-
+        <CommandSection
+          title="GHG inventory executive summary"
+          description="Cross-sector emissions totals, review-queue status and NDC implemented-progress preview."
+        >
           <ExecutiveGHGInventorySummary ghgSummary={ghgSummary} />
-        </section>
+        </CommandSection>
       )}
 
       {activeExecutiveTab === "projectsReports" && (
         <>
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <SectionHeader
-              title="Climate action and investment summary"
-              description="Track project counts, budgets, expected beneficiaries, mitigation outcomes and implementation gaps."
-            />
-
+          <CommandSection
+            title="Climate action and investment summary"
+            description="Track project counts, budgets, expected beneficiaries, mitigation outcomes and implementation gaps."
+          >
             <ExecutiveProjectPortfolioSummary />
-          </section>
+          </CommandSection>
 
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <SectionHeader
-              title="Reports centre executive summary"
-              description="Review publication status, report queue and recent documents from the Reports Centre."
-            />
-
+          <CommandSection
+            title="Reports centre executive summary"
+            description="Review publication status, report queue and recent documents from the Reports Centre."
+          >
             <ExecutiveReportsSummary />
-          </section>
+          </CommandSection>
         </>
       )}
     </div>

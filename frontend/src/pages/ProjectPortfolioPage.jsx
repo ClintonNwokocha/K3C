@@ -4,6 +4,7 @@ import ProjectPortfolioStatusBoard from "../components/ProjectPortfolioStatusBoa
 import ProjectPortfolioMapView from "../components/ProjectPortfolioMapView";
 import ProjectPortfolioImportPanel from "../components/ProjectPortfolioImportPanel";
 import {
+  CommandBadge,
   CommandButton,
   CommandNotice,
   CommandPageHeader,
@@ -11,6 +12,7 @@ import {
   CommandStatCard,
   CommandTabs,
 } from "../components/CommandUI";
+import { ChartDonut } from "../components/CommandCharts";
 import { canManageProjectPortfolio } from "../utils/permissions";
 import { readProjectPathwayContext, matchesContributingProject } from "../utils/projectPathwayContext.js";
 import ProjectPathwayNotice from "../components/ProjectPathwayNotice";
@@ -33,22 +35,18 @@ const RAG_LABELS = {
   not_assessed: "Not Assessed",
 };
 
-const RAG_CLASSES = {
-  on_track: "bg-[#009B35]/10 text-[#009B35]",
-  at_risk: "bg-[#F3F74B]/45 text-[#030454]",
-  off_track: "bg-red-50 text-red-700",
-  not_assessed: "bg-slate-100 text-slate-500",
+const RAG_TONES = {
+  on_track: "success",
+  at_risk: "warning",
+  off_track: "danger",
+  not_assessed: "neutral",
 };
 
 function RagBadge({ status: ragStatus }) {
   return (
-    <span
-      className={`rounded-md px-3 py-1 text-xs font-black uppercase tracking-[0.08em] ${
-        RAG_CLASSES[ragStatus] || RAG_CLASSES.not_assessed
-      }`}
-    >
+    <CommandBadge tone={RAG_TONES[ragStatus] || RAG_TONES.not_assessed}>
       {RAG_LABELS[ragStatus] || "Not Assessed"}
-    </span>
+    </CommandBadge>
   );
 }
 
@@ -169,21 +167,37 @@ function formatNullableGhgValue(value) {
     : `${formatNumber(value, 3)} tCO₂e/year`;
 }
 
-function getStatusClass(status) {
-  if (status === "completed") return "bg-[#009B35]/10 text-[#009B35]";
-  if (status === "ongoing") return "bg-blue-50 text-blue-700";
-  if (status === "planned") return "bg-[#030454]/10 text-[#030454]";
-  if (status === "proposed") return "bg-slate-100 text-slate-700";
-  if (status === "suspended") return "bg-amber-50 text-amber-700";
-  return "bg-red-50 text-red-700";
+// Maps the existing status/priority taxonomy onto CommandBadge/ChartDonut's
+// tone/colour vocabulary - the classifications and labels themselves are
+// unchanged (statusOptions/priorityOptions above remain the single source
+// of truth).
+function statusToTone(status) {
+  if (status === "completed") return "success";
+  if (status === "ongoing") return "info";
+  if (status === "planned") return "accent";
+  if (status === "suspended") return "warning";
+  if (status === "cancelled") return "danger";
+  return "neutral";
 }
 
-function getPriorityClass(priority) {
-  if (priority === "very_high") return "bg-red-50 text-red-700";
-  if (priority === "high") return "bg-orange-50 text-orange-700";
-  if (priority === "medium") return "bg-[#F3F74B]/45 text-[#030454]";
-  return "bg-[#009B35]/10 text-[#009B35]";
+function priorityToTone(priority) {
+  if (priority === "very_high") return "danger";
+  if (priority === "high") return "warning";
+  if (priority === "medium") return "accent";
+  return "success";
 }
+
+// Same real taxonomy/colours already used for this status distribution on
+// the Executive Dashboard (Dashboard.jsx) - kept consistent across both
+// dashboards rather than inventing a second palette for the same statuses.
+const PROJECT_STATUS_DONUT_COLORS = {
+  proposed: "#74809A",
+  planned: "#E9FF35",
+  ongoing: "#080D52",
+  completed: "#078B4B",
+  suspended: "#ea580c",
+  cancelled: "#dc2626",
+};
 
 function getOptionLabel(options, value) {
   return options.find((item) => item.value === value)?.label || value || "—";
@@ -1021,6 +1035,27 @@ function PortfolioOverview({
         />
       </div>
 
+      <CommandSection
+        title="Project status distribution"
+        description="Proportional breakdown of the projects currently in view by implementation status."
+      >
+        {projects.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            No projects in the current view.
+          </p>
+        ) : (
+          <ChartDonut
+            data={statusOptions
+              .filter((item) => statusCounts[item.value] > 0)
+              .map((item) => ({
+                label: item.label,
+                value: statusCounts[item.value],
+                color: PROJECT_STATUS_DONUT_COLORS[item.value],
+              }))}
+          />
+        )}
+      </CommandSection>
+
       <GhgSectorPipelinePanel
         summary={ghgSummary}
         loading={ghgSummaryLoading}
@@ -1761,25 +1796,17 @@ function ProjectRegisterSection({
                   </td>
 
                   <td className="px-3 py-4">
-                    <span
-                      className={`rounded-md px-3 py-1 text-xs font-bold ${getStatusClass(
-                        project.status
-                      )}`}
-                    >
+                    <CommandBadge tone={statusToTone(project.status)}>
                       {project.status_display ||
                         getOptionLabel(statusOptions, project.status)}
-                    </span>
+                    </CommandBadge>
                   </td>
 
                   <td className="px-3 py-4">
-                    <span
-                      className={`rounded-md px-3 py-1 text-xs font-bold ${getPriorityClass(
-                        project.priority
-                      )}`}
-                    >
+                    <CommandBadge tone={priorityToTone(project.priority)}>
                       {project.priority_display ||
                         getOptionLabel(priorityOptions, project.priority)}
-                    </span>
+                    </CommandBadge>
                   </td>
 
                   <td className="px-3 py-4">
@@ -2218,8 +2245,8 @@ export default function ProjectPortfolioPage({
   return (
     <div className="space-y-6">
       <CommandPageHeader
-        title="Climate Project Portfolio"
-        description="Register, track and summarize climate projects across LGAs, sectors, mitigation outcomes, adaptation relevance, budgets and beneficiaries."
+        title="Project Portfolio"
+        description="Climate project implementation, geographic distribution, and portfolio performance."
         actions={
           <div className="flex flex-wrap gap-3">
             <CommandButton variant="outline" onClick={loadProjects}>
