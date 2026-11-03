@@ -14,7 +14,6 @@ import {
   PublicCard,
   PublicEmptyState,
   PublicErrorBanner,
-  PublicFaqAccordion,
   PublicLoadingState,
   PublicPortalFooter,
   PublicPortalHeader,
@@ -977,6 +976,23 @@ function formatChangeSymbol(percent) {
   return `\u2193 ${formatNumber(Math.abs(percent), 1)}%`;
 }
 
+function changeToneClass(percent) {
+  if (!hasNumber(percent) || Math.abs(Number(percent)) < 0.05) {
+    return "bg-[#F7F9FA] text-[#030454]";
+  }
+  return Number(percent) > 0
+    ? "bg-[#fff0f3] text-[#a32d4f]"
+    : "bg-[#e6f6ec] text-[#087444]";
+}
+
+function calcSimplePercentChange(startValue, endValue) {
+  if (!hasNumber(startValue) || !hasNumber(endValue) || Number(startValue) <= 0) {
+    return null;
+  }
+
+  return ((Number(endValue) - Number(startValue)) / Number(startValue)) * 100;
+}
+
 function ChangePanel({ chart, visibleKeys }) {
   const change = useMemo(
     () => calculateChangeRows(chart, visibleKeys),
@@ -985,7 +1001,7 @@ function ChangePanel({ chart, visibleKeys }) {
   const isSingleYear = (chart?.years || []).length <= 1;
 
   return (
-    <PublicCard className="p-5">
+    <div className="h-full rounded-2xl border border-[#e5ebf4] bg-gradient-to-br from-white to-[#f7f9fd] p-5 shadow-[0_8px_24px_rgba(16,25,77,0.05)]">
       <h3 className="text-lg font-black text-[#030454]">
         Change over selected period
       </h3>
@@ -996,43 +1012,40 @@ function ChangePanel({ chart, visibleKeys }) {
         <p className="mt-4 rounded-md border border-[#E6EAEC] bg-[#F7F9FA] p-3 text-sm leading-6 text-slate-600">
           Percent change is not available for a single reporting year.
         </p>
-      ) : (
-        <div className="mt-4 rounded-md border border-[#E6EAEC] bg-[#F7F9FA] p-3">
-          <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-            Percent change
-          </p>
-          {change.rows.length > 0 ? (
-            <div className="mt-3 space-y-2">
-              {change.rows.map((row) => (
-                <p
-                  key={row.key}
-                  className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 text-sm"
-                >
-                  <span className="min-w-0 font-black" style={{ color: row.color }}>
-                    {row.label}
-                  </span>
-                  <span className="font-mono font-black text-[#030454]">
-                    {formatChangeSymbol(row.percent)}
-                  </span>
-                </p>
-              ))}
-              <div className="border-t border-[#D8DDE2] pt-3">
-                <p className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 text-sm">
-                  <span className="font-black text-[#030454]">Gross total</span>
-                  <span className="font-mono font-black text-[#030454]">
-                    {formatChangeSymbol(change.gross)}
-                  </span>
-                </p>
-              </div>
+      ) : change.rows.length > 0 ? (
+        <div className="mt-4 space-y-2.5">
+          {change.rows.map((row) => (
+            <div
+              key={row.key}
+              className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[#edf0f4] pb-2.5 text-sm last:border-b-0"
+            >
+              <span className="min-w-0 truncate font-bold" style={{ color: row.color }}>
+                {row.label}
+              </span>
+              <span
+                className={`rounded-md px-2 py-1 font-mono text-xs font-black ${changeToneClass(row.percent)}`}
+              >
+                {formatChangeSymbol(row.percent)}
+              </span>
             </div>
-          ) : (
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              N/A
+          ))}
+          <div className="border-t border-[#D8DDE2] pt-3">
+            <p className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 text-sm">
+              <span className="font-black text-[#030454]">Gross total</span>
+              <span
+                className={`rounded-md px-2 py-1 font-mono text-xs font-black ${changeToneClass(change.gross)}`}
+              >
+                {formatChangeSymbol(change.gross)}
+              </span>
             </p>
-          )}
+          </div>
         </div>
+      ) : (
+        <p className="mt-4 rounded-md border border-[#E6EAEC] bg-[#F7F9FA] p-3 text-sm leading-6 text-slate-600">
+          N/A
+        </p>
       )}
-    </PublicCard>
+    </div>
   );
 }
 
@@ -1442,7 +1455,7 @@ function ChartMatrixTable({ chart, filters, optionLabels }) {
   }
 
   return (
-    <PublicCard className="min-w-0 overflow-hidden">
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-[#e2e8f1] bg-white shadow-[0_8px_24px_rgba(16,25,77,0.05)]">
       <div className="flex flex-col justify-between gap-4 border-b border-[#E6EAEC] bg-[#F7F9FA] px-5 py-4 md:flex-row md:items-center">
         <div>
           <h2 className="text-xl font-black text-[#030454]">
@@ -1453,14 +1466,15 @@ function ChartMatrixTable({ chart, filters, optionLabels }) {
             public record is available for that row and year.
           </p>
         </div>
-        <PublicSecondaryButton
+        <button
+          type="button"
           onClick={handleDownload}
           disabled={!canDownload}
-          className="inline-flex w-fit items-center gap-2 disabled:cursor-not-allowed disabled:opacity-45"
+          className="inline-flex w-fit shrink-0 items-center gap-2 rounded-md border border-[#D8DDE2] bg-gradient-to-br from-white to-[#f7fbf8] px-3 py-2 text-xs font-black text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35] disabled:cursor-not-allowed disabled:opacity-45"
         >
           <Download size={15} aria-hidden="true" />
           Download filtered data (CSV)
-        </PublicSecondaryButton>
+        </button>
       </div>
       {rows.length === 0 ? (
         <PublicEmptyState
@@ -1474,13 +1488,13 @@ function ChartMatrixTable({ chart, filters, optionLabels }) {
               Approved public GHG inventory matrix by selected year and breakout
               series.
             </caption>
-            <thead className="bg-white text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+            <thead className="bg-[#f1f4f9] text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
               <tr>
-                <th className="sticky left-0 z-10 min-w-[220px] bg-white px-4 py-3">
+                <th className="sticky left-0 z-10 min-w-[220px] bg-[#f1f4f9] px-4 py-2.5">
                   Series
                 </th>
                 {years.map((year) => (
-                  <th key={year} className="px-4 py-3 text-right">
+                  <th key={year} className="px-4 py-2.5 text-right">
                     {year}
                   </th>
                 ))}
@@ -1490,11 +1504,15 @@ function ChartMatrixTable({ chart, filters, optionLabels }) {
               {rows.map((row) => (
                 <tr
                   key={row.key}
-                  className={row.is_total ? "bg-[#F7F9FA] font-black" : "hover:bg-[#F7F9FA]"}
+                  className={
+                    row.is_total
+                      ? "bg-[#edf8f1] font-black text-[#075d35]"
+                      : "hover:bg-[#F7F9FA]"
+                  }
                 >
                   <th
                     scope="row"
-                    className="sticky left-0 z-10 bg-inherit px-4 py-3 text-[#030454]"
+                    className="sticky left-0 z-10 bg-inherit px-4 py-2.5 text-[#030454]"
                   >
                     {row.label}
                   </th>
@@ -1506,7 +1524,7 @@ function ChartMatrixTable({ chart, filters, optionLabels }) {
                     return (
                       <td
                         key={`${row.key}-${year}`}
-                        className="px-4 py-3 text-right font-mono text-[#030454]"
+                        className="px-4 py-2.5 text-right font-mono text-[#030454]"
                       >
                         {hasNumber(value) ? formatNumber(value, 2) : "-"}
                       </td>
@@ -1518,7 +1536,7 @@ function ChartMatrixTable({ chart, filters, optionLabels }) {
           </table>
         </div>
       )}
-    </PublicCard>
+    </div>
   );
 }
 
@@ -1566,7 +1584,9 @@ function MapCoverageLine({ mapData }) {
 }
 
 function MainVisualization({
+  data,
   chart,
+  change,
   mapData,
   filters,
   optionLabels,
@@ -1587,71 +1607,121 @@ function MainVisualization({
   const workspaceTitle = activeView === "map" ? "GHG Emissions Map" : chartTitle;
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
-        <div>
-          <h2 className="text-xl font-black leading-tight text-[#030454] sm:text-2xl">
-            {workspaceTitle}
-          </h2>
-          {recordCount !== undefined && (
-            <p className="mt-0.5 text-xs leading-5 text-slate-500">
-              <strong className="text-[#030454]">{recordCount}</strong> approved record{recordCount === 1 ? "" : "s"} selected
+    <div className="space-y-6">
+      <section className="relative overflow-hidden rounded-[22px] border border-[#dbe5f0] bg-[radial-gradient(circle_at_95%_0%,#e5f8ef_0,transparent_28%),linear-gradient(135deg,#f5f7ff_0%,#fff_55%,#f0fbf6_100%)] p-5 shadow-[0_14px_38px_rgba(16,32,74,0.05)] sm:p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#078b4b]">
+              Interactive Data Explorer
+            </span>
+            <h2 className="mt-1 text-xl font-black leading-tight text-[#08094e] sm:text-2xl">
+              Explore emissions by sector
+            </h2>
+            <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
+              Filter approved records by sector, category, gas, geography and
+              reporting year, then inspect each sector&rsquo;s contribution below.
             </p>
-          )}
+          </div>
+          <span
+            aria-hidden="true"
+            className="hidden h-[54px] w-[54px] shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#08094e] to-[#078b4b] text-2xl text-[#e9ff35] shadow-[0_8px_18px_rgba(8,9,78,0.2)] sm:grid"
+          >
+            ⌁
+          </span>
         </div>
-        <PublicSecondaryButton
-          onClick={onReset}
-          disabled={!hasActiveFilters}
-          className="inline-flex w-fit shrink-0 items-center gap-2 self-start disabled:cursor-not-allowed disabled:opacity-45"
-        >
-          <FilterX size={14} aria-hidden="true" />
-          Clear Filters
-        </PublicSecondaryButton>
-      </div>
 
-      <div className="flex flex-col gap-2 border-t border-[#E6EAEC] pt-3 xl:flex-row xl:items-start">
-        <ViewSwitch activeView={activeView} onChange={onViewChange} mapData={mapData} />
-        <FiltersPanel filters={filters} onFilterChange={onFilterChange} options={filterOptions} />
-      </div>
-
-      <p className="text-xs leading-5 text-slate-500">
-        {metadataLine}
-        {activeView === "map" && (
-          <>
-            {" | "}
-            <MapCoverageLine mapData={mapData} />
-          </>
-        )}
-      </p>
-
-      {activeView === "map" ? (
-        <GhgMapView
-          mapData={mapData}
-          filters={filters}
-          optionLabels={optionLabels}
-          onFilterChange={onFilterChange}
-        />
-      ) : (
-        <div className="grid min-w-0 gap-5 border-t border-[#E6EAEC] pt-3 xl:grid-cols-[minmax(0,4fr)_minmax(260px,1.15fr)]">
-          <div className="min-w-0">
-            <div className="mb-2 flex items-center justify-end">
-              <span className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-3 py-1.5 text-xs leading-5 text-slate-600">
-                <strong className="text-[#030454]">{seriesCount}</strong> visible series
-              </span>
+        <div className="mt-5 rounded-2xl border border-[#dce6f1] bg-white/70 p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-black text-[#08094e]">Filter your view</h3>
+              <p className="mt-0.5 text-xs text-slate-500">
+                Narrow the inventory by sector, category, gas, geography or
+                reporting period.
+              </p>
             </div>
-
-            <StackedAreaChart chart={chart} visibleKeys={visibleKeys} />
-            <ChartLegend
-              chart={chart}
-              visibleKeys={visibleKeys}
-              onToggleSeries={onToggleSeries}
-              onShowAll={onShowAllSeries}
-            />
+            <PublicSecondaryButton
+              onClick={onReset}
+              disabled={!hasActiveFilters}
+              className="inline-flex w-fit shrink-0 items-center gap-2 disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              <FilterX size={14} aria-hidden="true" />
+              Clear Filters
+            </PublicSecondaryButton>
           </div>
 
-          <ChangePanel chart={chart} visibleKeys={visibleKeys} />
+          <div className="mt-4">
+            <FiltersPanel filters={filters} onFilterChange={onFilterChange} options={filterOptions} />
+          </div>
+
+          <div className="mt-3">
+            <FilterStateSummary
+              filters={filters}
+              optionLabels={optionLabels}
+              hasActiveFilters={hasActiveFilters}
+              recordCount={recordCount}
+            />
+          </div>
         </div>
-      )}
+
+        <SectorExplorerBlock
+          data={data}
+          filters={filters}
+          filterOptions={filterOptions}
+          onFilterChange={onFilterChange}
+        />
+      </section>
+
+      <AutomatedObservationsPanel data={data} change={change} />
+
+      <section className="rounded-2xl border border-[#e2e8f1] bg-white p-5 shadow-[0_8px_24px_rgba(16,25,77,0.05)] sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <ViewSwitch activeView={activeView} onChange={onViewChange} mapData={mapData} />
+          <p className="text-xs leading-5 text-slate-500">
+            {metadataLine}
+            {activeView === "map" && (
+              <>
+                {" | "}
+                <MapCoverageLine mapData={mapData} />
+              </>
+            )}
+          </p>
+        </div>
+
+        <h2 className="mt-4 text-xl font-black leading-tight text-[#030454] sm:text-2xl">
+          {workspaceTitle}
+        </h2>
+
+        {activeView === "map" ? (
+          <div className="mt-3">
+            <GhgMapView
+              mapData={mapData}
+              filters={filters}
+              optionLabels={optionLabels}
+              onFilterChange={onFilterChange}
+            />
+          </div>
+        ) : (
+          <div className="mt-3 grid min-w-0 gap-5 xl:grid-cols-[minmax(0,4fr)_minmax(260px,1.15fr)]">
+            <div className="min-w-0 rounded-2xl border border-[#e5ebf4] bg-white p-4">
+              <div className="mb-2 flex items-center justify-end">
+                <span className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-3 py-1.5 text-xs leading-5 text-slate-600">
+                  <strong className="text-[#030454]">{seriesCount}</strong> visible series
+                </span>
+              </div>
+
+              <StackedAreaChart chart={chart} visibleKeys={visibleKeys} />
+              <ChartLegend
+                chart={chart}
+                visibleKeys={visibleKeys}
+                onToggleSeries={onToggleSeries}
+                onShowAll={onShowAllSeries}
+              />
+            </div>
+
+            <ChangePanel chart={chart} visibleKeys={visibleKeys} />
+          </div>
+        )}
+      </section>
 
       <ChartMatrixTable
         chart={chart}
@@ -1786,39 +1856,56 @@ function SummaryMetrics({ summary }) {
   );
 }
 
-function ExplorerHeader({ data, selectedYear }) {
+function ExplorerHeader({ data }) {
   return (
-    <PublicSection className="border-b border-[#D8DDE2] bg-white">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
-        <div>
-          <PublicBadge active>
-            <CheckCircle2 size={14} aria-hidden="true" />
-            Public GHG Inventory
-          </PublicBadge>
-
-          <h1 className="mt-5 text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-[#030454] sm:text-5xl">
-            Greenhouse Gas Inventory Explorer
-          </h1>
-
-          <p className="mt-4 max-w-3xl text-pretty text-base leading-8 text-slate-600">
-            Explore approved greenhouse gas inventory information by reporting
-            year, sector, emissions source and gas. Public values must reflect
-            the publication status returned by the backend.
-          </p>
-        </div>
-
-        <StatusNotice status={data?.inventory_status} preview={data?.preview} />
-      </div>
-
-      <div className="mt-6">
-        <SummaryMetrics
-          summary={data?.summary || {}}
-          selectedYear={selectedYear}
+    <>
+      <section className="relative overflow-hidden bg-gradient-to-br from-[#030454] via-[#0b1455] to-[#063b35] px-4 py-10 text-white sm:px-8 lg:px-10 lg:py-12">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-40 -top-56 h-[34rem] w-[34rem] rounded-full border border-[#009B35]/25"
         />
-      </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border border-[#F3F74B]/18"
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute right-[18%] -bottom-56 h-80 w-80 rounded-full bg-[#009B35] opacity-20 blur-[90px]"
+        />
 
-      {data?.method ? <Tier1MethodPanel method={data.method} /> : null}
-    </PublicSection>
+        <div className="relative mx-auto grid max-w-[1536px] gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
+          <div>
+            <PublicBadge
+              active
+              className="border-[#F3F74B]/40 bg-white/10 text-[#F3F74B]"
+            >
+              <CheckCircle2 size={14} aria-hidden="true" />
+              Public GHG Inventory
+            </PublicBadge>
+
+            <h1 className="mt-5 text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-white sm:text-5xl">
+              Greenhouse Gas Inventory Explorer
+            </h1>
+
+            <p className="mt-4 max-w-3xl text-pretty text-base leading-8 text-white/78">
+              Explore approved greenhouse gas inventory information by
+              reporting year, sector, emissions source and gas. Public values
+              reflect the publication status returned by the backend.
+            </p>
+          </div>
+
+          <StatusNotice status={data?.inventory_status} preview={data?.preview} />
+        </div>
+      </section>
+
+      <section className="border-b border-[#D8DDE2] bg-[#F7F9FA] px-4 py-7 sm:px-8 lg:px-10">
+        <div className="mx-auto max-w-[1536px]">
+          <SummaryMetrics summary={data?.summary || {}} />
+
+          {data?.method ? <Tier1MethodPanel method={data.method} /> : null}
+        </div>
+      </section>
+    </>
   );
 }
 
@@ -1826,53 +1913,76 @@ function Tier1MethodPanel({ method }) {
   const missing = [...(method.not_estimated || []), ...(method.not_occurring || [])];
 
   return (
-    <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-      <PublicCard className="p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-          Reported separately ({method.year})
-        </p>
-        <dl className="mt-3 grid gap-3 text-sm">
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-slate-600">
-              Land use and forestry (provisional, not in total)
-            </dt>
-            <dd className="font-black text-[#030454]">
-              {formatNumber(method.lulucf_provisional_tco2e, 0)} tCO2e
-            </dd>
-          </div>
-          <div className="flex items-baseline justify-between gap-4">
-            <dt className="text-slate-600">
-              CO2 from firewood and charcoal (memo item, not in total)
-            </dt>
-            <dd className="font-black text-[#030454]">
-              {formatNumber(method.biogenic_co2_memo_tco2, 0)} tCO2
-            </dd>
-          </div>
-        </dl>
-        <p className="mt-3 text-xs leading-5 text-slate-600">
-          {method.guideline}. {method.estimated?.length || 0} IPCC categories estimated.
-        </p>
-        {(method.included_elsewhere || []).map((category) => (
-          <p key={category.ipcc_code} className="mt-1 text-xs leading-5 text-slate-600">
-            <span className="font-bold text-[#030454]">{category.ipcc_code}</span>{" "}
-            {category.name}: {category.reason}
+    <div className="mt-6">
+      <h2 className="text-sm font-black uppercase tracking-[0.12em] text-slate-500">
+        Inventory scope
+      </h2>
+      <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="relative overflow-hidden rounded-2xl border border-[#c9ead7] bg-gradient-to-br from-white via-[#f5fcf8] to-[#eaf8f0] p-5 shadow-[0_10px_28px_rgba(16,25,77,0.06)]">
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-[5px] bg-gradient-to-r from-[#009B35] to-[#9de2bb]"
+          />
+          <p className="flex items-center gap-2 text-sm font-black text-[#030454]">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-[#d9f4e4] text-[#087444]">
+              ↗
+            </span>
+            Reported separately ({method.year})
           </p>
-        ))}
-      </PublicCard>
-
-      <PublicCard className="p-5">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-          Not in this estimate
-        </p>
-        <ul className="mt-3 grid gap-1.5 text-sm text-slate-700">
-          {missing.map((category) => (
-            <li key={category.ipcc_code} title={category.reason}>
+          <dl className="mt-4 grid gap-2.5 text-sm">
+            <div className="flex items-baseline justify-between gap-4 rounded-lg border border-[#d5ede1] bg-white/75 px-3 py-2.5 transition hover:translate-x-0.5 hover:border-[#009B35]/45">
+              <dt className="text-slate-600">
+                Land use and forestry (provisional, not in total)
+              </dt>
+              <dd className="font-black text-[#075f37]">
+                {formatNumber(method.lulucf_provisional_tco2e, 0)} tCO2e
+              </dd>
+            </div>
+            <div className="flex items-baseline justify-between gap-4 rounded-lg border border-[#d5ede1] bg-white/75 px-3 py-2.5 transition hover:translate-x-0.5 hover:border-[#009B35]/45">
+              <dt className="text-slate-600">
+                CO2 from firewood and charcoal (memo item, not in total)
+              </dt>
+              <dd className="font-black text-[#075f37]">
+                {formatNumber(method.biogenic_co2_memo_tco2, 0)} tCO2
+              </dd>
+            </div>
+          </dl>
+          <p className="mt-3 rounded-lg bg-[#eaf8f0] p-3 text-xs leading-5 text-[#2d4f3f]">
+            {method.guideline}. {method.estimated?.length || 0} IPCC categories estimated.
+          </p>
+          {(method.included_elsewhere || []).map((category) => (
+            <p key={category.ipcc_code} className="mt-1 text-xs leading-5 text-slate-600">
               <span className="font-bold text-[#030454]">{category.ipcc_code}</span>{" "}
-              {category.name}
-            </li>
+              {category.name}: {category.reason}
+            </p>
           ))}
-        </ul>
-      </PublicCard>
+        </div>
+
+        <div className="relative overflow-hidden rounded-2xl border border-[#f2d9e0] bg-gradient-to-br from-white via-[#fff8fa] to-[#fdf0f3] p-5 shadow-[0_10px_28px_rgba(16,25,77,0.06)]">
+          <span
+            aria-hidden="true"
+            className="absolute inset-x-0 top-0 h-[5px] bg-gradient-to-r from-[#df6680] to-[#ffb4c4]"
+          />
+          <p className="flex items-center gap-2 text-sm font-black text-[#030454]">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] bg-[#ffe2e9] text-[#a92d4b]">
+              +
+            </span>
+            Not in this estimate
+          </p>
+          <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+            {missing.map((category) => (
+              <li
+                key={category.ipcc_code}
+                title={category.reason}
+                className="rounded-lg border border-[#f2dfe4] bg-white/75 px-3 py-2.5 text-xs leading-5 text-slate-700 transition hover:-translate-y-0.5 hover:border-[#e7a9b9]"
+              >
+                <span className="block font-black text-[#a52d4b]">{category.ipcc_code}</span>
+                {category.name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </div>
   );
 }
@@ -1941,13 +2051,396 @@ function FiltersPanel({
   );
 }
 
+function FilterStateSummary({ filters, optionLabels, hasActiveFilters, recordCount }) {
+  const countLabel =
+    recordCount !== undefined
+      ? `${recordCount} approved record${recordCount === 1 ? "" : "s"} selected.`
+      : null;
+
+  if (!hasActiveFilters) {
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#D8DDE2] bg-white/85 px-4 py-3 text-xs text-slate-500">
+        <strong className="text-[#030454]">{countLabel}</strong>
+        <span>No filters applied — showing the full approved dataset.</span>
+      </div>
+    );
+  }
+
+  const chips = [
+    filters.sector !== ALL && `Sector: ${optionLabels.sector}`,
+    filters.category !== ALL && `Category: ${optionLabels.category}`,
+    filters.gas !== "CO2e" && `Gas: ${optionLabels.gas}`,
+    filters.geography !== ALL && `Geography: ${optionLabels.geography}`,
+    `Years: ${optionLabels.year_from}-${optionLabels.year_to}`,
+    `Break out by: ${optionLabels.breakout}`,
+  ].filter(Boolean);
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#D8DDE2] bg-white/85 px-4 py-3">
+      {countLabel ? (
+        <strong className="shrink-0 text-xs text-[#030454]">{countLabel}</strong>
+      ) : null}
+      <ul className="flex flex-wrap gap-1.5" aria-label="Active filter summary">
+        {chips.map((chip) => (
+          <li
+            key={chip}
+            className="rounded-full border border-[#cdebd8] bg-[#e6f6ec] px-2.5 py-1 text-[11px] font-bold text-[#126e40]"
+          >
+            {chip}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+const SECTOR_SYMBOLS = {
+  energy: "ϟ",
+  agriculture: "❋",
+  waste: "♻",
+  ippu: "⚙",
+  lulucf: "♧",
+};
+
+function SectorTile({ sector, isSelected, onSelect }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={isSelected}
+      className={`flex min-w-0 flex-col items-start gap-1.5 rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-[#009B35]/25 motion-safe:hover:-translate-y-0.5 ${
+        isSelected
+          ? "border-2 border-[#009B35] bg-gradient-to-br from-[#e7f8ee] to-white shadow-[0_10px_24px_rgba(7,139,75,0.16)]"
+          : "border-[#e0e7f1] bg-white hover:border-[#009B35]/45 hover:shadow-[0_8px_18px_rgba(16,25,77,0.08)]"
+      }`}
+    >
+      <span
+        className={`grid h-9 w-9 place-items-center rounded-xl text-lg font-black ${
+          isSelected ? "bg-[#078B4B] text-white" : "bg-[#e8edff] text-[#263c9a]"
+        }`}
+        aria-hidden="true"
+      >
+        {SECTOR_SYMBOLS[sector.sector] || "◉"}
+      </span>
+      <p className="text-[11px] font-black leading-tight text-[#030454]">{sector.label}</p>
+      <p className="font-mono text-lg font-black leading-tight text-[#030454]">
+        {hasNumber(sector.value) ? formatNumber(sector.value, 0) : "—"}
+      </p>
+      <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-slate-500">
+        {hasNumber(sector.value) ? "tCO2e" : "No approved record for this year"}
+      </p>
+    </button>
+  );
+}
+
+function SectorDetailStrip({ sector, selectedYear, baselineYear, endValue, changePct, sharePct, isImplied }) {
+  if (!sector) return null;
+
+  return (
+    <div className="mt-4 grid gap-4 rounded-2xl bg-gradient-to-br from-[#08094e] via-[#10296d] to-[#087448] p-5 text-white sm:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))] sm:items-center">
+      <div>
+        <p className="text-[9px] font-black uppercase tracking-[0.14em] text-[#e9ff35]">
+          Selected sector
+        </p>
+        <h3 className="mt-1 text-xl font-black">{sector.label}</h3>
+        <p className="mt-1 text-xs leading-5 text-white/75">
+          {isImplied
+            ? "Leading sector for the current filters. Select a tile above to inspect a different sector."
+            : "Selected from the sector tiles above."}
+        </p>
+      </div>
+      <div className="border-t border-white/20 pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+        <p className="text-[10px] text-white/70">Selected-year value ({selectedYear})</p>
+        <p className="mt-1.5 font-mono text-xl font-black text-[#e9ff35]">
+          {hasNumber(endValue) ? formatNumber(endValue, 0) : "Not available"}
+          {hasNumber(endValue) ? <span className="ml-1 text-xs font-bold text-white"> tCO2e</span> : null}
+        </p>
+      </div>
+      <div className="border-t border-white/20 pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+        <p className="text-[10px] text-white/70">Change from {baselineYear}</p>
+        <p className="mt-1.5 font-mono text-xl font-black text-[#e9ff35]">
+          {formatChangeSymbol(changePct)}
+        </p>
+      </div>
+      <div className="border-t border-white/20 pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+        <p className="text-[10px] text-white/70">Share of displayed subtotal</p>
+        <p className="mt-1.5 font-mono text-xl font-black text-[#e9ff35]">
+          {hasNumber(sharePct) ? `${formatNumber(sharePct, 1)}%` : "Not available"}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function SectorExplorerBlock({ data, filters, filterOptions, onFilterChange }) {
+  const sectorYearTotals = data?.totals?.by_sector_year || [];
+  const availableYears = [
+    ...new Set((data?.metadata?.years || data?.dimensions?.years || []).map(String)),
+  ].sort((a, b) => Number(a) - Number(b));
+  const latestYear = availableYears[availableYears.length - 1] || filters.year_to;
+  const earliestYear = availableYears[0] || filters.year_from;
+  const [explorerYear, setExplorerYear] = useState(undefined);
+  const effectiveYear = explorerYear || latestYear;
+  const sectorOptions = (filterOptions.sectors || []).filter((option) => option.value !== ALL);
+
+  function valueFor(sectorValue, year) {
+    const row = sectorYearTotals.find(
+      (item) => item.sector === sectorValue && String(item.reporting_year) === String(year)
+    );
+    return row ? row.emissions_tco2e : null;
+  }
+
+  const tiles = sectorOptions.map((option) => ({
+    sector: option.value,
+    label: option.label,
+    value: valueFor(option.value, effectiveYear),
+  }));
+  const displayedSubtotal = tiles
+    .map((tile) => tile.value)
+    .filter(hasNumber)
+    .reduce((sum, value) => sum + Number(value), 0);
+  const hasSubtotal = tiles.some((tile) => hasNumber(tile.value));
+
+  const largestSectorFallback = data?.summary?.largest_contributing_sector?.sector;
+  const detailSector = filters.sector !== ALL ? filters.sector : largestSectorFallback || tiles[0]?.sector;
+  const detailTile = tiles.find((tile) => tile.sector === detailSector);
+  const detailStartValue = detailSector ? valueFor(detailSector, earliestYear) : null;
+  const detailEndValue = detailTile?.value;
+  const detailChangePct = calcSimplePercentChange(detailStartValue, detailEndValue);
+  const detailShare =
+    hasSubtotal && hasNumber(detailEndValue) && displayedSubtotal > 0
+      ? (Number(detailEndValue) / displayedSubtotal) * 100
+      : null;
+
+  if (tiles.length === 0) return null;
+
+  return (
+    <div className="mt-5 border-t border-[#dce6f1] pt-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="w-full sm:w-56">
+          <YearSelectField
+            id="ghg-explorer-year"
+            label="Reporting year"
+            prefix=""
+            value={effectiveYear}
+            onChange={setExplorerYear}
+            options={availableYears.map((year) => ({ value: year, label: year }))}
+          />
+        </div>
+        <p className="text-xs font-bold text-slate-500">
+          Sector totals for {effectiveYear} · select a tile to inspect it
+        </p>
+      </div>
+
+      <div className="mt-3 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+        {tiles.map((tile) => (
+          <SectorTile
+            key={tile.sector}
+            sector={tile}
+            isSelected={filters.sector === tile.sector}
+            onSelect={() =>
+              onFilterChange("sector", filters.sector === tile.sector ? ALL : tile.sector)
+            }
+          />
+        ))}
+      </div>
+
+      <SectorDetailStrip
+        sector={detailTile}
+        selectedYear={effectiveYear}
+        baselineYear={earliestYear}
+        endValue={detailEndValue}
+        changePct={detailChangePct}
+        sharePct={detailShare}
+        isImplied={filters.sector === ALL}
+      />
+
+      <p className="mt-3 text-[11px] leading-5 text-slate-500">
+        Share and change are calculated from the approved sector totals shown above and
+        may not reconcile with the filtered chart below, which uses the From/To year
+        filters instead of the reporting year selector.
+      </p>
+    </div>
+  );
+}
+
+function ObservationCard({ label, value, detail, accent = "green" }) {
+  const accents = {
+    green: { bar: "bg-[#078b4b]", icon: "bg-[#dff7e9] text-[#087446]" },
+    violet: { bar: "bg-[#6b5bd2]", icon: "bg-[#eee9ff] text-[#5b48b8]" },
+    gold: { bar: "bg-[#d99718]", icon: "bg-[#fff0cf] text-[#925800]" },
+  };
+  const tone = accents[accent] || accents.green;
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-[0_6px_18px_rgba(12,23,74,0.05)] transition motion-safe:hover:-translate-y-0.5">
+      <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} />
+      <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">
+        {label}
+      </p>
+      <p className="mt-2 text-lg font-black leading-tight text-[#08094e]">{value}</p>
+      {detail ? <p className="mt-1.5 text-xs leading-5 text-slate-600">{detail}</p> : null}
+    </div>
+  );
+}
+
+function AutomatedObservationsPanel({ data, change }) {
+  const leadingSector = data?.summary?.largest_contributing_sector;
+  const largestIncrease = (change?.rows || [])
+    .filter((row) => hasNumber(row.percent) && row.percent > 0)
+    .reduce((best, row) => (!best || row.percent > best.percent ? row : best), null);
+  const isSingleYear = !change || (change.rows.length === 0 && change.gross === null && (data?.chart?.years || []).length <= 1);
+  const isPreview = Boolean(data?.preview?.preview_batch_active);
+  const isOfficial = data?.inventory_status?.code === "official_inventory_published";
+
+  return (
+    <section className="relative overflow-hidden rounded-[22px] border border-[#d9e5ef] bg-gradient-to-br from-[#f4f6ff] via-white to-[#f0fbf6] p-5 shadow-[0_14px_34px_rgba(16,32,74,0.06)] sm:p-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#078b4b]">
+            Automated Observations
+          </span>
+          <h2 className="mt-1 text-xl font-black leading-tight text-[#08094e] sm:text-2xl">
+            What the inventory shows
+          </h2>
+          <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
+            Deterministic observations calculated from the approved records currently
+            displayed. No causal interpretation is implied.
+          </p>
+        </div>
+        {isPreview || isOfficial ? (
+          <span
+            className={`whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[9px] font-black tracking-[0.08em] ${
+              isPreview
+                ? "border-[#f3df9d] bg-[#fff1c9] text-[#815500]"
+                : "border-[#009B35]/30 bg-[#009B35]/10 text-[#007a29]"
+            }`}
+          >
+            {isPreview ? "PREVIEW · NOT OFFICIAL" : "OFFICIAL INVENTORY"}
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <ObservationCard
+          accent="green"
+          label="Largest sector, displayed period"
+          value={leadingSector?.sector_label || "Not enough data"}
+          detail={
+            leadingSector
+              ? `${formatNumber(leadingSector.share_pct, 1)}% of the displayed total (${formatNumber(leadingSector.emissions_tco2e, 2)} tCO2e).`
+              : "No approved records match the current filters."
+          }
+        />
+        <ObservationCard
+          accent="violet"
+          label="Largest increase among displayed series"
+          value={largestIncrease ? largestIncrease.label : "No increasing series"}
+          detail={
+            largestIncrease
+              ? `${formatChangeSymbol(largestIncrease.percent)} over ${change.periodLabel}.`
+              : isSingleYear
+                ? "Percent change is not available for a single reporting year."
+                : "No displayed series increased over the selected period."
+          }
+        />
+        <ObservationCard
+          accent="gold"
+          label="Displayed subtotal trend"
+          value={change ? formatChangeSymbol(change.gross) : "Not available"}
+          detail={
+            change?.periodLabel
+              ? `Gross total across visible series, ${change.periodLabel}.`
+              : "Not available for a single reporting year."
+          }
+        />
+      </div>
+
+      <p className="mt-3 text-[11px] leading-5 text-slate-500">
+        <strong className="text-[#27365b]">How to read this:</strong> these are arithmetic
+        observations from the records currently displayed by your filters, not verified
+        findings, and may not reconcile with totals shown elsewhere on this page.
+      </p>
+    </section>
+  );
+}
+
+function AboutDataGrid({ items }) {
+  return (
+    <section className="relative overflow-hidden bg-gradient-to-br from-[#030454] via-[#0b1455] to-[#063b35] px-4 py-12 text-white sm:px-8 lg:px-10">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full border border-[#F3F74B]/15"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-[#009B35] opacity-20 blur-[100px]"
+      />
+
+      <div className="relative mx-auto max-w-5xl text-center">
+        <h2 className="font-['Playfair_Display'] text-3xl font-bold">
+          About the data
+        </h2>
+        <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-white/75">
+          Key guidance for interpreting the inventory, its units, methodology
+          and limitations.
+        </p>
+      </div>
+
+      <div className="relative mx-auto mt-8 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => (
+          <div
+            key={item.title}
+            className="rounded-xl border border-white/15 bg-white/[0.07] p-5 text-left backdrop-blur-sm"
+          >
+            <h3 className="text-sm font-black leading-5 text-[#F3F74B]">
+              {item.title}
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-white/80">{item.body}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const SOURCE_CARD_TONES = [
+  "border-[#c8ead6] bg-gradient-to-br from-[#e7f8ee] to-white",
+  "border-[#f4dfad] bg-gradient-to-br from-[#fff3d8] to-white",
+  "border-[#d1e5f8] bg-gradient-to-br from-[#e9f4ff] to-white",
+];
+const SOURCE_ICON_TONES = [
+  "bg-[#d9f4e4] text-[#087444]",
+  "bg-[#ffecc4] text-[#8a5900]",
+  "bg-[#d9ecff] text-[#1d4ed8]",
+];
+
 function SourcesReferencesSection() {
+  const sources = [
+    {
+      title: "KCCC approved GHG inventory entries",
+      body: "Source for explorer charts, metrics and table records.",
+    },
+    {
+      title: "KCCC project records",
+      body: "Source for expected project reductions only.",
+    },
+    {
+      title: "Nigeria First Biennial Transparency Report",
+      body: "National climate-reporting context only; not a source of Kaduna-specific inventory values.",
+      href: "https://unfccc.int/sites/default/files/resource/Nigeria%20BTR1%20.pdf",
+      linkLabel: "View official BTR1 document",
+    },
+  ];
+
   return (
     <section className="bg-white px-4 py-8 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-[1536px]">
         <PublicCard className="p-5">
         <div className="flex items-start gap-3">
-          <Info className="mt-1 shrink-0 text-[#009B35]" size={20} aria-hidden="true" />
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#e5deff] text-[#6247bd]">
+            <Info size={18} aria-hidden="true" />
+          </span>
           <div>
             <h2 className="text-xl font-black text-[#030454]">
               Sources and References
@@ -1960,41 +2453,30 @@ function SourcesReferencesSection() {
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-3">
-          <div className="rounded-lg border border-[#D8DDE2] bg-[#F7F9FA] p-4">
-            <p className="text-sm font-black text-[#030454]">
-              KCCC approved GHG inventory entries
-            </p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Source for explorer charts, metrics and table records.
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-[#D8DDE2] bg-[#F7F9FA] p-4">
-            <p className="text-sm font-black text-[#030454]">
-              KCCC project records
-            </p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Source for expected project reductions only.
-            </p>
-          </div>
-
-          <div className="rounded-lg border border-[#D8DDE2] bg-[#F7F9FA] p-4">
-            <p className="text-sm font-black text-[#030454]">
-              Nigeria First Biennial Transparency Report
-            </p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              National climate-reporting context only; not a source of
-              Kaduna-specific inventory values.
-            </p>
-            <a
-              href="https://unfccc.int/sites/default/files/resource/Nigeria%20BTR1%20.pdf"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-flex text-xs font-bold text-[#009B35] hover:text-[#00842e]"
+          {sources.map((source, index) => (
+            <div
+              key={source.title}
+              className={`rounded-xl border p-4 transition hover:-translate-y-1 hover:shadow-[0_9px_20px_rgba(8,13,82,0.06)] ${SOURCE_CARD_TONES[index]}`}
             >
-              View official BTR1 document
-            </a>
-          </div>
+              <span
+                className={`mb-2 inline-grid h-8 w-8 place-items-center rounded-[10px] text-sm font-black ${SOURCE_ICON_TONES[index]}`}
+              >
+                {index + 1}
+              </span>
+              <p className="text-sm font-black text-[#030454]">{source.title}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{source.body}</p>
+              {source.href ? (
+                <a
+                  href={source.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex text-xs font-bold text-[#009B35] hover:text-[#00842e]"
+                >
+                  {source.linkLabel}
+                </a>
+              ) : null}
+            </div>
+          ))}
         </div>
         </PublicCard>
       </div>
@@ -2122,6 +2604,10 @@ export default function PublicGHGInventoryExplorerPage() {
   const visibleKeys = useMemo(
     () => seriesKeys.filter((key) => !hiddenSeriesKeys.includes(key)),
     [seriesKeys, hiddenSeriesKeys]
+  );
+  const change = useMemo(
+    () => calculateChangeRows(chart, visibleKeys),
+    [chart, visibleKeys]
   );
   const metadata = inventoryData?.metadata || inventoryData?.dimensions || {};
   const metadataYears = (metadata.years || [])
@@ -2266,27 +2752,24 @@ export default function PublicGHGInventoryExplorerPage() {
                 </PublicCard>
               )}
 
-              {/* GHG Inventory Explorer — one unified workspace: compact
-                  filter toolbar directly above the map/chart it controls,
-                  no unrelated section in between. */}
-              <PublicCard className="min-w-0 p-4">
-                <MainVisualization
-                  chart={chart}
-                  mapData={mapData}
-                  filters={filters}
-                  optionLabels={optionLabels}
-                  visibleKeys={visibleKeys}
-                  onToggleSeries={handleToggleSeries}
-                  onShowAllSeries={handleShowAllSeries}
-                  activeView={activeView}
-                  onViewChange={handleViewChange}
-                  onFilterChange={handleFilterChange}
-                  onReset={resetFilters}
-                  hasActiveFilters={hasActiveFilters}
-                  recordCount={records.length}
-                  filterOptions={filterOptions}
-                />
-              </PublicCard>
+              <MainVisualization
+                data={inventoryData}
+                chart={chart}
+                change={change}
+                mapData={mapData}
+                filters={filters}
+                optionLabels={optionLabels}
+                visibleKeys={visibleKeys}
+                onToggleSeries={handleToggleSeries}
+                onShowAllSeries={handleShowAllSeries}
+                activeView={activeView}
+                onViewChange={handleViewChange}
+                onFilterChange={handleFilterChange}
+                onReset={resetFilters}
+                hasActiveFilters={hasActiveFilters}
+                recordCount={records.length}
+                filterOptions={filterOptions}
+              />
 
               <GHGInventoryNotes sector={filters.sector} />
 
@@ -2296,7 +2779,7 @@ export default function PublicGHGInventoryExplorerPage() {
 
           <SourcesReferencesSection />
 
-          <PublicFaqAccordion items={aboutDataItems} />
+          <AboutDataGrid items={aboutDataItems} />
         </>
       )}
 
