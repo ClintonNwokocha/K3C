@@ -1630,37 +1630,47 @@ function MainVisualization({
           </span>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-[#dce6f1] bg-white/70 p-4 sm:p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-black text-[#08094e]">Filter your view</h3>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Narrow the inventory by sector, category, gas, geography or
-                reporting period.
-              </p>
+        <div className="mt-5 rounded-2xl border border-[#dce6f1] bg-gradient-to-br from-[#edf2ff] to-[#eaf8f0] p-5 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span
+                aria-hidden="true"
+                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#dce5ff] to-[#d9f5e5] text-lg font-black text-[#173e88]"
+              >
+                ☰
+              </span>
+              <div>
+                <h3 className="text-sm font-black text-[#08094e]">Filter your view</h3>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  Narrow the inventory by sector, category, gas, geography or
+                  reporting period.
+                </p>
+              </div>
             </div>
-            <PublicSecondaryButton
+            <button
+              type="button"
               onClick={onReset}
               disabled={!hasActiveFilters}
-              className="inline-flex w-fit shrink-0 items-center gap-2 disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-[#D8DDE2] bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-[#08094e] shadow-sm transition hover:border-[#009B35] hover:text-[#009B35] disabled:cursor-not-allowed disabled:opacity-45"
             >
-              <FilterX size={14} aria-hidden="true" />
+              <FilterX size={13} aria-hidden="true" />
               Clear Filters
-            </PublicSecondaryButton>
+            </button>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-5">
             <FiltersPanel filters={filters} onFilterChange={onFilterChange} options={filterOptions} />
           </div>
+        </div>
 
-          <div className="mt-3">
-            <FilterStateSummary
-              filters={filters}
-              optionLabels={optionLabels}
-              hasActiveFilters={hasActiveFilters}
-              recordCount={recordCount}
-            />
-          </div>
+        <div className="mt-3">
+          <FilterStateSummary
+            data={data}
+            filters={filters}
+            optionLabels={optionLabels}
+            hasActiveFilters={hasActiveFilters}
+            recordCount={recordCount}
+          />
         </div>
 
         <SectorExplorerBlock
@@ -1733,54 +1743,59 @@ function MainVisualization({
 }
 function StatusNotice({ status, preview }) {
   const isPreview =
-    status?.code === "preview_dataset_not_official" || preview?.preview_batch_active;
-  const isOfficial = status?.code === "official_inventory_published" && !isPreview;
-  const isModelled = status?.code === "modelled_estimates_available" && !isPreview;
-  const isProvisional = status?.code === "provisional_tier1_estimate" && !isPreview;
+    status?.code === "preview_dataset_not_official" ||
+    Boolean(preview?.preview_batch_active);
+
+  const isOfficial =
+    status?.code === "official_inventory_published" && !isPreview;
+
+  const isProvisional =
+    status?.code === "provisional_tier1_estimate" && !isPreview;
+
+  const badgeLabel = isPreview ? "PREVIEW DATASET" : !isOfficial ? "DATA NOTE" : null;
+
+  const titleText = status?.label || "No public inventory data available";
+
+  const bodyText = isPreview
+    ? `These figures are an illustrative preview dataset for demonstrating the inventory explorer, not Kaduna State's official GHG inventory.${
+        preview?.genuine_record_count
+          ? ` ${preview.genuine_record_count} genuine approved ${
+              preview.genuine_record_count === 1 ? "entry" : "entries"
+            } exist separately and will be shown once the preview dataset is retired.`
+          : ""
+      }`
+    : isProvisional
+      ? "Estimated with IPCC 2006 Tier 1 default factors from satellite data (Google Earth Engine) and open statistics (FAOSTAT). Land use and forestry is held back until its maps are validated, and fossil fuel use is not yet estimated. Not an official submission."
+      : "Public inventory values on this page come from approved GHG entries only. Expected project reductions and modelled references are kept separate.";
+
+  if (isOfficial) {
+    return (
+      <div className="rounded-2xl border border-[#009B35]/30 bg-[#009B35]/10 px-5 py-4">
+        <div className="flex items-start gap-3">
+          <CheckCircle2 className="mt-0.5 shrink-0 text-[#009B35]" size={20} aria-hidden="true" />
+          <div>
+            <p className="text-sm font-black text-[#030454]">{titleText}</p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">{bodyText}</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div
-      className={`rounded-lg border px-5 py-4 ${
-        isOfficial
-          ? "border-[#009B35]/30 bg-[#009B35]/10"
-          : isPreview
-            ? "border-orange-300 bg-orange-50"
-            : isModelled || isProvisional
-              ? "border-[#F3F74B] bg-[#F3F74B]/25"
-              : "border-[#D8DDE2] bg-white"
-      }`}
-    >
+    <div className="relative rounded-2xl border border-[#ffe3a1] bg-gradient-to-br from-[#fffdf7] to-[#fff2ce] px-5 py-5 shadow-[0_12px_35px_rgba(2,6,45,0.13)]">
+      {badgeLabel ? (
+        <span className="absolute -top-2.5 right-4 rounded-md bg-[#ffc857] px-2 py-1 text-[8px] font-black uppercase tracking-[0.12em] text-[#5a3900] shadow-sm">
+          {badgeLabel}
+        </span>
+      ) : null}
       <div className="flex items-start gap-3">
-        {isOfficial ? (
-          <CheckCircle2
-            className="mt-0.5 shrink-0 text-[#009B35]"
-            size={20}
-            aria-hidden="true"
-          />
-        ) : (
-          <AlertTriangle
-            className={`mt-0.5 shrink-0 ${isPreview ? "text-orange-600" : "text-[#9A6B00]"}`}
-            size={20}
-            aria-hidden="true"
-          />
-        )}
+        <span className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[10px] bg-[#fff0c9] text-[#9A6B00]">
+          <AlertTriangle size={18} aria-hidden="true" />
+        </span>
         <div>
-          <p className="text-sm font-black text-[#030454]">
-            {status?.label || "No public inventory data available"}
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            {isPreview
-              ? `These figures are an illustrative preview dataset for demonstrating the inventory explorer, not Kaduna State's official GHG inventory.${
-                  preview?.genuine_record_count
-                    ? ` ${preview.genuine_record_count} genuine approved ${
-                        preview.genuine_record_count === 1 ? "entry" : "entries"
-                      } exist separately and will be shown once the preview dataset is retired.`
-                    : ""
-                }`
-              : isProvisional
-                ? "Estimated with IPCC 2006 Tier 1 default factors from satellite data (Google Earth Engine) and open statistics (FAOSTAT). Land use and forestry is held back until its maps are validated, and fossil fuel use is not yet estimated. Not an official submission."
-                : "Public inventory values on this page come from approved GHG entries only. Expected project reductions and modelled references are kept separate."}
-          </p>
+          <p className="text-sm font-black text-[#614914]">{titleText}</p>
+          <p className="mt-1 text-sm leading-6 text-[#74613b]">{bodyText}</p>
         </div>
       </div>
     </div>
@@ -1994,7 +2009,7 @@ function FiltersPanel({
 }) {
   return (
     <div className="min-w-0 grow">
-      <div className="grid min-w-0 gap-2 grid-cols-2 sm:grid-cols-4 xl:grid-cols-7">
+      <div className="grid min-w-0 gap-3 grid-cols-2 sm:grid-cols-4">
         <FilterField
           id="ghg-filter-sector"
           label="1. Sector"
@@ -2051,45 +2066,48 @@ function FiltersPanel({
   );
 }
 
-function FilterStateSummary({ filters, optionLabels, hasActiveFilters, recordCount }) {
+function FilterStateSummary({ data, filters, optionLabels, hasActiveFilters, recordCount }) {
   const countLabel =
     recordCount !== undefined
       ? `${recordCount} approved record${recordCount === 1 ? "" : "s"} selected.`
       : null;
 
-  if (!hasActiveFilters) {
-    return (
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#D8DDE2] bg-white/85 px-4 py-3 text-xs text-slate-500">
-        <strong className="text-[#030454]">{countLabel}</strong>
-        <span>No filters applied — showing the full approved dataset.</span>
-      </div>
-    );
-  }
+  const isPreview = Boolean(data?.preview?.preview_batch_active);
 
   const chips = [
+    isPreview && "Preview dataset",
     filters.sector !== ALL && `Sector: ${optionLabels.sector}`,
     filters.category !== ALL && `Category: ${optionLabels.category}`,
     filters.gas !== "CO2e" && `Gas: ${optionLabels.gas}`,
     filters.geography !== ALL && `Geography: ${optionLabels.geography}`,
-    `Years: ${optionLabels.year_from}-${optionLabels.year_to}`,
-    `Break out by: ${optionLabels.breakout}`,
   ].filter(Boolean);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#D8DDE2] bg-white/85 px-4 py-3">
-      {countLabel ? (
-        <strong className="shrink-0 text-xs text-[#030454]">{countLabel}</strong>
-      ) : null}
-      <ul className="flex flex-wrap gap-1.5" aria-label="Active filter summary">
-        {chips.map((chip) => (
-          <li
-            key={chip}
-            className="rounded-full border border-[#cdebd8] bg-[#e6f6ec] px-2.5 py-1 text-[11px] font-bold text-[#126e40]"
-          >
-            {chip}
-          </li>
-        ))}
-      </ul>
+      <div>
+        {countLabel ? (
+          <strong className="block text-xs text-[#030454]">{countLabel}</strong>
+        ) : null}
+        {chips.length > 0 ? (
+          <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Active filter summary">
+            {chips.map((chip) => (
+              <li
+                key={chip}
+                className="rounded-full border border-[#cdebd8] bg-[#e6f6ec] px-2.5 py-1 text-[11px] font-bold text-[#126e40]"
+              >
+                {chip}
+              </li>
+            ))}
+          </ul>
+        ) : !hasActiveFilters ? (
+          <span className="mt-1 block text-[11px] text-slate-500">
+            No filters applied — showing the full approved dataset.
+          </span>
+        ) : null}
+      </div>
+      <span className="shrink-0 text-xs text-slate-500">
+        Reporting period: {optionLabels.year_from}–{optionLabels.year_to}
+      </span>
     </div>
   );
 }
@@ -2365,40 +2383,55 @@ function AutomatedObservationsPanel({ data, change }) {
   );
 }
 
+const ABOUT_DATA_ICON_TONES = [
+  { bg: "bg-[#eaff5c]", text: "text-[#4d5b00]", glyph: "☰" },
+  { bg: "bg-[#8fe0f7]", text: "text-[#0b4a63]", glyph: "↗" },
+  { bg: "bg-[#c9b8f7]", text: "text-[#3c2a78]", glyph: "⌘" },
+  { bg: "bg-[#7fe0bb]", text: "text-[#0a5c3d]", glyph: "✓" },
+  { bg: "bg-[#ffcf6b]", text: "text-[#6b4700]", glyph: "↔" },
+  { bg: "bg-[#ffa8bd]", text: "text-[#7a1030]", glyph: "!" },
+];
+
 function AboutDataGrid({ items }) {
   return (
-    <section className="relative overflow-hidden bg-gradient-to-br from-[#030454] via-[#0b1455] to-[#063b35] px-4 py-12 text-white sm:px-8 lg:px-10">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -left-32 -top-32 h-80 w-80 rounded-full border border-[#F3F74B]/15"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -right-24 bottom-0 h-72 w-72 rounded-full bg-[#009B35] opacity-20 blur-[100px]"
-      />
+    <section className="bg-gradient-to-r from-[#fbf8d6] via-[#eaf7ea] to-[#fdf5e3] px-4 py-12 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-5xl rounded-[28px] border border-[#e7e9c9] bg-white/40 p-6 shadow-[0_14px_38px_rgba(16,32,74,0.05)] sm:p-10">
+        <div className="text-center">
+          <h2 className="font-['Playfair_Display'] text-3xl font-bold text-[#030454]">
+            About the data
+          </h2>
+          <p className="mx-auto mt-2 max-w-xl text-sm font-semibold leading-6 text-[#3c4a63]">
+            Understand the numbers before drawing conclusions.
+          </p>
+          <p className="mx-auto mt-1 max-w-2xl text-xs leading-6 text-slate-500">
+            Key guidance for interpreting the inventory, its units, methodology
+            and limitations.
+          </p>
+        </div>
 
-      <div className="relative mx-auto max-w-5xl text-center">
-        <h2 className="font-['Playfair_Display'] text-3xl font-bold">
-          About the data
-        </h2>
-        <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-white/75">
-          Key guidance for interpreting the inventory, its units, methodology
-          and limitations.
-        </p>
-      </div>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((item, index) => {
+            const tone = ABOUT_DATA_ICON_TONES[index % ABOUT_DATA_ICON_TONES.length];
 
-      <div className="relative mx-auto mt-8 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {items.map((item) => (
-          <div
-            key={item.title}
-            className="rounded-xl border border-white/15 bg-white/[0.07] p-5 text-left backdrop-blur-sm"
-          >
-            <h3 className="text-sm font-black leading-5 text-[#F3F74B]">
-              {item.title}
-            </h3>
-            <p className="mt-2 text-sm leading-6 text-white/80">{item.body}</p>
-          </div>
-        ))}
+            return (
+              <article
+                key={item.title}
+                className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-[0_6px_18px_rgba(16,25,77,0.05)]"
+              >
+                <span
+                  className={`grid h-9 w-9 place-items-center rounded-lg text-base font-black ${tone.bg} ${tone.text}`}
+                  aria-hidden="true"
+                >
+                  {tone.glyph}
+                </span>
+                <h3 className="mt-3 text-sm font-black leading-5 text-[#030454]">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-slate-500">{item.body}</p>
+              </article>
+            );
+          })}
+        </div>
       </div>
     </section>
   );
