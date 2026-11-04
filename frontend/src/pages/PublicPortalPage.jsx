@@ -49,24 +49,14 @@ const publicNewsItems = [
   },
 ];
 
+function hasNumber(value) {
+  return value !== null && value !== undefined && Number.isFinite(Number(value));
+}
+
 function formatNumber(value, maximumFractionDigits = 2) {
   return Number(value || 0).toLocaleString(undefined, {
     maximumFractionDigits,
   });
-}
-
-function formatCompactNumber(value) {
-  const number = Number(value || 0);
-
-  if (number >= 1_000_000) {
-    return `${formatNumber(number / 1_000_000, 2)}M`;
-  }
-
-  if (number >= 1_000) {
-    return `${formatNumber(number / 1_000, 1)}K`;
-  }
-
-  return formatNumber(number, 0);
 }
 
 function navigateTo(href) {
@@ -294,48 +284,58 @@ function ErrorNotice({ message }) {
   );
 }
 
+const SUMMARY_CARD_TONES = [
+  "bg-[#eef0ff] text-[#28266f] border-[#d9dcff]",
+  "bg-[#e8f8ef] text-[#075f37] border-[#c9eed8]",
+  "bg-[#fff0f1] text-[#982b43] border-[#ffd6dc]",
+];
+
 function MovingIntelligenceSummary({ summaryData }) {
   const climateRisk = summaryData?.climate_risk || {};
   const projects = summaryData?.projects || {};
 
   const summaryItems = [
     {
-      label: "Estimated Year",
-      value: climateRisk.latest_year || "Latest approved",
-      description: "Latest approved Climate Impact assessment",
+      label: "Latest Assessment Year",
+      value: hasNumber(climateRisk.latest_year)
+        ? String(climateRisk.latest_year)
+        : "Not available",
+      description: "Latest published Climate Impact assessment",
     },
     {
-      label: "Expected Project Beneficiaries",
-      value: formatCompactNumber(projects.total_expected_beneficiaries),
-      description: "Planned beneficiaries reported for public projects",
+      label: "Assessed LGAs",
+      value: hasNumber(climateRisk.total_lgas)
+        ? formatNumber(climateRisk.total_lgas, 0)
+        : "Not available",
+      description: "LGAs with published assessment records",
     },
     {
-      label: "Estimated GHG Reductions",
-      value: `${formatCompactNumber(
-        projects.total_expected_ghg_reduction_tco2e
-      )} tCO₂e`,
-      description: "Expected reductions from public project records",
+      label: "Public Climate Projects",
+      value: hasNumber(projects.total_projects)
+        ? formatNumber(projects.total_projects, 0)
+        : "Not available",
+      description: "Approved projects visible on the portal",
     },
   ];
 
   return (
-    <section className="border-y border-[#D8DDE2] bg-white px-4 py-6 sm:px-8 lg:px-10">
+    <section className="border-y border-[#D8DDE2] bg-[#F7F9FA] px-4 py-6 sm:px-8 lg:px-10">
       <div className="mx-auto grid max-w-[1536px] gap-4 sm:grid-cols-3">
-        {summaryItems.map((item) => (
+        {summaryItems.map((item, index) => (
           <div
             key={item.label}
-            className="flex h-full flex-col items-start gap-1 rounded-md border border-[#E6EAEC] px-6 py-5"
+            className={`flex h-full flex-col items-start gap-1 rounded-xl border px-6 py-5 ${SUMMARY_CARD_TONES[index]}`}
           >
-            <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">
-              <span className="h-3.5 w-3.5 shrink-0 rounded-full bg-[#009B35]" />
+            <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] opacity-80">
+              <span className="h-2 w-2 shrink-0 rounded-full bg-current" />
               {item.label}
             </span>
 
-            <strong className="block text-2xl font-black tracking-tight text-[#030454]">
+            <strong className="block text-3xl font-black tracking-tight">
               {item.value}
             </strong>
 
-            <span className="block text-xs leading-5 text-slate-500">
+            <span className="block text-xs leading-5 opacity-80">
               {item.description}
             </span>
           </div>
