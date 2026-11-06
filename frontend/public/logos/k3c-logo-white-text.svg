@@ -40,7 +40,7 @@ viewBox="0 0 17000 25000"
     .fil1 {fill:#5DB630}
     .fil2 {fill:#FDB708}
     .fil3 {fill:#FE7516}
-    .fnt1 {font-weight:800;font-size:445.86px;font-family:'MTN Brighter Sans ExtraBold'}
+    .fnt1 {font-weight:800;font-size:535px;font-family:'MTN Brighter Sans ExtraBold'}
     .fnt0 {font-weight:800;font-size:2331.6px;font-family:'MTN Brighter Sans ExtraBold'}
    ]]>
   </style>
@@ -96,7 +96,7 @@ viewBox="0 0 17000 25000"
     <text x="-10303.37" y="7809.83"  class="fil4 fnt0">C</text>
     <text x="-11725.65" y="7809.83"  class="fil0 fnt0">3</text>
     <text x="-13256.57" y="8380.28"  class="fil5 fnt1">KADUNA CLIMATE</text>
-    <text x="-13256.57" y="8822.25"  class="fil5 fnt1">CHANGE COMMAND </text>
+    <text x="-13256.57" y="9080.28"  class="fil5 fnt1">CHANGE COMMAND </text>
    </g>
   </g>
   <g id="_2406489502752">
@@ -148,7 +148,7 @@ viewBox="0 0 17000 25000"
     <text x="10409.59" y="5514.69"  class="fil6 fnt0">C</text>
     <text x="8987.31" y="5514.69"  class="fil0 fnt0">3</text>
     <text x="7456.4" y="6085.13"  class="fil6 fnt1">KADUNA CLIMATE</text>
-    <text x="7456.4" y="6527.11"  class="fil6 fnt1">CHANGE COMMAND </text>
+    <text x="7456.4" y="6785.13"  class="fil6 fnt1">CHANGE COMMAND </text>
    </g>
   </g>
   <g id="_2406489501648">
