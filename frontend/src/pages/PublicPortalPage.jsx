@@ -757,95 +757,6 @@ function ClimateActionPrioritySection() {
   );
 }
 
-const exploreClimateCards = [
-  {
-    key: "climate-intelligence",
-    icon: "⌁",
-    title: "Climate Intelligence",
-    description:
-      "Explore Kaduna's vegetation monitoring, climate risk profiles and data availability across 23 Local Government Areas.",
-    linkLabel: "Explore climate intelligence",
-    href: "/public/climate-risk",
-  },
-  {
-    key: "ghg-inventory",
-    icon: "◉",
-    title: "Greenhouse Gases (GHG) Inventory",
-    description:
-      "Review public greenhouse gas inventory summaries and sector-level emissions insights where approved data is available.",
-    linkLabel: "View GHG inventory",
-    href: "/public/ghg-inventory",
-  },
-  {
-    key: "projects",
-    icon: "↗",
-    title: "Climate Action Portfolio",
-    description:
-      "Discover climate action projects, intended beneficiaries, implementation status and estimated emissions outcomes.",
-    linkLabel: "View projects",
-    href: "/public/projects",
-  },
-];
-
-function ExploreClimateInfoCard({ item, index = 0 }) {
-  const [cardRef, cardVisible] = useScrollReveal();
-
-  return (
-    <article
-      ref={cardRef}
-      className={revealClasses(
-        cardVisible,
-        "flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-7 shadow-sm hover:-translate-y-1 hover:shadow-md"
-      )}
-      style={{ transitionDelay: cardVisible ? `${index * 80}ms` : "0ms" }}
-    >
-      <span className="grid h-12 w-12 place-items-center rounded-xl bg-[#009B35]/10 text-xl text-[#009B35]">
-        {item.icon}
-      </span>
-
-      <h3 className="mt-5 font-['Playfair_Display'] text-xl font-bold text-[#030454]">
-        {item.title}
-      </h3>
-
-      <p className="mt-2 flex-1 text-sm leading-7 text-slate-600">{item.description}</p>
-
-      <button
-        type="button"
-        onClick={() => navigateTo(item.href)}
-        className="mt-6 flex w-fit items-center gap-2 rounded-md bg-[#030454] px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:bg-[#060a7a]"
-      >
-        {item.linkLabel}
-        <span aria-hidden="true">→</span>
-      </button>
-    </article>
-  );
-}
-
-function ExploreClimateInfoSection() {
-  return (
-    <section className="bg-white px-4 py-16 text-center sm:px-8 lg:px-10 lg:py-20">
-      <div className="mx-auto max-w-7xl">
-        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#009B35]">
-          Explore the evidence
-        </p>
-        <h2 className="mx-auto mt-3 max-w-2xl font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
-          Explore public climate information
-        </h2>
-        <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
-          Move from high-level indicators to the datasets, projects and evidence
-          behind climate decisions.
-        </p>
-
-        <div className="mt-10 grid gap-6 text-left sm:grid-cols-3">
-          {exploreClimateCards.map((item, index) => (
-            <ExploreClimateInfoCard key={item.key} item={item} index={index} />
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
 // Per-card accent (green / violet / gold), matching the approved V10
 // reference's --news-accent variants and its color-mix()-derived tints
 // (precomputed here since Tailwind can't resolve arbitrary values built
@@ -1193,7 +1104,6 @@ function PublicPortalPageContent({ motionEnabled, onToggleMotion }) {
         <>
           <MovingIntelligenceSummary summaryData={safeSummaryData} />
           <ClimateActionPrioritySection />
-          <ExploreClimateInfoSection />
           <NewsPolicySection />
           <PartnersSection />
           <PublicDataNotice />
