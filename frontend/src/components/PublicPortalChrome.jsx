@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrowRight } from "lucide-react";
 import { isMilestoneOneDemo } from "../config/demoMode";
+import { K3CWhiteTextLogo } from "./K3CLogo";
 
 // Shared interaction treatment for every public-facing primary/secondary CTA:
 // subtle lift + shadow on hover, settle on press, visible focus-visible ring,
@@ -106,18 +107,9 @@ function PublicHeaderBrand({ compact = false }) {
       className="flex w-fit max-w-full items-center gap-3 text-left"
       aria-label="Go to public home"
     >
-      <img
-        src="/logos/k3c-icon.png"
-        alt="K3C"
-        className={`shrink-0 object-contain ${
-          compact ? "h-12 w-12" : "h-12 w-12"
-        }`}
-      />
+      <K3CWhiteTextLogo className={compact ? "h-10" : "h-12"} />
 
       <span className="min-w-0">
-        <span className="block text-sm font-black uppercase tracking-[0.08em] text-white">
-          K3C
-        </span>
         <span className="block text-xs leading-5 text-white/65">
           Climate Impact, Evidence and Reporting Portal
         </span>
@@ -438,14 +430,7 @@ export function PublicPortalFooter() {
       <div className="mx-auto max-w-[1536px]">
         <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <img
-              src="/logos/k3c-icon.png"
-              alt="K3C"
-              className="h-5 w-5 shrink-0 object-contain"
-            />
-            <p className="text-[11px] font-black uppercase tracking-[0.06em] text-white">
-              K3C
-            </p>
+            <K3CWhiteTextLogo className="h-7" />
           </div>
 
           <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">

@@ -63,6 +63,7 @@ import {
   getAtlasStatusBarNoDataMessage,
   getAtlasVariableStatistic,
 } from "../config/climateAtlasLayers";
+import { K3CColouredLogo } from "../components/K3CLogo";
 import LgaClimateBrief from "../components/LgaClimateBrief";
 import RecommendedActions from "../components/RecommendedActions";
 import { recommendClimateActions } from "../decision-support/climateRecommendations.js";
@@ -2465,8 +2466,8 @@ export default function PublicClimateAtlasPage() {
 
       <header className={`flex h-12 shrink-0 items-center justify-between border-b border-[#E6EAEC] bg-white px-5${isExportMode ? " hidden" : ""}`}>
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded bg-[#030454] text-xs font-black text-white">KS</div>
-          <h1 className="text-sm font-black">Kaduna Climate Hazard Assessment and Risk Tracking - K3C</h1>
+          <K3CColouredLogo className="h-8" />
+          <h1 className="text-sm font-black">Kaduna Climate Hazard Assessment and Risk Tracking</h1>
         </div>
 
         <div className="text-center text-sm font-black text-[#030454]">

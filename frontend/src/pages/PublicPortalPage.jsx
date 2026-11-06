@@ -9,6 +9,7 @@ import {
 import { getPublicPortalSummary } from "../services/api";
 import { isMilestoneOneDemo } from "../config/demoMode";
 import { useScrollReveal, revealClasses, useMotionEnabled } from "../hooks/useScrollReveal";
+import { K3CWhiteTextLogo } from "../components/K3CLogo";
 import { MotionProvider } from "../hooks/MotionContext";
 
 const partnerLogos = [
@@ -104,16 +105,9 @@ function HomeTopNav() {
           onClick={() => goTo("/public")}
           className="flex items-center gap-3 text-left"
         >
-          <img
-            src="/logos/k3c-icon.png"
-            alt="K3C"
-            className="h-12 w-12 object-contain"
-          />
+          <K3CWhiteTextLogo className="h-12" />
 
           <span>
-            <span className="block text-sm font-black uppercase tracking-[0.08em]">
-              K3C
-            </span>
             <span className="block text-xs text-white/65">
               Climate Impact, Evidence and Reporting Portal
             </span>

@@ -1,20 +1,16 @@
+import { K3CColouredLogo, K3CWhiteTextLogo } from "./K3CLogo";
+
 export default function OfficialLogo({
   variant = "light",
   className = "",
   compact = false,
 }) {
-  const logoSrc =
-    variant === "dark"
-      ? "/logos/k3c-logo-colour.png"
-      : "/logos/k3c-logo-white-text.png";
+  const heightClass = compact ? "h-12" : "h-14 md:h-16";
+  const combinedClassName = `${heightClass} ${className}`;
 
-  return (
-    <img
-      src={logoSrc}
-      alt="K3C"
-      className={`block w-auto object-contain ${
-        compact ? "h-12" : "h-14 md:h-16"
-      } ${className}`}
-    />
+  return variant === "dark" ? (
+    <K3CColouredLogo className={combinedClassName} />
+  ) : (
+    <K3CWhiteTextLogo className={combinedClassName} />
   );
 }
