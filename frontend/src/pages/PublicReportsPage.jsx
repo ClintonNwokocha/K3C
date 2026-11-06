@@ -10,6 +10,7 @@ import {
   PublicSectionHeading,
 } from "../components/PublicPortalChrome";
 import { getPublicReportDocuments } from "../services/api";
+import { useScrollReveal, revealClasses } from "../hooks/useScrollReveal";
 import { PUBLIC_EVENT_NAMES, trackPublicEvent } from "../config/analytics";
 
 const reportTypeOptions = [
@@ -234,10 +235,16 @@ const SUMMARY_CARD_TONES = [
 
 function SummaryCard({ label, value, tone }) {
   const isAvailable = value !== null && value !== undefined;
+  const [cardRef, cardVisible] = useScrollReveal();
 
   return (
     <div
-      className={`flex h-full flex-col items-start gap-1 rounded-xl border px-6 py-5 ${SUMMARY_CARD_TONES[tone]}`}
+      ref={cardRef}
+      className={revealClasses(
+        cardVisible,
+        `flex h-full flex-col items-start gap-1 rounded-xl border px-6 py-5 ${SUMMARY_CARD_TONES[tone]}`
+      )}
+      style={{ transitionDelay: cardVisible ? `${tone * 90}ms` : "0ms" }}
     >
       <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] opacity-80">
         <span className="h-2 w-2 shrink-0 rounded-full bg-current" />
@@ -319,9 +326,18 @@ const EVIDENCE_PATHS = [
   },
 ];
 
-function EvidencePathCard({ item }) {
+function EvidencePathCard({ item, index = 0 }) {
+  const [cardRef, cardVisible] = useScrollReveal();
+
   return (
-    <article className="flex min-h-[220px] flex-col rounded-2xl border border-[#D8DDE2] bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+    <article
+      ref={cardRef}
+      className={revealClasses(
+        cardVisible,
+        "flex min-h-[220px] flex-col rounded-2xl border border-[#D8DDE2] bg-white p-5 shadow-sm hover:-translate-y-1 hover:shadow-md"
+      )}
+      style={{ transitionDelay: cardVisible ? `${index * 80}ms` : "0ms" }}
+    >
       <div className="flex items-center justify-between">
         <span className={`grid h-11 w-11 place-items-center rounded-xl text-lg font-black ${item.icon}`}>
           {item.number}
@@ -355,8 +371,8 @@ function ExploreEvidenceSection() {
       />
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {EVIDENCE_PATHS.map((item) => (
-          <EvidencePathCard key={item.key} item={item} />
+        {EVIDENCE_PATHS.map((item, index) => (
+          <EvidencePathCard key={item.key} item={item} index={index} />
         ))}
       </div>
     </PublicSection>
@@ -452,21 +468,33 @@ const AUDIENCE_CARDS = [
   },
 ];
 
+function AudienceCard({ card, index }) {
+  const [cardRef, cardVisible] = useScrollReveal();
+
+  return (
+    <article
+      ref={cardRef}
+      className={revealClasses(
+        cardVisible,
+        "rounded-2xl border border-[#D8DDE2] bg-white p-5 shadow-sm hover:-translate-y-1 hover:shadow-md"
+      )}
+      style={{ transitionDelay: cardVisible ? `${index * 80}ms` : "0ms" }}
+    >
+      <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[#009B35]">
+        {card.label}
+      </span>
+      <h3 className="mt-1.5 text-base font-black leading-snug text-[#030454]">{card.title}</h3>
+      <p className="mt-2 text-xs leading-6 text-slate-600">{card.description}</p>
+    </article>
+  );
+}
+
 function AudienceSection() {
   return (
     <PublicSection className="border-b border-[#D8DDE2] bg-white">
       <div className="grid gap-4 sm:grid-cols-3">
-        {AUDIENCE_CARDS.map((card) => (
-          <article
-            key={card.key}
-            className="rounded-2xl border border-[#D8DDE2] bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md"
-          >
-            <span className="text-[9px] font-black uppercase tracking-[0.18em] text-[#009B35]">
-              {card.label}
-            </span>
-            <h3 className="mt-1.5 text-base font-black leading-snug text-[#030454]">{card.title}</h3>
-            <p className="mt-2 text-xs leading-6 text-slate-600">{card.description}</p>
-          </article>
+        {AUDIENCE_CARDS.map((card, index) => (
+          <AudienceCard key={card.key} card={card} index={index} />
         ))}
       </div>
     </PublicSection>
@@ -568,10 +596,10 @@ function CategoryPillRow({ activeType, total, items, onSelect }) {
         type="button"
         onClick={() => onSelect("all")}
         aria-pressed={activeType === "all"}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+        className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition motion-safe:active:scale-95 ${
           activeType === "all"
             ? "border-[#030454] bg-[#030454] text-white"
-            : "border-[#D8DDE2] bg-white text-slate-600 hover:border-[#009B35]/45"
+            : "border-[#D8DDE2] bg-white text-slate-600 hover:-translate-y-0.5 hover:border-[#009B35]/45"
         }`}
       >
         All reports
@@ -584,10 +612,10 @@ function CategoryPillRow({ activeType, total, items, onSelect }) {
           type="button"
           onClick={() => onSelect(item.value)}
           aria-pressed={activeType === item.value}
-          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition ${
+          className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition motion-safe:active:scale-95 ${
             activeType === item.value
               ? "border-[#030454] bg-[#030454] text-white"
-              : "border-[#D8DDE2] bg-white text-slate-600 hover:border-[#009B35]/45"
+              : "border-[#D8DDE2] bg-white text-slate-600 hover:-translate-y-0.5 hover:border-[#009B35]/45"
           }`}
         >
           {item.label}
@@ -682,6 +710,11 @@ function ReportDetailsModal({ report, onClose, triggerElement }) {
   const closeButtonRef = useRef(null);
   const onCloseRef = useRef(onClose);
   const triggerElementRef = useRef(triggerElement);
+  // The parent keys this component by report id, so each report opened
+  // is a fresh mount and this always starts false -- no reduced-motion
+  // branch needed here since the enter transition is pure opacity/scale
+  // and motion-reduce: below removes it without changing end state.
+  const [isEntered, setIsEntered] = useState(false);
 
   useEffect(() => {
     onCloseRef.current = onClose;
@@ -696,8 +729,10 @@ function ReportDetailsModal({ report, onClose, triggerElement }) {
   // triggered by an unrelated parent re-render changing onClose's identity.
   useEffect(() => {
     closeButtonRef.current?.focus();
+    const frame = requestAnimationFrame(() => setIsEntered(true));
 
     return () => {
+      cancelAnimationFrame(frame);
       triggerElementRef.current?.focus();
     };
   }, []);
@@ -763,7 +798,9 @@ function ReportDetailsModal({ report, onClose, triggerElement }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-[#060a35]/70 p-5 backdrop-blur-sm"
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-[#060a35]/70 p-5 backdrop-blur-sm transition-opacity duration-300 motion-reduce:transition-none ${
+        isEntered ? "opacity-100" : "opacity-0"
+      }`}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -773,7 +810,9 @@ function ReportDetailsModal({ report, onClose, triggerElement }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="report-modal-title"
-        className="max-h-[90vh] w-full max-w-xl overflow-auto rounded-2xl bg-white shadow-2xl"
+        className={`max-h-[90vh] w-full max-w-xl overflow-auto rounded-2xl bg-white shadow-2xl transition-[transform,opacity] duration-300 ease-out motion-reduce:transition-none motion-reduce:scale-100 ${
+          isEntered ? "scale-100 opacity-100" : "scale-95 opacity-0"
+        }`}
       >
         <div className="flex items-start justify-between gap-4 bg-[#030454] px-6 py-5 text-white">
           <div>
@@ -852,7 +891,7 @@ function ReportRow({ report, onViewDetails }) {
   const metaParts = buildReportMetaParts(report);
 
   return (
-    <div className="flex flex-col gap-3 border-b border-[#E6EAEC] bg-white px-4 py-4 last:border-b-0 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+    <div className="flex flex-col gap-3 border-b border-[#E6EAEC] bg-white px-4 py-4 transition last:border-b-0 hover:bg-[#F7F9FA] sm:flex-row sm:items-center sm:justify-between sm:px-5">
       <div className="min-w-0">
         <p className="text-balance text-base font-bold leading-snug text-[#030454]">
           {report.title}
@@ -1221,6 +1260,7 @@ export default function PublicReportsPage() {
 
       {selectedReport && (
         <ReportDetailsModal
+          key={selectedReport.id || selectedReport.title}
           report={selectedReport}
           onClose={handleCloseDetails}
           triggerElement={modalTriggerElement}

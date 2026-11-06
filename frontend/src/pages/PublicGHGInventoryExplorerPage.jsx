@@ -21,6 +21,7 @@ import {
   PublicSection,
 } from "../components/PublicPortalChrome";
 import { getPublicGHGInventory } from "../services/api";
+import { useScrollReveal, revealClasses } from "../hooks/useScrollReveal";
 import GHGSectorTransitionDashboard from "../components/GHGSectorTransitionDashboard";
 import GHGInventoryNotes from "../components/GHGInventoryNotes";
 import { GHG_CSV_NOTE as CSV_NOTE } from "../config/ghgInventoryNotes.js";
@@ -857,9 +858,9 @@ function ChartLegend({ chart, visibleKeys, onToggleSeries, onShowAll }) {
   if (series.length === 0) return null;
 
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
+    <div className="mt-4 flex min-w-0 flex-wrap items-center gap-3 text-sm">
       <ul
-        className="flex flex-wrap gap-x-3 gap-y-2"
+        className="flex min-w-0 flex-wrap gap-x-3 gap-y-2"
         aria-label="Toggle visible chart series"
       >
         {series.map((seriesRow, index) => {
@@ -867,13 +868,13 @@ function ChartLegend({ chart, visibleKeys, onToggleSeries, onShowAll }) {
           const isOnlyVisible = isVisible && visibleKeys.length <= 1;
 
           return (
-            <li key={seriesRow.key} className="inline-flex max-w-full">
+            <li key={seriesRow.key} className="inline-flex min-w-0 max-w-full">
               <button
                 type="button"
                 onClick={() => onToggleSeries(seriesRow.key)}
                 disabled={isOnlyVisible}
                 aria-pressed={isVisible}
-                className={`inline-flex max-w-full items-center gap-2 rounded-md border px-2.5 py-1.5 text-left font-bold transition focus:outline-none focus:ring-2 focus:ring-[#009B35]/25 motion-reduce:transition-none ${
+                className={`inline-flex max-w-[78vw] items-center gap-2 rounded-md border px-2.5 py-1.5 text-left font-bold transition focus:outline-none focus:ring-2 focus:ring-[#009B35]/25 motion-reduce:transition-none sm:max-w-full ${
                   isVisible
                     ? "border-[#D8DDE2] bg-white text-[#030454]"
                     : "border-[#E6EAEC] bg-[#F7F9FA] text-slate-500 opacity-65"
@@ -1812,10 +1813,16 @@ const METRIC_TONE_CLASSES = [
 
 function MetricCard({ label, value, helper, tone = 0 }) {
   const toneClass = METRIC_TONE_CLASSES[tone % METRIC_TONE_CLASSES.length];
+  const [cardRef, cardVisible] = useScrollReveal();
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-xl border p-5 transition duration-200 motion-safe:hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(8,12,65,0.1)] ${toneClass}`}
+      ref={cardRef}
+      className={revealClasses(
+        cardVisible,
+        `group relative overflow-hidden rounded-xl border p-5 duration-200 motion-safe:hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(8,12,65,0.1)] ${toneClass}`
+      )}
+      style={{ transitionDelay: cardVisible ? `${tone * 90}ms` : "0ms" }}
     >
       <span
         aria-hidden="true"
@@ -1872,12 +1879,16 @@ function SummaryMetrics({ summary }) {
 }
 
 function ExplorerHeader({ data }) {
+  const [badgeRef, badgeVisible] = useScrollReveal();
+  const [titleRef, titleVisible] = useScrollReveal();
+  const [introRef, introVisible] = useScrollReveal();
+
   return (
     <>
       <section className="relative overflow-hidden bg-gradient-to-br from-[#030454] via-[#0b1455] to-[#063b35] px-4 py-10 text-white sm:px-8 lg:px-10 lg:py-12">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute -right-40 -top-56 h-[34rem] w-[34rem] rounded-full border border-[#009B35]/25"
+          className="pointer-events-none absolute -right-40 -top-56 h-[34rem] w-[34rem] animate-[spin_38s_linear_infinite] rounded-full border border-[#009B35]/25 motion-reduce:animate-none"
         />
         <div
           aria-hidden="true"
@@ -1885,24 +1896,40 @@ function ExplorerHeader({ data }) {
         />
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute right-[18%] -bottom-56 h-80 w-80 rounded-full bg-[#009B35] opacity-20 blur-[90px]"
+          className="pointer-events-none absolute right-[18%] -bottom-56 h-80 w-80 animate-pulse rounded-full bg-[#009B35] opacity-20 blur-[90px] motion-reduce:animate-none"
         />
 
         <div className="relative mx-auto grid max-w-[1536px] gap-6 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-start">
           <div>
-            <PublicBadge
-              active
-              className="border-[#F3F74B]/40 bg-white/10 text-[#F3F74B]"
-            >
-              <CheckCircle2 size={14} aria-hidden="true" />
-              Public GHG Inventory
-            </PublicBadge>
+            <div ref={badgeRef} className={revealClasses(badgeVisible, "inline-block")}>
+              <PublicBadge
+                active
+                className="border-[#F3F74B]/40 bg-white/10 text-[#F3F74B]"
+              >
+                <CheckCircle2 size={14} aria-hidden="true" />
+                Public GHG Inventory
+              </PublicBadge>
+            </div>
 
-            <h1 className="mt-5 text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-white sm:text-5xl">
+            <h1
+              ref={titleRef}
+              className={revealClasses(
+                titleVisible,
+                "mt-5 text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-white sm:text-5xl"
+              )}
+              style={{ transitionDelay: titleVisible ? "80ms" : "0ms" }}
+            >
               Greenhouse Gas Inventory Explorer
             </h1>
 
-            <p className="mt-4 max-w-3xl text-pretty text-base leading-8 text-white/78">
+            <p
+              ref={introRef}
+              className={revealClasses(
+                introVisible,
+                "mt-4 max-w-3xl text-pretty text-base leading-8 text-white/78"
+              )}
+              style={{ transitionDelay: introVisible ? "160ms" : "0ms" }}
+            >
               Explore approved greenhouse gas inventory information by
               reporting year, sector, emissions source and gas. Public values
               reflect the publication status returned by the backend.
@@ -2120,17 +2147,24 @@ const SECTOR_SYMBOLS = {
   lulucf: "♧",
 };
 
-function SectorTile({ sector, isSelected, onSelect }) {
+function SectorTile({ sector, isSelected, onSelect, index = 0 }) {
+  const [tileRef, tileVisible] = useScrollReveal();
+
   return (
     <button
+      ref={tileRef}
       type="button"
       onClick={onSelect}
       aria-pressed={isSelected}
-      className={`flex min-w-0 flex-col items-start gap-1.5 rounded-2xl border p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-[#009B35]/25 motion-safe:hover:-translate-y-0.5 ${
-        isSelected
-          ? "border-2 border-[#009B35] bg-gradient-to-br from-[#e7f8ee] to-white shadow-[0_10px_24px_rgba(7,139,75,0.16)]"
-          : "border-[#e0e7f1] bg-white hover:border-[#009B35]/45 hover:shadow-[0_8px_18px_rgba(16,25,77,0.08)]"
-      }`}
+      style={{ transitionDelay: tileVisible ? `${index * 60}ms` : "0ms" }}
+      className={revealClasses(
+        tileVisible,
+        `flex min-w-0 flex-col items-start gap-1.5 rounded-2xl border p-4 text-left focus:outline-none focus:ring-2 focus:ring-[#009B35]/25 motion-safe:hover:-translate-y-0.5 ${
+          isSelected
+            ? "border-2 border-[#009B35] bg-gradient-to-br from-[#e7f8ee] to-white shadow-[0_10px_24px_rgba(7,139,75,0.16)]"
+            : "border-[#e0e7f1] bg-white hover:border-[#009B35]/45 hover:shadow-[0_8px_18px_rgba(16,25,77,0.08)]"
+        }`
+      )}
     >
       <span
         className={`grid h-9 w-9 place-items-center rounded-xl text-lg font-black ${
@@ -2251,10 +2285,11 @@ function SectorExplorerBlock({ data, filters, filterOptions, onFilterChange }) {
       </div>
 
       <div className="mt-3 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
-        {tiles.map((tile) => (
+        {tiles.map((tile, index) => (
           <SectorTile
             key={tile.sector}
             sector={tile}
+            index={index}
             isSelected={filters.sector === tile.sector}
             onSelect={() =>
               onFilterChange("sector", filters.sector === tile.sector ? ALL : tile.sector)
@@ -2282,16 +2317,24 @@ function SectorExplorerBlock({ data, filters, filterOptions, onFilterChange }) {
   );
 }
 
-function ObservationCard({ label, value, detail, accent = "green" }) {
+function ObservationCard({ label, value, detail, accent = "green", index = 0 }) {
   const accents = {
     green: { bar: "bg-[#078b4b]", icon: "bg-[#dff7e9] text-[#087446]" },
     violet: { bar: "bg-[#6b5bd2]", icon: "bg-[#eee9ff] text-[#5b48b8]" },
     gold: { bar: "bg-[#d99718]", icon: "bg-[#fff0cf] text-[#925800]" },
   };
   const tone = accents[accent] || accents.green;
+  const [cardRef, cardVisible] = useScrollReveal();
 
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-[0_6px_18px_rgba(12,23,74,0.05)] transition motion-safe:hover:-translate-y-0.5">
+    <div
+      ref={cardRef}
+      style={{ transitionDelay: cardVisible ? `${index * 90}ms` : "0ms" }}
+      className={revealClasses(
+        cardVisible,
+        "relative overflow-hidden rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-[0_6px_18px_rgba(12,23,74,0.05)] motion-safe:hover:-translate-y-0.5"
+      )}
+    >
       <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-1 ${tone.bar}`} />
       <p className="text-[9px] font-black uppercase tracking-[0.12em] text-slate-500">
         {label}
@@ -2341,6 +2384,7 @@ function AutomatedObservationsPanel({ data, change }) {
 
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <ObservationCard
+          index={0}
           accent="green"
           label="Largest sector, displayed period"
           value={leadingSector?.sector_label || "Not enough data"}
@@ -2351,6 +2395,7 @@ function AutomatedObservationsPanel({ data, change }) {
           }
         />
         <ObservationCard
+          index={1}
           accent="violet"
           label="Largest increase among displayed series"
           value={largestIncrease ? largestIncrease.label : "No increasing series"}
@@ -2363,6 +2408,7 @@ function AutomatedObservationsPanel({ data, change }) {
           }
         />
         <ObservationCard
+          index={2}
           accent="gold"
           label="Displayed subtotal trend"
           value={change ? formatChangeSymbol(change.gross) : "Not available"}
@@ -2414,9 +2460,26 @@ function AboutDataGrid({ items }) {
             const tone = ABOUT_DATA_ICON_TONES[index % ABOUT_DATA_ICON_TONES.length];
 
             return (
+              <AboutDataCard key={item.title} item={item} tone={tone} index={index} />
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AboutDataCard({ item, tone, index }) {
+  const [cardRef, cardVisible] = useScrollReveal();
+
+  return (
               <article
-                key={item.title}
-                className="rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-[0_6px_18px_rgba(16,25,77,0.05)]"
+                ref={cardRef}
+                style={{ transitionDelay: cardVisible ? `${index * 70}ms` : "0ms" }}
+                className={revealClasses(
+                  cardVisible,
+                  "rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-[0_6px_18px_rgba(16,25,77,0.05)] transition motion-safe:hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,25,77,0.1)]"
+                )}
               >
                 <span
                   className={`grid h-9 w-9 place-items-center rounded-lg text-base font-black ${tone.bg} ${tone.text}`}
@@ -2429,11 +2492,6 @@ function AboutDataGrid({ items }) {
                 </h3>
                 <p className="mt-2 text-sm leading-6 text-slate-500">{item.body}</p>
               </article>
-            );
-          })}
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -2487,28 +2545,7 @@ function SourcesReferencesSection() {
 
         <div className="mt-5 grid gap-4 md:grid-cols-3">
           {sources.map((source, index) => (
-            <div
-              key={source.title}
-              className={`rounded-xl border p-4 transition hover:-translate-y-1 hover:shadow-[0_9px_20px_rgba(8,13,82,0.06)] ${SOURCE_CARD_TONES[index]}`}
-            >
-              <span
-                className={`mb-2 inline-grid h-8 w-8 place-items-center rounded-[10px] text-sm font-black ${SOURCE_ICON_TONES[index]}`}
-              >
-                {index + 1}
-              </span>
-              <p className="text-sm font-black text-[#030454]">{source.title}</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">{source.body}</p>
-              {source.href ? (
-                <a
-                  href={source.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="mt-3 inline-flex text-xs font-bold text-[#009B35] hover:text-[#00842e]"
-                >
-                  {source.linkLabel}
-                </a>
-              ) : null}
-            </div>
+            <SourceCard key={source.title} source={source} index={index} />
           ))}
         </div>
         </PublicCard>
@@ -2517,11 +2554,82 @@ function SourcesReferencesSection() {
   );
 }
 
+function SourceCard({ source, index }) {
+  const [cardRef, cardVisible] = useScrollReveal();
+
+  return (
+    <div
+      ref={cardRef}
+      style={{ transitionDelay: cardVisible ? `${index * 90}ms` : "0ms" }}
+      className={revealClasses(
+        cardVisible,
+        `rounded-xl border p-4 motion-safe:hover:-translate-y-1 hover:shadow-[0_9px_20px_rgba(8,13,82,0.06)] ${SOURCE_CARD_TONES[index]}`
+      )}
+    >
+      <span
+        className={`mb-2 inline-grid h-8 w-8 place-items-center rounded-[10px] text-sm font-black ${SOURCE_ICON_TONES[index]}`}
+      >
+        {index + 1}
+      </span>
+      <p className="text-sm font-black text-[#030454]">{source.title}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-600">{source.body}</p>
+      {source.href ? (
+        <a
+          href={source.href}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex text-xs font-bold text-[#009B35] hover:text-[#00842e]"
+        >
+          {source.linkLabel}
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
 // Matches ClimateProject.Sector / GHGInventoryEntry.Sector shared sector
 // codes (backend/projects/models.py, backend/ghg/models.py). Only these are
 // accepted from ?sector= — anything else falls back to ALL rather than being
 // passed through unvalidated.
 const VALID_SECTOR_PARAMS = new Set(["energy", "agriculture", "waste", "ippu", "lulucf"]);
+
+function ScrollProgressBar() {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    let frame = null;
+
+    function handleScroll() {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        const scrollTop = window.scrollY;
+        const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+        setProgress(scrollable > 0 ? Math.min(1, Math.max(0, scrollTop / scrollable)) : 0);
+      });
+    }
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  return (
+    <div
+      aria-hidden="true"
+      className="fixed left-0 top-0 z-[60] h-1 w-full bg-transparent"
+    >
+      <div
+        className="h-full bg-[#009B35] transition-[width] duration-150 ease-out motion-reduce:transition-none"
+        style={{ width: `${progress * 100}%` }}
+      />
+    </div>
+  );
+}
 
 export default function PublicGHGInventoryExplorerPage() {
   // Full page load from e.g. /public/ghg-inventory?sector=agriculture&from_lga=Zaria
@@ -2756,6 +2864,8 @@ export default function PublicGHGInventoryExplorerPage() {
 
   return (
     <main className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#030454]">
+      <ScrollProgressBar />
+
       <PublicPortalHeader
         activePage="ghg"
         compact

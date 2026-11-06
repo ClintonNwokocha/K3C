@@ -8,6 +8,7 @@ import {
 } from "../components/PublicPortalChrome";
 import { getPublicPortalSummary } from "../services/api";
 import { isMilestoneOneDemo } from "../config/demoMode";
+import { useScrollReveal, revealClasses } from "../hooks/useScrollReveal";
 
 const partnerLogos = [
   {
@@ -130,28 +131,64 @@ function HomeTopNav() {
 }
 
 function HomeHero() {
+  const [eyebrowRef, eyebrowVisible] = useScrollReveal();
+  const [titleRef, titleVisible] = useScrollReveal();
+  const [introRef, introVisible] = useScrollReveal();
+
   return (
     <section className="relative overflow-hidden bg-[#030454] px-4 py-12 text-white sm:px-8 sm:py-14 lg:px-10 lg:py-16">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(0,155,53,0.24),transparent_28%),radial-gradient(circle_at_20%_20%,rgba(243,247,75,0.12),transparent_24%),linear-gradient(120deg,#030454_0%,#07105f_48%,#0f3f4b_100%)]" />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(3,4,84,0.92),rgba(3,4,84,0.72),rgba(3,4,84,0.42))]" />
 
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -right-40 -top-56 h-[34rem] w-[34rem] animate-[spin_38s_linear_infinite] rounded-full border border-[#F3F74B]/20 motion-reduce:animate-none"
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[14%] -bottom-40 h-72 w-72 animate-pulse rounded-full bg-[#009B35] opacity-20 blur-[90px] motion-reduce:animate-none"
+      />
+
       <div className="relative mx-auto max-w-[1536px]">
         <div className="max-w-5xl">
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-[#F3F74B]">
+          <p
+            ref={eyebrowRef}
+            className={revealClasses(
+              eyebrowVisible,
+              "text-xs font-black uppercase tracking-[0.22em] text-[#F3F74B]"
+            )}
+          >
             Kaduna Public Climate Evidence Portal
           </p>
 
-          <h1 className="mt-5 max-w-5xl font-['Playfair_Display'] text-[2.65rem] font-bold leading-[0.98] tracking-[-0.05em] text-white sm:text-[3.6rem] lg:text-[4.9rem]">
+          <h1
+            ref={titleRef}
+            className={revealClasses(
+              titleVisible,
+              "mt-5 max-w-5xl font-['Playfair_Display'] text-[2.65rem] font-bold leading-[0.98] tracking-[-0.05em] text-white sm:text-[3.6rem] lg:text-[4.9rem]"
+            )}
+            style={{ transitionDelay: titleVisible ? "80ms" : "0ms" }}
+          >
             Climate intelligence for decision support
           </h1>
 
-          <p className="mt-5 max-w-3xl text-base leading-7 text-white/78 sm:text-lg sm:leading-8">
+          <p
+            ref={introRef}
+            className={revealClasses(
+              introVisible,
+              "mt-5 max-w-3xl text-base leading-7 text-white/78 sm:text-lg sm:leading-8"
+            )}
+            style={{ transitionDelay: introVisible ? "160ms" : "0ms" }}
+          >
             {isMilestoneOneDemo
              ? "KCCC brings climate and environmental evidence together for Kaduna State, integrating satellite-derived indicators, LGA-level risk context, and climate-action signals covering all 23 LGAs."
     : "KCCC brings satellite-derived climate data, Climate Impact, greenhouse gas information, climate projects, and public evidence for Kaduna State into one portal covering all 23 LGAs."}
           </p>
 
-          <div className="mt-8 flex">
+          <div
+            className={revealClasses(introVisible, "mt-8 flex")}
+            style={{ transitionDelay: introVisible ? "220ms" : "0ms" }}
+          >
             <PublicPrimaryButton
               onClick={() => navigateTo("/public/climate-atlas")}
               showArrow
@@ -185,10 +222,13 @@ const aboutPillars = [
 ];
 
 function WhyKcccSection() {
+  const [copyRef, copyVisible] = useScrollReveal();
+  const [panelRef, panelVisible] = useScrollReveal();
+
   return (
     <section className="border-b border-[#D8DDE2] bg-gradient-to-br from-[#eef2ff] via-[#e2f5ec] to-[#f6fbd4] px-4 py-12 sm:px-8 sm:py-16 lg:px-10">
       <div className="mx-auto grid max-w-[1536px] gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-16">
-        <div>
+        <div ref={copyRef} className={revealClasses(copyVisible)}>
           <p className="flex items-center gap-2.5 text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
             <span className="h-[3px] w-6 rounded-full bg-[#009B35]" />
             Why KCCC
@@ -213,8 +253,13 @@ function WhyKcccSection() {
         </div>
 
         <aside
+          ref={panelRef}
           aria-label="What KCCC brings together"
-          className="rounded-[20px] border border-white/40 bg-[#030454] p-7 text-white shadow-[0_20px_48px_rgba(8,13,82,0.25)]"
+          className={revealClasses(
+            panelVisible,
+            "rounded-[20px] border border-white/40 bg-[#030454] p-7 text-white shadow-[0_20px_48px_rgba(8,13,82,0.25)]"
+          )}
+          style={{ transitionDelay: panelVisible ? "120ms" : "0ms" }}
         >
           <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] text-[#F3F74B]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#F3F74B]" />
@@ -441,7 +486,7 @@ const priorityCards = [
   },
 ];
 
-function PriorityCard({ item }) {
+function PriorityCard({ item, index = 0 }) {
   const toneClasses = {
     risk: "bg-[#F3F74B] text-[#030454]",
     emissions: "bg-[#030454] text-white",
@@ -452,10 +497,16 @@ function PriorityCard({ item }) {
     emissions: "hover:shadow-[0_24px_52px_rgba(3,4,84,0.35)]",
     accountability: "hover:shadow-[0_24px_52px_rgba(71,120,197,0.28)]",
   };
+  const [cardRef, cardVisible] = useScrollReveal();
 
   return (
     <article
-      className={`group relative isolate flex min-h-[380px] flex-col overflow-hidden rounded-[28px] p-8 transition duration-300 motion-safe:hover:-translate-y-2 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-4 focus-within:outline-[#009B35] ${toneClasses[item.tone]} ${shadowClasses[item.tone]}`}
+      ref={cardRef}
+      className={revealClasses(
+        cardVisible,
+        `group relative isolate flex min-h-[380px] flex-col overflow-hidden rounded-[28px] p-8 duration-300 motion-safe:hover:-translate-y-2 focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-4 focus-within:outline-[#009B35] ${toneClasses[item.tone]} ${shadowClasses[item.tone]}`
+      )}
+      style={{ transitionDelay: cardVisible ? `${index * 90}ms` : "0ms" }}
     >
       <span
         aria-hidden="true"
@@ -527,8 +578,8 @@ function ClimateActionPrioritySection() {
         </div>
 
         <div className="grid gap-5 lg:grid-cols-3">
-          {priorityCards.map((item) => (
-            <PriorityCard key={item.key} item={item} />
+          {priorityCards.map((item, index) => (
+            <PriorityCard key={item.key} item={item} index={index} />
           ))}
         </div>
       </div>
@@ -566,9 +617,18 @@ const exploreClimateCards = [
   },
 ];
 
-function ExploreClimateInfoCard({ item }) {
+function ExploreClimateInfoCard({ item, index = 0 }) {
+  const [cardRef, cardVisible] = useScrollReveal();
+
   return (
-    <article className="flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+    <article
+      ref={cardRef}
+      className={revealClasses(
+        cardVisible,
+        "flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-7 shadow-sm hover:-translate-y-1 hover:shadow-md"
+      )}
+      style={{ transitionDelay: cardVisible ? `${index * 80}ms` : "0ms" }}
+    >
       <span className="grid h-12 w-12 place-items-center rounded-xl bg-[#009B35]/10 text-xl text-[#009B35]">
         {item.icon}
       </span>
@@ -607,8 +667,8 @@ function ExploreClimateInfoSection() {
         </p>
 
         <div className="mt-10 grid gap-6 text-left sm:grid-cols-3">
-          {exploreClimateCards.map((item) => (
-            <ExploreClimateInfoCard key={item.key} item={item} />
+          {exploreClimateCards.map((item, index) => (
+            <ExploreClimateInfoCard key={item.key} item={item} index={index} />
           ))}
         </div>
       </div>
@@ -616,9 +676,18 @@ function ExploreClimateInfoSection() {
   );
 }
 
-function NewsCard({ item }) {
+function NewsCard({ item, index = 0 }) {
+  const [cardRef, cardVisible] = useScrollReveal();
+
   return (
-    <article className="group flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#009B35]/70 hover:shadow-md">
+    <article
+      ref={cardRef}
+      className={revealClasses(
+        cardVisible,
+        "group flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-6 shadow-sm hover:-translate-y-1 hover:border-[#009B35]/70 hover:shadow-md"
+      )}
+      style={{ transitionDelay: cardVisible ? `${index * 80}ms` : "0ms" }}
+    >
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="rounded-sm bg-[#009B35]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#009B35]">
           {item.category}
@@ -668,8 +737,8 @@ function NewsPolicySection() {
         </div>
 
         <div className="grid gap-6 lg:grid-cols-3">
-          {publicNewsItems.map((item) => (
-            <NewsCard key={item.title} item={item} />
+          {publicNewsItems.map((item, index) => (
+            <NewsCard key={item.title} item={item} index={index} />
           ))}
         </div>
       </div>
@@ -737,7 +806,8 @@ function PartnersSection() {
             will-change: transform;
           }
 
-          .partners-marquee-track:hover {
+          .partners-marquee-track:hover,
+          .partners-marquee-track:focus-within {
             animation-play-state: paused;
           }
 

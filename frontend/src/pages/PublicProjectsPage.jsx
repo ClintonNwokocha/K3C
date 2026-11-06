@@ -27,6 +27,7 @@ import {
   PublicSectionHeading,
 } from "../components/PublicPortalChrome";
 import { getClimateIntelligenceProfile, getPublicPortalSummary } from "../services/api";
+import { useScrollReveal, revealClasses } from "../hooks/useScrollReveal";
 import { PUBLIC_EVENT_NAMES, trackPublicEvent } from "../config/analytics";
 import { deriveActionPathways } from "../utils/climatePathways";
 import ClimateActionOpportunitiesPanel from "../components/ClimateActionOpportunitiesPanel";
@@ -334,11 +335,15 @@ function formatProjectCount(summaryTotal, fallbackCount, hasError) {
 }
 
 function ProjectsExecutiveHero({ onExploreMap }) {
+  const [introRef, introVisible] = useScrollReveal();
+  const [titleRef, titleVisible] = useScrollReveal();
+  const [actionsRef, actionsVisible] = useScrollReveal();
+
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-[#030454] via-[#0b1455] to-[#063b35] px-4 py-10 text-white sm:px-8 lg:px-10 lg:py-11">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute -right-40 -top-56 h-[34rem] w-[34rem] rounded-full border border-[#009B35]/25"
+        className="pointer-events-none absolute -right-40 -top-56 h-[34rem] w-[34rem] animate-[spin_38s_linear_infinite] rounded-full border border-[#009B35]/25 motion-reduce:animate-none"
       />
       <div
         aria-hidden="true"
@@ -346,25 +351,45 @@ function ProjectsExecutiveHero({ onExploreMap }) {
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute right-[18%] -bottom-56 h-80 w-80 rounded-full bg-[#009B35] opacity-20 blur-[90px]"
+        className="pointer-events-none absolute right-[18%] -bottom-56 h-80 w-80 animate-pulse rounded-full bg-[#009B35] opacity-20 blur-[90px] motion-reduce:animate-none"
       />
 
       <div className="relative mx-auto max-w-[1536px]">
         <div className="flex max-w-3xl flex-col justify-center py-2">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F3F74B]">
+          <p
+            ref={introRef}
+            className={revealClasses(introVisible, "text-xs font-black uppercase tracking-[0.2em] text-[#F3F74B]")}
+          >
             Climate action portfolio
           </p>
-          <h1 className="mt-4 text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl">
+          <h1
+            ref={titleRef}
+            className={revealClasses(
+              titleVisible,
+              "mt-4 text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl"
+            )}
+            style={{ transitionDelay: titleVisible ? "80ms" : "0ms" }}
+          >
             Climate action projects
           </h1>
 
-          <p className="mt-5 text-pretty text-base leading-8 text-white/78 sm:text-lg">
+          <p
+            className={revealClasses(
+              titleVisible,
+              "mt-5 text-pretty text-base leading-8 text-white/78 sm:text-lg"
+            )}
+            style={{ transitionDelay: titleVisible ? "160ms" : "0ms" }}
+          >
             Explore public climate action projects, where they are happening,
             who they benefit, and their estimated greenhouse gas removal
             outcomes across Kaduna State.
           </p>
 
-          <div className="mt-7 flex flex-wrap gap-3">
+          <div
+            ref={actionsRef}
+            className={revealClasses(actionsVisible, "mt-7 flex flex-wrap gap-3")}
+            style={{ transitionDelay: actionsVisible ? "220ms" : "0ms" }}
+          >
             <PublicPrimaryButton onClick={onExploreMap}>
               Explore Map
             </PublicPrimaryButton>
@@ -390,12 +415,18 @@ const PORTFOLIO_METRIC_TONES = [
   "border-[#f5e6ad] bg-[#fff7df] text-[#805500]",
 ];
 
-function PortfolioMetricCard({ icon: Icon, tone, label, value, helper }) {
+function PortfolioMetricCard({ icon: Icon, tone, label, value, helper, index = 0 }) {
   const toneClass = PORTFOLIO_METRIC_TONES[tone % PORTFOLIO_METRIC_TONES.length];
+  const [cardRef, cardVisible] = useScrollReveal();
 
   return (
     <div
-      className={`group relative flex h-full flex-col overflow-hidden rounded-xl border p-5 transition duration-200 motion-safe:hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(8,12,65,0.1)] ${toneClass}`}
+      ref={cardRef}
+      className={revealClasses(
+        cardVisible,
+        `group relative flex h-full flex-col overflow-hidden rounded-xl border p-5 duration-200 motion-safe:hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(8,12,65,0.1)] ${toneClass}`
+      )}
+      style={{ transitionDelay: cardVisible ? `${index * 90}ms` : "0ms" }}
     >
       <span
         aria-hidden="true"
@@ -439,6 +470,7 @@ function PortfolioSnapshotSection({ projects, summary, hasError }) {
         </p>
         <div className="mt-3 grid gap-4 sm:grid-cols-3">
           <PortfolioMetricCard
+            index={0}
             icon={Layers}
             tone={0}
             label="Public projects"
@@ -446,6 +478,7 @@ function PortfolioSnapshotSection({ projects, summary, hasError }) {
             helper="Approved projects visible on the public portal."
           />
           <PortfolioMetricCard
+            index={1}
             icon={Wallet}
             tone={1}
             label="Total project value"
@@ -453,6 +486,7 @@ function PortfolioSnapshotSection({ projects, summary, hasError }) {
             helper={totalValueHelper}
           />
           <PortfolioMetricCard
+            index={2}
             icon={Leaf}
             tone={2}
             label="Estimated GHG impact"
@@ -1204,6 +1238,32 @@ function ProjectDetailPanelBody({ project }) {
 }
 
 function ProjectReadMorePanel({ project, onClose }) {
+  const [isEntered, setIsEntered] = useState(false);
+
+  // The parent keys this component by project id (see the render site),
+  // so a different project is always a fresh mount with isEntered=false
+  // -- no need to reset it here when project is falsy, since the panel
+  // renders null in that case anyway.
+  useEffect(() => {
+    if (!project) return undefined;
+
+    // Mount closed, then flip open on the next frame so the slide-in/fade
+    // transition below actually has a "from" state to animate out of,
+    // rather than appearing instantly.
+    const frame = requestAnimationFrame(() => setIsEntered(true));
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") onClose();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [project, onClose]);
+
   if (!project) return null;
   const statusMeta = getStatusMeta(getProjectStatusKey(project));
   const projectId = project.id ?? project.project_code;
@@ -1213,10 +1273,16 @@ function ProjectReadMorePanel({ project, onClose }) {
       <div
         aria-hidden="true"
         onClick={onClose}
-        className="absolute inset-0 bg-[#030454]/15"
+        className={`absolute inset-0 bg-[#030454]/15 transition-opacity duration-300 motion-reduce:transition-none ${
+          isEntered ? "opacity-100" : "opacity-0"
+        }`}
       />
 
-      <div className="absolute inset-y-0 right-0 flex h-full w-full flex-col overflow-hidden bg-white shadow-2xl sm:w-[85%] md:w-[45%] lg:w-[40%]">
+      <div
+        className={`absolute inset-y-0 right-0 flex h-full w-full flex-col overflow-hidden bg-white shadow-2xl transition-transform duration-300 ease-out motion-reduce:transition-none sm:w-[85%] md:w-[45%] lg:w-[40%] ${
+          isEntered ? "translate-x-0" : "translate-x-full"
+        }`}
+      >
         <div className="h-32 shrink-0 bg-[#030454] sm:h-36">
           <ProjectImage project={project} alt={project.title} label="Climate Action Project" />
         </div>
@@ -1531,7 +1597,11 @@ export default function PublicProjectsPage() {
         </>
       )}
 
-      <ProjectReadMorePanel project={selectedProject} onClose={() => setSelectedProject(null)} />
+      <ProjectReadMorePanel
+        key={selectedProject?.id ?? selectedProject?.project_code ?? "none"}
+        project={selectedProject}
+        onClose={() => setSelectedProject(null)}
+      />
       <PublicPortalFooter />
     </main>
   );
