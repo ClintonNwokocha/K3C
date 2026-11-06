@@ -24,28 +24,28 @@ const partnerLogos = [
 
 const publicNewsItems = [
   {
-    category: "Implementation",
-    date: "May 2026",
-    title: "Priority climate project tracking begins across selected LGAs",
+    category: "Climate intelligence",
+    title: "Explore climate intelligence",
     summary:
-      "The portal will support public visibility of climate action projects, expected beneficiaries and implementation progress across Kaduna State.",
+      "Explore published climate indicators and assessment information available through the portal.",
+    linkLabel: "Explore climate information",
+    href: "/public/climate-risk",
+  },
+  {
+    category: "GHG inventory",
+    title: "Greenhouse gas information",
+    summary:
+      "Open the public inventory explorer to inspect reported values alongside their publication status.",
+    linkLabel: "Open public GHG explorer",
+    href: "/public/ghg-inventory",
+  },
+  {
+    category: "Project information",
+    title: "Climate action portfolio",
+    summary:
+      "View the project information that is publicly available, including implementation status where provided.",
+    linkLabel: "Explore project information",
     href: "/public/projects",
-  },
-  {
-    category: "Policy",
-    date: "May 2026",
-    title: "Climate evidence portal supports coordinated decision-making",
-    summary:
-      "The public portal improves access to approved Climate Impact summaries, GHG information and published evidence documents.",
-    href: "/public/reports",
-  },
-  {
-    category: "Reporting",
-    date: "May 2026",
-    title: "Public reports centre prepared for approved climate documents",
-    summary:
-      "Validated reports, briefs and evidence documents can be published through the reports portal once approved for public access.",
-    href: "/public/reports",
   },
 ];
 
@@ -166,25 +166,85 @@ function HomeHero() {
   );
 }
 
+const aboutPillars = [
+  {
+    icon: "⌖",
+    title: "Understand local risks",
+    description: "Explore climate indicators and risk information across Kaduna State.",
+  },
+  {
+    icon: "▥",
+    title: "Connect the evidence",
+    description: "Bring climate impact, emissions and project information into clearer view.",
+  },
+  {
+    icon: "↗",
+    title: "Follow climate action",
+    description: "Find public reports and track the progress information available through the portal.",
+  },
+];
+
 function WhyKcccSection() {
   return (
-    <section className="border-b border-[#D8DDE2] bg-white px-4 py-8 sm:px-8 lg:px-10">
-      <div className="mx-auto max-w-[1536px]">
-        <p className="text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
-          Why KCCC
-        </p>
+    <section className="border-b border-[#D8DDE2] bg-gradient-to-br from-[#eef2ff] via-[#e2f5ec] to-[#f6fbd4] px-4 py-12 sm:px-8 sm:py-16 lg:px-10">
+      <div className="mx-auto grid max-w-[1536px] gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-16">
+        <div>
+          <p className="flex items-center gap-2.5 text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
+            <span className="h-[3px] w-6 rounded-full bg-[#009B35]" />
+            Why KCCC
+          </p>
 
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base sm:leading-8">
-          Climate information is most useful when decision-makers, communities
-          and partners can understand where risks are emerging, what
-          interventions are underway, and what evidence exists about progress.
-        </p>
+          <h2 className="mt-4 max-w-xl font-['Playfair_Display'] text-3xl font-bold leading-[1.1] tracking-tight text-[#030454] sm:text-4xl">
+            Climate evidence is more powerful when everyone can use it.
+          </h2>
 
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600 sm:text-base sm:leading-8">
-          The Kaduna Climate Command Centre provides a shared public platform
-          for bringing this information together and making climate action
-          easier to understand, monitor and communicate.
-        </p>
+          <p className="mt-4 max-w-xl text-base leading-8 text-[#273451] sm:text-lg">
+            Climate information is most useful when decision-makers, communities
+            and partners can understand where risks are emerging, what
+            interventions are underway, and what evidence exists about progress.
+          </p>
+
+          <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
+            The Kaduna Climate Command Centre brings climate intelligence,
+            greenhouse gas information, project updates and public evidence into
+            one shared platform — helping make climate action easier to
+            understand, monitor and communicate.
+          </p>
+        </div>
+
+        <aside
+          aria-label="What KCCC brings together"
+          className="rounded-[20px] border border-white/40 bg-[#030454] p-7 text-white shadow-[0_20px_48px_rgba(8,13,82,0.25)]"
+        >
+          <p className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.15em] text-[#F3F74B]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#F3F74B]" />
+            From information to action
+          </p>
+
+          <div className="mt-5 divide-y divide-white/15">
+            {aboutPillars.map((pillar) => (
+              <div key={pillar.title} className="grid grid-cols-[42px_1fr] items-start gap-3 py-4 first:pt-0">
+                <span
+                  aria-hidden="true"
+                  className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-base font-bold text-[#F3F74B]"
+                >
+                  {pillar.icon}
+                </span>
+                <div>
+                  <h3 className="text-sm font-black leading-tight text-white">{pillar.title}</h3>
+                  <p className="mt-1 text-xs leading-6 text-white/75">{pillar.description}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-4 flex items-center gap-2 border-t border-white/15 pt-4 text-[10px] leading-5 text-white/75">
+            <span aria-hidden="true" className="text-[#F3F74B]">
+              ✳
+            </span>
+            A shared public climate evidence portal for Kaduna State
+          </p>
+        </aside>
       </div>
     </section>
   );
@@ -476,16 +536,92 @@ function ClimateActionPrioritySection() {
   );
 }
 
+const exploreClimateCards = [
+  {
+    key: "climate-intelligence",
+    icon: "⌁",
+    title: "Climate Intelligence",
+    description:
+      "Explore Kaduna's vegetation monitoring, climate risk profiles and data availability across 23 Local Government Areas.",
+    linkLabel: "Explore climate intelligence",
+    href: "/public/climate-risk",
+  },
+  {
+    key: "ghg-inventory",
+    icon: "◉",
+    title: "GHG Inventory",
+    description:
+      "Review public greenhouse gas inventory summaries and sector-level emissions insights where approved data is available.",
+    linkLabel: "View GHG inventory",
+    href: "/public/ghg-inventory",
+  },
+  {
+    key: "projects",
+    icon: "↗",
+    title: "Climate Action Portfolio",
+    description:
+      "Discover climate action projects, intended beneficiaries, implementation status and estimated emissions outcomes.",
+    linkLabel: "View projects",
+    href: "/public/projects",
+  },
+];
+
+function ExploreClimateInfoCard({ item }) {
+  return (
+    <article className="flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-7 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
+      <span className="grid h-12 w-12 place-items-center rounded-xl bg-[#009B35]/10 text-xl text-[#009B35]">
+        {item.icon}
+      </span>
+
+      <h3 className="mt-5 font-['Playfair_Display'] text-xl font-bold text-[#030454]">
+        {item.title}
+      </h3>
+
+      <p className="mt-2 flex-1 text-sm leading-7 text-slate-600">{item.description}</p>
+
+      <button
+        type="button"
+        onClick={() => navigateTo(item.href)}
+        className="mt-6 flex w-fit items-center gap-2 rounded-md bg-[#030454] px-4 py-2.5 text-xs font-black uppercase tracking-[0.1em] text-white transition hover:bg-[#060a7a]"
+      >
+        {item.linkLabel}
+        <span aria-hidden="true">→</span>
+      </button>
+    </article>
+  );
+}
+
+function ExploreClimateInfoSection() {
+  return (
+    <section className="bg-white px-4 py-16 text-center sm:px-8 lg:px-10 lg:py-20">
+      <div className="mx-auto max-w-7xl">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#009B35]">
+          Explore the evidence
+        </p>
+        <h2 className="mx-auto mt-3 max-w-2xl font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
+          Explore public climate information
+        </h2>
+        <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-500">
+          Move from high-level indicators to the datasets, projects and evidence
+          behind climate decisions.
+        </p>
+
+        <div className="mt-10 grid gap-6 text-left sm:grid-cols-3">
+          {exploreClimateCards.map((item) => (
+            <ExploreClimateInfoCard key={item.key} item={item} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function NewsCard({ item }) {
   return (
     <article className="group flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-[#009B35]/70 hover:shadow-md">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <span className="rounded-sm bg-[#009B35]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#009B35]">
           {item.category}
-        </span>
-
-        <span className="text-xs font-bold uppercase tracking-[0.1em] text-slate-400">
-          {item.date}
         </span>
       </div>
 
@@ -502,7 +638,7 @@ function NewsCard({ item }) {
         onClick={() => navigateTo(item.href)}
         className="mt-6 flex items-center justify-between border-t border-[#E6EAEC] pt-4 text-xs font-black uppercase tracking-[0.08em] text-[#009B35]"
       >
-        View Update <span>→</span>
+        {item.linkLabel} <span>→</span>
       </button>
     </article>
   );
@@ -513,16 +649,21 @@ function NewsPolicySection() {
     <section className="bg-[#F7F9FA] px-4 py-12 sm:px-8 lg:px-10 lg:py-16">
       <div className="mx-auto max-w-7xl">
         <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-          <h2 className="font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
-            News and policy updates
-          </h2>
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[#009B35]">
+              From the command centre
+            </p>
+            <h2 className="mt-3 font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
+              News and policy updates
+            </h2>
+          </div>
 
           <button
             type="button"
             onClick={() => navigateTo("/public/reports")}
             className="w-fit rounded-md border border-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-[#009B35] transition hover:bg-[#009B35] hover:text-white"
           >
-            View Reports
+            View all reports ↗
           </button>
         </div>
 
@@ -623,9 +764,14 @@ function PartnersSection() {
             Institutional collaboration
           </p>
 
-          <h2 className="mt-3 text-4xl font-black uppercase tracking-tight text-[#030454] sm:text-5xl">
-            Our Partners
+          <h2 className="mt-3 font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] sm:text-5xl">
+            Working together for climate action
           </h2>
+
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-slate-500">
+            Institutional collaboration helps strengthen climate evidence,
+            coordination and public accountability.
+          </p>
 
           <div className="mx-auto mt-5 h-[3px] w-28 bg-[#009B35]" />
         </div>
@@ -708,6 +854,7 @@ export default function PublicPortalPage() {
         <>
           <MovingIntelligenceSummary summaryData={safeSummaryData} />
           <ClimateActionPrioritySection />
+          <ExploreClimateInfoSection />
           <NewsPolicySection />
           <PartnersSection />
           <PublicDataNotice />
