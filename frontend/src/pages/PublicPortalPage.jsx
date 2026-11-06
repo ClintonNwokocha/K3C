@@ -846,20 +846,71 @@ function ExploreClimateInfoSection() {
   );
 }
 
+// Per-card accent (green / violet / gold), matching the approved V10
+// reference's --news-accent variants and its color-mix()-derived tints
+// (precomputed here since Tailwind can't resolve arbitrary values built
+// from interpolated class names at build time).
+const NEWS_CARD_TONES = [
+  {
+    cardBg: "bg-[linear-gradient(145deg,#effbf3_0%,#ffffff_82%)]",
+    cardHoverBorder: "hover:border-[#b8e7c9]",
+    topBar: "bg-[#078b43]",
+    tagText: "text-[#078b43]",
+    tagBorder: "border-[#D2EADD]",
+    linkText: "text-[#078b43]",
+    linkBorder: "border-[#C8E5D6]",
+    linkBg: "bg-[#E9F5EE]",
+    linkHoverBg: "hover:bg-[#078b43]",
+    linkHoverShadow: "hover:shadow-[0_8px_18px_rgba(7,139,67,0.22)]",
+  },
+  {
+    cardBg: "bg-[linear-gradient(145deg,#f0f2ff_0%,#ffffff_82%)]",
+    cardHoverBorder: "hover:border-[#c8c8f4]",
+    topBar: "bg-[#3532a1]",
+    tagText: "text-[#3532a1]",
+    tagBorder: "border-[#DBDAEE]",
+    linkText: "text-[#3532a1]",
+    linkBorder: "border-[#D3D2EA]",
+    linkBg: "bg-[#EDEDF7]",
+    linkHoverBg: "hover:bg-[#3532a1]",
+    linkHoverShadow: "hover:shadow-[0_8px_18px_rgba(53,50,161,0.22)]",
+  },
+  {
+    cardBg: "bg-[linear-gradient(145deg,#fff8e5_0%,#ffffff_82%)]",
+    cardHoverBorder: "hover:border-[#f2dfa0]",
+    topBar: "bg-[#d19a00]",
+    tagText: "text-[#d19a00]",
+    tagBorder: "border-[#F7EDD1]",
+    linkText: "text-[#d19a00]",
+    linkBorder: "border-[#F5E9C7]",
+    linkBg: "bg-[#FBF6E8]",
+    linkHoverBg: "hover:bg-[#d19a00]",
+    linkHoverShadow: "hover:shadow-[0_8px_18px_rgba(209,154,0,0.22)]",
+  },
+];
+
 function NewsCard({ item, index = 0 }) {
   const [cardRef, cardVisible] = useScrollReveal();
+  const tone = NEWS_CARD_TONES[index % NEWS_CARD_TONES.length];
 
   return (
     <article
       ref={cardRef}
       className={revealClasses(
         cardVisible,
-        "group flex h-full flex-col rounded-md border border-[#D8DDE2] bg-white p-6 shadow-sm hover:-translate-y-1 hover:border-[#009B35]/70 hover:shadow-md"
+        `group relative isolate flex min-h-[300px] flex-col overflow-hidden rounded-[13px] border border-transparent p-6 shadow-[0_7px_20px_rgba(8,12,65,0.03)] duration-300 motion-safe:hover:-translate-y-2 hover:shadow-[0_18px_38px_rgba(8,12,65,0.11)] sm:min-h-[340px] ${tone.cardBg} ${tone.cardHoverBorder}`
       )}
       style={{ transitionDelay: cardVisible ? `${index * 80}ms` : "0ms" }}
     >
+      <span
+        aria-hidden="true"
+        className={`absolute inset-x-0 top-0 h-[5px] transition-[height] duration-200 group-hover:h-2 ${tone.topBar}`}
+      />
+
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <span className="rounded-sm bg-[#009B35]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#009B35]">
+        <span
+          className={`rounded-sm border bg-white/70 px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${tone.tagText} ${tone.tagBorder}`}
+        >
           {item.category}
         </span>
       </div>
@@ -875,19 +926,33 @@ function NewsCard({ item, index = 0 }) {
       <button
         type="button"
         onClick={() => navigateTo(item.href)}
-        className="mt-6 flex items-center justify-between border-t border-[#E6EAEC] pt-4 text-xs font-black uppercase tracking-[0.08em] text-[#009B35]"
+        className={`group mt-6 flex items-center justify-between rounded-lg border px-3.5 py-3 text-xs font-black uppercase tracking-[0.08em] transition-[transform,background-color,color,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:text-white ${tone.linkBorder} ${tone.linkBg} ${tone.linkText} ${tone.linkHoverBg} ${tone.linkHoverShadow}`}
       >
-        {item.linkLabel} <span>→</span>
+        {item.linkLabel}
+        <span
+          aria-hidden="true"
+          className="inline-block text-base transition-transform duration-200 motion-safe:group-hover:translate-x-1"
+        >
+          →
+        </span>
       </button>
     </article>
   );
 }
 
 function NewsPolicySection() {
+  const [headingRef, headingVisible] = useScrollReveal();
+
   return (
     <section className="bg-[#F7F9FA] px-4 py-12 sm:px-8 lg:px-10 lg:py-16">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
+        <div
+          ref={headingRef}
+          className={revealClasses(
+            headingVisible,
+            "mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end"
+          )}
+        >
           <div>
             <p className="text-xs font-black uppercase tracking-[0.18em] text-[#009B35]">
               From the command centre
@@ -895,12 +960,15 @@ function NewsPolicySection() {
             <h2 className="mt-3 font-['Playfair_Display'] text-4xl font-bold tracking-tight text-[#030454] md:text-5xl">
               News and policy updates
             </h2>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-slate-500">
+              Updates on climate implementation, evidence publication and policy coordination.
+            </p>
           </div>
 
           <button
             type="button"
             onClick={() => navigateTo("/public/reports")}
-            className="w-fit rounded-md border border-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-[#009B35] transition hover:bg-[#009B35] hover:text-white"
+            className="w-fit shrink-0 rounded-md border border-[#009B35] px-5 py-3 text-xs font-black uppercase tracking-[0.1em] text-[#009B35] transition-transform duration-200 motion-safe:hover:-translate-y-0.5 hover:bg-[#009B35] hover:text-white"
           >
             View all reports ↗
           </button>
