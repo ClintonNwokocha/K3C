@@ -104,16 +104,10 @@ function PublicHeaderBrand({ compact = false }) {
       onClick={() => {
         window.location.href = "/public";
       }}
-      className="flex w-fit max-w-full items-center gap-3 text-left"
+      className="flex w-fit max-w-full items-center text-left"
       aria-label="Go to public home"
     >
-      <K3CWhiteTextLogo className={compact ? "h-10" : "h-12"} />
-
-      <span className="min-w-0">
-        <span className="block text-xs leading-5 text-white/65">
-          Climate Impact, Evidence and Reporting Portal
-        </span>
-      </span>
+      <K3CWhiteTextLogo className={compact ? "h-11" : "h-14"} />
     </button>
   );
 }

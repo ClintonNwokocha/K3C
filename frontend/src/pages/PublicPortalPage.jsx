@@ -103,15 +103,9 @@ function HomeTopNav() {
         <button
           type="button"
           onClick={() => goTo("/public")}
-          className="flex items-center gap-3 text-left"
+          className="flex items-center text-left"
         >
-          <K3CWhiteTextLogo className="h-12" />
-
-          <span>
-            <span className="block text-xs text-white/65">
-              Climate Impact, Evidence and Reporting Portal
-            </span>
-          </span>
+          <K3CWhiteTextLogo className="h-14" />
         </button>
 
         <nav className="hidden flex-wrap gap-2 md:flex">
