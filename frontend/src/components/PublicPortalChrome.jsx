@@ -451,8 +451,17 @@ export function PublicPortalFooter() {
           <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
             {navItems.map((item, index) => (
               <span key={item.key} className="flex items-center gap-x-4">
-                <a href={item.href} className="text-white/70 outline-none transition hover:text-white focus-visible:ring-2 focus-visible:ring-[#009B35]/50">
+                <a
+                  href={item.href}
+                  className="group inline-flex items-center gap-1 text-white/70 outline-none transition hover:text-[#F3F74B] focus-visible:ring-2 focus-visible:ring-[#009B35]/50"
+                >
                   {item.label}
+                  <span
+                    aria-hidden="true"
+                    className="inline-block text-white/40 transition-transform duration-200 motion-safe:group-hover:translate-x-0.5 motion-safe:group-hover:-translate-y-0.5"
+                  >
+                    ↗
+                  </span>
                 </a>
                 {index < navItems.length - 1 && <span aria-hidden="true" className="text-white/20">|</span>}
               </span>
@@ -463,9 +472,15 @@ export function PublicPortalFooter() {
             <a
               key={item.key}
               href={item.href}
-              className="shrink-0 rounded-md border border-white/20 px-2.5 py-1 text-[11px] font-bold text-white outline-none transition hover:border-white/40 focus-visible:ring-2 focus-visible:ring-[#009B35]/50"
+              className="group shrink-0 inline-flex items-center gap-1.5 rounded-md border border-white/20 px-2.5 py-1 text-[11px] font-bold text-white outline-none transition hover:border-[#009B35] hover:bg-[#009B35] focus-visible:ring-2 focus-visible:ring-[#009B35]/50"
             >
               {item.label}
+              <span
+                aria-hidden="true"
+                className="inline-block transition-transform duration-200 motion-safe:group-hover:rotate-45"
+              >
+                ↗
+              </span>
             </a>
           ))}
         </div>

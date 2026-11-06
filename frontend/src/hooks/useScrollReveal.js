@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import { MotionContext } from "./motionContextValue";
 
 // Shared scroll-triggered entrance reveal, used across the public pages
 // (homepage, projects, reports, GHG inventory) wherever the approved
@@ -27,12 +28,33 @@ function getsInitialVisibility() {
   return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 }
 
+function getsPrefersReducedMotion() {
+  if (typeof window === "undefined") return false;
+  return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+}
+
+// True unless a MotionProvider explicitly disables motion. Used by
+// decorative always-running animations (orbits, glow, float, marquee) that
+// aren't a scroll reveal and so don't go through useScrollReveal.
+export function useMotionEnabled() {
+  const override = useContext(MotionContext);
+  const [prefersReduced] = useState(getsPrefersReducedMotion);
+
+  if (override !== null && override !== undefined) return override;
+  return !prefersReduced;
+}
+
 export function useScrollReveal({ threshold = 0.12, rootMargin = "0px" } = {}) {
   const ref = useRef(null);
+  const motionOverride = useContext(MotionContext);
   const [isVisible, setIsVisible] = useState(getsInitialVisibility);
 
+  // Explicit "off" always wins; explicit "on" still waits for the real
+  // intersection so the reveal plays even when a page offers a toggle.
+  const forcedVisible = motionOverride === false || isVisible;
+
   useEffect(() => {
-    if (isVisible) return undefined;
+    if (motionOverride === false || isVisible) return undefined;
 
     const node = ref.current;
     if (!node) return undefined;
@@ -52,9 +74,9 @@ export function useScrollReveal({ threshold = 0.12, rootMargin = "0px" } = {}) {
     observer.observe(node);
 
     return () => observer.disconnect();
-  }, [threshold, rootMargin, isVisible]);
+  }, [threshold, rootMargin, isVisible, motionOverride]);
 
-  return [ref, isVisible];
+  return [ref, forcedVisible];
 }
 
 // Tailwind class fragment shared by every reveal consumer, so the same

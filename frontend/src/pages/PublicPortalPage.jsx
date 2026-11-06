@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PublicDataNotice,
   PublicPortalFooter,
@@ -8,7 +8,8 @@ import {
 } from "../components/PublicPortalChrome";
 import { getPublicPortalSummary } from "../services/api";
 import { isMilestoneOneDemo } from "../config/demoMode";
-import { useScrollReveal, revealClasses } from "../hooks/useScrollReveal";
+import { useScrollReveal, revealClasses, useMotionEnabled } from "../hooks/useScrollReveal";
+import { MotionProvider } from "../hooks/MotionContext";
 
 const partnerLogos = [
   {
@@ -65,6 +66,7 @@ function navigateTo(href) {
 }
 
 function HomeTopNav() {
+  const [menuOpen, setMenuOpen] = useState(false);
   const fullNavItems = [
     { label: "Home", href: "/public", active: true },
     { label: "Climate Impact", href: "/public/climate-risk" },
@@ -78,12 +80,28 @@ function HomeTopNav() {
     ? fullNavItems.filter((item) => item.label === "Home" || item.label === "Climate Impact")
     : fullNavItems;
 
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setMenuOpen(false);
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [menuOpen]);
+
+  function goTo(href) {
+    setMenuOpen(false);
+    navigateTo(href);
+  }
+
   return (
-    <header className="border-b border-white/10 bg-[#030454] px-4 py-5 text-white sm:px-8 lg:px-10">
-      <div className="mx-auto flex max-w-[1536px] flex-col gap-5 md:flex-row md:items-center md:justify-between">
+    <header className="relative border-b border-white/10 bg-[#030454] px-4 py-5 text-white sm:px-8 lg:px-10">
+      <div className="mx-auto flex max-w-[1536px] items-center justify-between gap-5">
         <button
           type="button"
-          onClick={() => navigateTo("/public")}
+          onClick={() => goTo("/public")}
           className="flex items-center gap-3 text-left"
         >
           <img
@@ -102,12 +120,12 @@ function HomeTopNav() {
           </span>
         </button>
 
-        <nav className="flex flex-wrap gap-2">
+        <nav className="hidden flex-wrap gap-2 md:flex">
           {navItems.map((item) => (
             <button
               key={item.label}
               type="button"
-              onClick={() => navigateTo(item.href)}
+              onClick={() => goTo(item.href)}
               className={`rounded-md border px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition ${
                 item.active
                   ? "border-[#F3F74B] bg-[#F3F74B] text-[#030454]"
@@ -119,18 +137,59 @@ function HomeTopNav() {
           ))}
 
           <PublicGreenButton
-            onClick={() => navigateTo("/login")}
+            onClick={() => goTo("/login")}
             className="px-4 py-2.5 text-xs focus-visible:ring-offset-[#030454]"
           >
             Staff Login
           </PublicGreenButton>
         </nav>
+
+        <button
+          type="button"
+          onClick={() => setMenuOpen((open) => !open)}
+          aria-expanded={menuOpen}
+          aria-controls="home-mobile-nav"
+          className="rounded-md border border-white/35 bg-transparent px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-white/10 md:hidden"
+        >
+          {menuOpen ? "✕ Close" : "☰ Menu"}
+        </button>
       </div>
+
+      {menuOpen && (
+        <nav
+          id="home-mobile-nav"
+          aria-label="Primary navigation"
+          className="absolute inset-x-0 top-full z-20 flex flex-col gap-2 border-t border-white/10 bg-[#030454] px-4 py-4 shadow-[0_18px_30px_rgba(3,4,84,0.35)] md:hidden"
+        >
+          {navItems.map((item) => (
+            <button
+              key={item.label}
+              type="button"
+              onClick={() => goTo(item.href)}
+              className={`rounded-md border px-4 py-3 text-left text-xs font-black uppercase tracking-[0.12em] transition ${
+                item.active
+                  ? "border-[#F3F74B] bg-[#F3F74B] text-[#030454]"
+                  : "border-white/15 bg-white/5 text-white hover:bg-white/10"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+
+          <PublicGreenButton
+            onClick={() => goTo("/login")}
+            className="justify-center px-4 py-3 text-xs focus-visible:ring-offset-[#030454]"
+          >
+            Staff Login
+          </PublicGreenButton>
+        </nav>
+      )}
     </header>
   );
 }
 
 function HomeHero() {
+  const motionEnabled = useMotionEnabled();
   const [eyebrowRef, eyebrowVisible] = useScrollReveal();
   const [titleRef, titleVisible] = useScrollReveal();
   const [introRef, introVisible] = useScrollReveal();
@@ -142,11 +201,15 @@ function HomeHero() {
 
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute -right-40 -top-56 h-[34rem] w-[34rem] animate-[spin_38s_linear_infinite] rounded-full border border-[#F3F74B]/20 motion-reduce:animate-none"
+        className={`pointer-events-none absolute -right-40 -top-56 h-[34rem] w-[34rem] rounded-full border border-[#F3F74B]/20 motion-reduce:animate-none ${
+          motionEnabled ? "animate-[spin_38s_linear_infinite]" : ""
+        }`}
       />
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute right-[14%] -bottom-40 h-72 w-72 animate-pulse rounded-full bg-[#009B35] opacity-20 blur-[90px] motion-reduce:animate-none"
+        className={`pointer-events-none absolute right-[14%] -bottom-40 h-72 w-72 rounded-full bg-[#009B35] opacity-20 blur-[90px] motion-reduce:animate-none ${
+          motionEnabled ? "animate-pulse" : ""
+        }`}
       />
 
       <div className="relative mx-auto max-w-[1536px]">
@@ -213,38 +276,91 @@ const aboutPillars = [
     icon: "▥",
     title: "Connect the evidence",
     description: "Bring climate impact, emissions and project information into clearer view.",
+    floatDelay: "0ms",
   },
   {
     icon: "↗",
     title: "Follow climate action",
     description: "Find public reports and track the progress information available through the portal.",
+    floatDelay: "450ms",
   },
 ];
 
 function WhyKcccSection() {
-  const [copyRef, copyVisible] = useScrollReveal();
+  const motionEnabled = useMotionEnabled();
+  const [eyebrowRef, eyebrowVisible] = useScrollReveal();
+  const [headingRef, headingVisible] = useScrollReveal();
+  const [leadRef, leadVisible] = useScrollReveal();
+  const [bodyRef, bodyVisible] = useScrollReveal();
   const [panelRef, panelVisible] = useScrollReveal();
 
   return (
-    <section className="border-b border-[#D8DDE2] bg-gradient-to-br from-[#eef2ff] via-[#e2f5ec] to-[#f6fbd4] px-4 py-12 sm:px-8 sm:py-16 lg:px-10">
-      <div className="mx-auto grid max-w-[1536px] gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-16">
-        <div ref={copyRef} className={revealClasses(copyVisible)}>
-          <p className="flex items-center gap-2.5 text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
+    <section className="relative isolate overflow-hidden border-b border-[#D8DDE2] bg-gradient-to-br from-[#eef2ff] via-[#e2f5ec] to-[#f6fbd4] px-4 py-12 sm:px-8 sm:py-16 lg:px-10">
+      <style>{`
+        @keyframes aboutIconFloat {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+      `}</style>
+
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute -right-28 -top-40 h-[26rem] w-[26rem] rounded-full border border-[#009B35]/25 motion-reduce:animate-none ${
+          motionEnabled ? "animate-[spin_34s_linear_infinite]" : ""
+        }`}
+      />
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute -left-24 -bottom-36 h-64 w-64 rounded-full bg-[radial-gradient(circle,rgba(7,139,67,0.22)_0%,rgba(116,136,229,0.1)_42%,transparent_72%)] motion-reduce:animate-none ${
+          motionEnabled ? "animate-pulse" : ""
+        }`}
+      />
+
+      <div className="relative mx-auto grid max-w-[1536px] gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center lg:gap-16">
+        <div>
+          <p
+            ref={eyebrowRef}
+            className={revealClasses(
+              eyebrowVisible,
+              "flex items-center gap-2.5 text-xs font-black uppercase tracking-[0.16em] text-[#009B35]"
+            )}
+          >
             <span className="h-[3px] w-6 rounded-full bg-[#009B35]" />
             Why K3C
           </p>
 
-          <h2 className="mt-4 max-w-xl font-['Playfair_Display'] text-3xl font-bold leading-[1.1] tracking-tight text-[#030454] sm:text-4xl">
+          <h2
+            ref={headingRef}
+            className={revealClasses(
+              headingVisible,
+              "mt-4 max-w-xl font-['Playfair_Display'] text-3xl font-bold leading-[1.1] tracking-tight text-[#030454] sm:text-4xl"
+            )}
+            style={{ transitionDelay: headingVisible ? "80ms" : "0ms" }}
+          >
             Climate evidence is more powerful when everyone can use it.
           </h2>
 
-          <p className="mt-4 max-w-xl text-base leading-8 text-[#273451] sm:text-lg">
+          <p
+            ref={leadRef}
+            className={revealClasses(
+              leadVisible,
+              "mt-4 max-w-xl text-base leading-8 text-[#273451] sm:text-lg"
+            )}
+            style={{ transitionDelay: leadVisible ? "200ms" : "0ms" }}
+          >
             Climate information is most useful when decision-makers, communities
             and partners can understand where risks are emerging, what
             interventions are underway, and what evidence exists about progress.
           </p>
 
-          <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
+          <p
+            ref={bodyRef}
+            className={revealClasses(
+              bodyVisible,
+              "mt-3 max-w-xl text-sm leading-7 text-slate-600"
+            )}
+            style={{ transitionDelay: bodyVisible ? "320ms" : "0ms" }}
+          >
             K3C brings climate intelligence,
             greenhouse gas information, project updates and public evidence into
             one shared platform — helping make climate action easier to
@@ -257,7 +373,7 @@ function WhyKcccSection() {
           aria-label="What K3C brings together"
           className={revealClasses(
             panelVisible,
-            "rounded-[20px] border border-white/40 bg-[#030454] p-7 text-white shadow-[0_20px_48px_rgba(8,13,82,0.25)]"
+            "rounded-[20px] border border-white/40 bg-[#030454] p-7 text-white shadow-[0_20px_48px_rgba(8,13,82,0.25)] transition-[transform,box-shadow] duration-300 motion-safe:hover:-translate-y-1 motion-safe:hover:shadow-[0_28px_58px_rgba(8,9,78,0.33)]"
           )}
           style={{ transitionDelay: panelVisible ? "120ms" : "0ms" }}
         >
@@ -268,10 +384,22 @@ function WhyKcccSection() {
 
           <div className="mt-5 divide-y divide-white/15">
             {aboutPillars.map((pillar) => (
-              <div key={pillar.title} className="grid grid-cols-[42px_1fr] items-start gap-3 py-4 first:pt-0">
+              <div
+                key={pillar.title}
+                className="group grid grid-cols-[42px_1fr] items-start gap-3 rounded-lg py-4 transition-[padding,background-color] duration-200 first:pt-0 hover:bg-white/5 hover:pl-2"
+              >
                 <span
                   aria-hidden="true"
-                  className="grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-base font-bold text-[#F3F74B]"
+                  className={`grid h-10 w-10 place-items-center rounded-xl bg-white/10 text-base font-bold text-[#F3F74B] transition-[transform,background-color,color] duration-300 group-hover:-rotate-[7deg] group-hover:scale-110 group-hover:bg-[#F3F74B] group-hover:text-[#030454] motion-reduce:animate-none ${
+                    motionEnabled && pillar.floatDelay !== undefined
+                      ? "animate-[aboutIconFloat_4.5s_ease-in-out_infinite]"
+                      : ""
+                  }`}
+                  style={
+                    motionEnabled && pillar.floatDelay !== undefined
+                      ? { animationDelay: pillar.floatDelay }
+                      : undefined
+                  }
                 >
                   {pillar.icon}
                 </span>
@@ -395,7 +523,37 @@ const SUMMARY_CARD_TONES = [
   "bg-[#fff0f1] text-[#982b43] border-[#ffd6dc]",
 ];
 
+function CountUpValue({ end, isVisible, motionEnabled }) {
+  const [display, setDisplay] = useState(() => (motionEnabled ? 0 : end));
+  const startedRef = useRef(false);
+
+  useEffect(() => {
+    if (!motionEnabled || !isVisible || startedRef.current) return undefined;
+    startedRef.current = true;
+
+    const start = performance.now();
+    const duration = 800;
+    let frame;
+
+    function tick(now) {
+      const progress = Math.min((now - start) / duration, 1);
+      setDisplay(Math.round(end * (1 - Math.pow(1 - progress, 3))));
+      if (progress < 1) {
+        frame = requestAnimationFrame(tick);
+      } else {
+        setDisplay(end);
+      }
+    }
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [isVisible, motionEnabled, end]);
+
+  return <>{display.toLocaleString()}</>;
+}
+
 function MovingIntelligenceSummary({ summaryData }) {
+  const motionEnabled = useMotionEnabled();
   const climateRisk = summaryData?.climate_risk || {};
   const projects = summaryData?.projects || {};
 
@@ -405,6 +563,7 @@ function MovingIntelligenceSummary({ summaryData }) {
       value: hasNumber(climateRisk.latest_year)
         ? String(climateRisk.latest_year)
         : "Not available",
+      rawValue: null,
       description: "Latest published Climate Impact assessment",
     },
     {
@@ -412,6 +571,7 @@ function MovingIntelligenceSummary({ summaryData }) {
       value: hasNumber(climateRisk.total_lgas)
         ? formatNumber(climateRisk.total_lgas, 0)
         : "Not available",
+      rawValue: hasNumber(climateRisk.total_lgas) ? Number(climateRisk.total_lgas) : null,
       description: "LGAs with published assessment records",
     },
     {
@@ -419,6 +579,7 @@ function MovingIntelligenceSummary({ summaryData }) {
       value: hasNumber(projects.total_projects)
         ? formatNumber(projects.total_projects, 0)
         : "Not available",
+      rawValue: hasNumber(projects.total_projects) ? Number(projects.total_projects) : null,
       description: "Approved projects visible on the portal",
     },
   ];
@@ -427,26 +588,47 @@ function MovingIntelligenceSummary({ summaryData }) {
     <section className="border-y border-[#D8DDE2] bg-[#F7F9FA] px-4 py-6 sm:px-8 lg:px-10">
       <div className="mx-auto grid max-w-[1536px] gap-4 sm:grid-cols-3">
         {summaryItems.map((item, index) => (
-          <div
+          <SummaryKpiCard
             key={item.label}
-            className={`flex h-full flex-col items-start gap-1 rounded-xl border px-6 py-5 ${SUMMARY_CARD_TONES[index]}`}
-          >
-            <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] opacity-80">
-              <span className="h-2 w-2 shrink-0 rounded-full bg-current" />
-              {item.label}
-            </span>
-
-            <strong className="block text-3xl font-black tracking-tight">
-              {item.value}
-            </strong>
-
-            <span className="block text-xs leading-5 opacity-80">
-              {item.description}
-            </span>
-          </div>
+            item={item}
+            index={index}
+            motionEnabled={motionEnabled}
+          />
         ))}
       </div>
     </section>
+  );
+}
+
+function SummaryKpiCard({ item, index, motionEnabled }) {
+  const [cardRef, cardVisible] = useScrollReveal();
+
+  return (
+    <div
+      ref={cardRef}
+      style={{ transitionDelay: cardVisible ? `${index * 80}ms` : "0ms" }}
+      className={revealClasses(
+        cardVisible,
+        `flex h-full flex-col items-start gap-1 rounded-xl border px-6 py-5 duration-300 motion-safe:hover:-translate-y-1 hover:shadow-[0_14px_28px_rgba(8,12,65,0.12)] ${SUMMARY_CARD_TONES[index]}`
+      )}
+    >
+      <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.16em] opacity-80">
+        <span className="h-2 w-2 shrink-0 rounded-full bg-current" />
+        {item.label}
+      </span>
+
+      <strong className="block text-3xl font-black tracking-tight tabular-nums">
+        {item.rawValue !== null ? (
+          <CountUpValue end={item.rawValue} isVisible={cardVisible} motionEnabled={motionEnabled} />
+        ) : (
+          item.value
+        )}
+      </strong>
+
+      <span className="block text-xs leading-5 opacity-80">
+        {item.description}
+      </span>
+    </div>
   );
 }
 
@@ -543,7 +725,7 @@ function PriorityCard({ item, index = 0 }) {
 
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute bottom-3 right-6 select-none text-[70px] font-black leading-none tracking-tighter opacity-10"
+        className="pointer-events-none absolute bottom-3 right-6 select-none text-[70px] font-black leading-none tracking-tighter opacity-10 transition-[transform,opacity] duration-500 motion-safe:group-hover:-translate-y-2 motion-safe:group-hover:opacity-[0.18]"
       >
         {item.index}
       </span>
@@ -784,6 +966,7 @@ function PartnerLogoCard({ partner, duplicate = false }) {
 }
 
 function PartnersSection() {
+  const motionEnabled = useMotionEnabled();
   const scrollingPartners = [...partnerLogos, ...partnerLogos];
 
   return (
@@ -847,7 +1030,10 @@ function PartnersSection() {
         </div>
 
         <div className="overflow-hidden">
-          <div className="partners-marquee-track flex gap-8">
+          <div
+            className="partners-marquee-track flex gap-8"
+            style={{ animationPlayState: motionEnabled ? undefined : "paused" }}
+          >
             {scrollingPartners.map((partner, index) => (
               <PartnerLogoCard
                 key={`${partner.name}-${index}`}
@@ -862,7 +1048,34 @@ function PartnersSection() {
   );
 }
 
-export default function PublicPortalPage() {
+function HomepageMotionControls({ motionEnabled, onToggleMotion }) {
+  function scrollToTop() {
+    window.scrollTo({ top: 0, behavior: motionEnabled ? "smooth" : "auto" });
+  }
+
+  return (
+    <div className="fixed bottom-4 right-4 z-40 flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={scrollToTop}
+        aria-label="Back to top"
+        className="rounded-full border border-white/35 bg-[#030454] px-4 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-white shadow-[0_7px_20px_rgba(0,0,0,0.2)] transition hover:bg-[#009B35]"
+      >
+        ↑ Top
+      </button>
+      <button
+        type="button"
+        onClick={onToggleMotion}
+        aria-pressed={motionEnabled}
+        className="rounded-full border border-white/35 bg-[#030454] px-4 py-2.5 text-xs font-black uppercase tracking-[0.08em] text-white shadow-[0_7px_20px_rgba(0,0,0,0.2)] transition hover:bg-[#009B35]"
+      >
+        Motion: {motionEnabled ? "On" : "Off"}
+      </button>
+    </div>
+  );
+}
+
+function PublicPortalPageContent({ motionEnabled, onToggleMotion }) {
   const [summaryData, setSummaryData] = useState(null);
   const [isLoading, setIsLoading] = useState(!isMilestoneOneDemo);
   const [error, setError] = useState("");
@@ -932,7 +1145,24 @@ export default function PublicPortalPage() {
       )}
 
       <PublicPortalFooter />
+
+      <HomepageMotionControls motionEnabled={motionEnabled} onToggleMotion={onToggleMotion} />
     </main>
+  );
+}
+
+export default function PublicPortalPage() {
+  const [motionEnabled, setMotionEnabled] = useState(
+    () => !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+  );
+
+  return (
+    <MotionProvider value={motionEnabled}>
+      <PublicPortalPageContent
+        motionEnabled={motionEnabled}
+        onToggleMotion={() => setMotionEnabled((current) => !current)}
+      />
+    </MotionProvider>
   );
 }
 
