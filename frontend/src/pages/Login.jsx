@@ -206,7 +206,7 @@ export default function Login({ onLogin, error }) {
 
             <div className="mt-5 flex items-center justify-center gap-2 text-xs text-slate-500">
               <Globe2 size={14} />
-              <span>Secure internal access · KCCC</span>
+              <span>Secure internal access · K3C</span>
             </div>
           </div>
         </section>

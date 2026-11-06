@@ -835,7 +835,7 @@ function BriefingPanel({ question, answer, mode, loading, evidence, limitations,
           <p>{answer}</p>
           {evidence?.length > 0 && (
             <p className="mt-1 text-[9px] text-slate-400">
-              Source: {evidence.map((item) => item.source).filter(Boolean).join(", ") || "KCCC Climate Atlas"}
+              Source: {evidence.map((item) => item.source).filter(Boolean).join(", ") || "K3C Climate Atlas"}
             </p>
           )}
           {limitations?.length > 0 && (
@@ -2466,7 +2466,7 @@ export default function PublicClimateAtlasPage() {
       <header className={`flex h-12 shrink-0 items-center justify-between border-b border-[#E6EAEC] bg-white px-5${isExportMode ? " hidden" : ""}`}>
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded bg-[#030454] text-xs font-black text-white">KS</div>
-          <h1 className="text-sm font-black">Kaduna Climate Hazard Assessment and Risk Tracking - KCCC</h1>
+          <h1 className="text-sm font-black">Kaduna Climate Hazard Assessment and Risk Tracking - K3C</h1>
         </div>
 
         <div className="text-center text-sm font-black text-[#030454]">
@@ -2510,7 +2510,7 @@ export default function PublicClimateAtlasPage() {
           {sidebarOpen && (
             <>
               <div className="shrink-0 border-b border-[#E6EAEC] px-5 py-5">
-                <h2 className="text-lg font-black text-[#8A0028]">KCCC Climate Hazard Assessment and Risk Tracking</h2>
+                <h2 className="text-lg font-black text-[#8A0028]">K3C Climate Hazard Assessment and Risk Tracking</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-600">Track extreme heat, flood, drought and erratic rainfall for every Kaduna LGA, compared with its own 1991-2020 normal. Rainfall, vegetation and other layers are under Supporting data.</p>
               </div>
 

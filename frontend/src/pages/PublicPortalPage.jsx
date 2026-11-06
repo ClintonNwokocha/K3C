@@ -87,14 +87,14 @@ function HomeTopNav() {
           className="flex items-center gap-3 text-left"
         >
           <img
-            src="/logos/KCCC.png"
-            alt="Kaduna Climate Command Centre"
+            src="/logos/k3c-icon.png"
+            alt="K3C"
             className="h-12 w-12 object-contain"
           />
 
           <span>
             <span className="block text-sm font-black uppercase tracking-[0.08em]">
-              Kaduna Climate Command Centre
+              K3C
             </span>
             <span className="block text-xs text-white/65">
               Climate Impact, Evidence and Reporting Portal
@@ -158,7 +158,7 @@ function HomeHero() {
               "text-xs font-black uppercase tracking-[0.22em] text-[#F3F74B]"
             )}
           >
-            Kaduna Public Climate Evidence Portal
+            Kaduna Climate Evidence Portal
           </p>
 
           <h1
@@ -181,8 +181,8 @@ function HomeHero() {
             style={{ transitionDelay: introVisible ? "160ms" : "0ms" }}
           >
             {isMilestoneOneDemo
-             ? "KCCC brings climate and environmental evidence together for Kaduna State, integrating satellite-derived indicators, LGA-level risk context, and climate-action signals covering all 23 LGAs."
-    : "KCCC brings satellite-derived climate data, Climate Impact, greenhouse gas information, climate projects, and public evidence for Kaduna State into one portal covering all 23 LGAs."}
+             ? "K3C brings climate and environmental evidence together for Kaduna State, integrating satellite-derived indicators, LGA-level risk context, and climate-action signals covering all 23 LGAs."
+    : "K3C brings satellite-derived climate data, Climate Impact, greenhouse gas information, climate projects, and public evidence for Kaduna State into one portal covering all 23 LGAs."}
           </p>
 
           <div
@@ -231,7 +231,7 @@ function WhyKcccSection() {
         <div ref={copyRef} className={revealClasses(copyVisible)}>
           <p className="flex items-center gap-2.5 text-xs font-black uppercase tracking-[0.16em] text-[#009B35]">
             <span className="h-[3px] w-6 rounded-full bg-[#009B35]" />
-            Why KCCC
+            Why K3C
           </p>
 
           <h2 className="mt-4 max-w-xl font-['Playfair_Display'] text-3xl font-bold leading-[1.1] tracking-tight text-[#030454] sm:text-4xl">
@@ -245,7 +245,7 @@ function WhyKcccSection() {
           </p>
 
           <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
-            The Kaduna Climate Command Centre brings climate intelligence,
+            K3C brings climate intelligence,
             greenhouse gas information, project updates and public evidence into
             one shared platform — helping make climate action easier to
             understand, monitor and communicate.
@@ -254,7 +254,7 @@ function WhyKcccSection() {
 
         <aside
           ref={panelRef}
-          aria-label="What KCCC brings together"
+          aria-label="What K3C brings together"
           className={revealClasses(
             panelVisible,
             "rounded-[20px] border border-white/40 bg-[#030454] p-7 text-white shadow-[0_20px_48px_rgba(8,13,82,0.25)]"
@@ -362,7 +362,7 @@ function ArchitecturePreviewSection() {
             Platform architecture
           </h2>
           <p className="mt-3 text-sm leading-7 text-slate-500">
-            KCCC is being built as a multi-module climate evidence platform. This preview shows
+            K3C is being built as a multi-module climate evidence platform. This preview shows
             the planned modules and their current status.
           </p>
         </div>
@@ -600,7 +600,7 @@ const exploreClimateCards = [
   {
     key: "ghg-inventory",
     icon: "◉",
-    title: "GHG Inventory",
+    title: "Greenhouse Gases (GHG) Inventory",
     description:
       "Review public greenhouse gas inventory summaries and sector-level emissions insights where approved data is available.",
     linkLabel: "View GHG inventory",

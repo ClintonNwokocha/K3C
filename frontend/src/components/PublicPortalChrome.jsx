@@ -107,8 +107,8 @@ function PublicHeaderBrand({ compact = false }) {
       aria-label="Go to public home"
     >
       <img
-        src="/logos/KCCC.png"
-        alt="Kaduna Climate Command Centre"
+        src="/logos/k3c-icon.png"
+        alt="K3C"
         className={`shrink-0 object-contain ${
           compact ? "h-12 w-12" : "h-12 w-12"
         }`}
@@ -116,7 +116,7 @@ function PublicHeaderBrand({ compact = false }) {
 
       <span className="min-w-0">
         <span className="block text-sm font-black uppercase tracking-[0.08em] text-white">
-          Kaduna Climate Command Centre
+          K3C
         </span>
         <span className="block text-xs leading-5 text-white/65">
           Climate Impact, Evidence and Reporting Portal
@@ -439,12 +439,12 @@ export function PublicPortalFooter() {
         <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
             <img
-              src="/logos/KCCC.png"
-              alt="Kaduna Climate Command Centre"
+              src="/logos/k3c-icon.png"
+              alt="K3C"
               className="h-5 w-5 shrink-0 object-contain"
             />
             <p className="text-[11px] font-black uppercase tracking-[0.06em] text-white">
-              Kaduna Climate Command Centre
+              K3C
             </p>
           </div>
 
@@ -477,7 +477,7 @@ export function PublicPortalFooter() {
           </span>
           <span className="mx-1.5 text-white/20">·</span>
           <span className="uppercase tracking-[0.08em]">
-            © 2026 Kaduna State Climate Command Centre. All rights reserved.
+            © 2026 K3C. All rights reserved.
           </span>
         </div>
       </div>

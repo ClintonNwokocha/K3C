@@ -41,7 +41,7 @@ const aboutDataItems = [
   {
     title: "What the inventory represents",
     body:
-      "This explorer shows approved KCCC greenhouse gas inventory entries returned by the public backend. It is a public summary view of approved records, not a replacement for a formal inventory report.",
+      "This explorer shows approved K3C greenhouse gas inventory entries returned by the public backend. It is a public summary view of approved records, not a replacement for a formal inventory report.",
   },
   {
     title: "Unit and rounding",
@@ -1427,7 +1427,7 @@ function buildChartCsv(chart, filters, optionLabels) {
         optionLabels.gas,
         value.value,
         "Approved public inventory aggregate",
-        "KCCC approved GHG inventory entries",
+        "K3C approved GHG inventory entries",
         "",
         CSV_NOTE,
       ]);
@@ -1680,58 +1680,56 @@ function MainVisualization({
           filterOptions={filterOptions}
           onFilterChange={onFilterChange}
         />
-      </section>
 
-      <AutomatedObservationsPanel data={data} change={change} />
-
-      <section className="rounded-2xl border border-[#e2e8f1] bg-white p-5 shadow-[0_8px_24px_rgba(16,25,77,0.05)] sm:p-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <ViewSwitch activeView={activeView} onChange={onViewChange} mapData={mapData} />
-          <p className="text-xs leading-5 text-slate-500">
-            {metadataLine}
-            {activeView === "map" && (
-              <>
-                {" | "}
-                <MapCoverageLine mapData={mapData} />
-              </>
-            )}
-          </p>
-        </div>
-
-        <h2 className="mt-4 text-xl font-black leading-tight text-[#030454] sm:text-2xl">
-          {workspaceTitle}
-        </h2>
-
-        {activeView === "map" ? (
-          <div className="mt-3">
-            <GhgMapView
-              mapData={mapData}
-              filters={filters}
-              optionLabels={optionLabels}
-              onFilterChange={onFilterChange}
-            />
+        <div className="mt-6 border-t border-[#dbe5f0] pt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <ViewSwitch activeView={activeView} onChange={onViewChange} mapData={mapData} />
+            <p className="text-xs leading-5 text-slate-500">
+              {metadataLine}
+              {activeView === "map" && (
+                <>
+                  {" | "}
+                  <MapCoverageLine mapData={mapData} />
+                </>
+              )}
+            </p>
           </div>
-        ) : (
-          <div className="mt-3 grid min-w-0 gap-5 xl:grid-cols-[minmax(0,4fr)_minmax(260px,1.15fr)]">
-            <div className="min-w-0 rounded-2xl border border-[#e5ebf4] bg-white p-4">
-              <div className="mb-2 flex items-center justify-end">
-                <span className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-3 py-1.5 text-xs leading-5 text-slate-600">
-                  <strong className="text-[#030454]">{seriesCount}</strong> visible series
-                </span>
-              </div>
 
-              <StackedAreaChart chart={chart} visibleKeys={visibleKeys} />
-              <ChartLegend
-                chart={chart}
-                visibleKeys={visibleKeys}
-                onToggleSeries={onToggleSeries}
-                onShowAll={onShowAllSeries}
+          <h2 className="mt-4 text-xl font-black leading-tight text-[#030454] sm:text-2xl">
+            {workspaceTitle}
+          </h2>
+
+          {activeView === "map" ? (
+            <div className="mt-3">
+              <GhgMapView
+                mapData={mapData}
+                filters={filters}
+                optionLabels={optionLabels}
+                onFilterChange={onFilterChange}
               />
             </div>
+          ) : (
+            <div className="mt-3 grid min-w-0 gap-5 xl:grid-cols-[minmax(0,4fr)_minmax(260px,1.15fr)]">
+              <div className="min-w-0 rounded-2xl border border-[#e5ebf4] bg-white p-4">
+                <div className="mb-2 flex items-center justify-end">
+                  <span className="rounded-md border border-[#D8DDE2] bg-[#F7F9FA] px-3 py-1.5 text-xs leading-5 text-slate-600">
+                    <strong className="text-[#030454]">{seriesCount}</strong> visible series
+                  </span>
+                </div>
 
-            <ChangePanel chart={chart} visibleKeys={visibleKeys} />
-          </div>
-        )}
+                <StackedAreaChart chart={chart} visibleKeys={visibleKeys} />
+                <ChartLegend
+                  chart={chart}
+                  visibleKeys={visibleKeys}
+                  onToggleSeries={onToggleSeries}
+                  onShowAll={onShowAllSeries}
+                />
+              </div>
+
+              <ChangePanel chart={chart} visibleKeys={visibleKeys} />
+            </div>
+          )}
+        </div>
       </section>
 
       <ChartMatrixTable
@@ -1739,6 +1737,8 @@ function MainVisualization({
         filters={filters}
         optionLabels={optionLabels}
       />
+
+      <AutomatedObservationsPanel data={data} change={change} />
     </div>
   );
 }
@@ -2509,11 +2509,11 @@ const SOURCE_ICON_TONES = [
 function SourcesReferencesSection() {
   const sources = [
     {
-      title: "KCCC approved GHG inventory entries",
+      title: "K3C approved GHG inventory entries",
       body: "Source for explorer charts, metrics and table records.",
     },
     {
-      title: "KCCC project records",
+      title: "K3C project records",
       body: "Source for expected project reductions only.",
     },
     {

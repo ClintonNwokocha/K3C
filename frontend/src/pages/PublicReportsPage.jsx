@@ -1035,7 +1035,7 @@ function ReportLibrary({
         <div className="mt-8">
           <PublicEmptyState
             title="No public reports found"
-            message="Approved KCCC reports and publications will appear here once they are published."
+            message="Approved K3C reports and publications will appear here once they are published."
           />
         </div>
       ) : (
