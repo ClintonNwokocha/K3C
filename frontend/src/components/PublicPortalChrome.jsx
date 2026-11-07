@@ -104,10 +104,16 @@ function PublicHeaderBrand({ compact = false }) {
       onClick={() => {
         window.location.href = "/public";
       }}
-      className="flex w-fit max-w-full items-center text-left"
+      className="flex w-fit max-w-full shrink-0 items-center text-left"
       aria-label="Go to public home"
     >
-      <K3CWhiteTextLogo className={compact ? "h-20" : "h-28"} />
+      <K3CWhiteTextLogo
+        className={
+          compact
+            ? "h-16 md:h-[76px]"
+            : "h-20 md:h-24 lg:h-[104px] xl:h-[116px]"
+        }
+      />
     </button>
   );
 }
@@ -424,7 +430,7 @@ export function PublicPortalFooter() {
       <div className="mx-auto max-w-[1536px]">
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <K3CWhiteTextLogo className="h-24" />
+            <K3CWhiteTextLogo className="h-10 md:h-12 lg:h-14" />
           </div>
 
           <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">

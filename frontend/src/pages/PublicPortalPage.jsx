@@ -103,9 +103,9 @@ function HomeTopNav() {
         <button
           type="button"
           onClick={() => goTo("/public")}
-          className="flex items-center text-left"
+          className="flex shrink-0 items-center text-left"
         >
-          <K3CWhiteTextLogo className="h-28" />
+          <K3CWhiteTextLogo className="h-20 md:h-24 lg:h-[104px] xl:h-[116px]" />
         </button>
 
         <nav className="hidden flex-wrap gap-2 md:flex">

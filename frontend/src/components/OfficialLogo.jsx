@@ -5,7 +5,7 @@ export default function OfficialLogo({
   className = "",
   compact = false,
 }) {
-  const heightClass = compact ? "h-20" : "h-24 md:h-28";
+  const heightClass = compact ? "h-16 md:h-20" : "h-20 md:h-24 lg:h-[104px]";
   const combinedClassName = `${heightClass} ${className}`;
 
   return variant === "dark" ? (
