@@ -2464,9 +2464,9 @@ export default function PublicClimateAtlasPage() {
         }
       `}</style>
 
-      <header className={`flex h-12 shrink-0 items-center justify-between border-b border-[#E6EAEC] bg-white px-5${isExportMode ? " hidden" : ""}`}>
+      <header className={`flex min-h-24 shrink-0 items-center justify-between border-b border-[#E6EAEC] bg-white px-5${isExportMode ? " hidden" : ""}`}>
         <div className="flex items-center gap-3">
-          <K3CColouredLogo className="h-10" />
+          <K3CColouredLogo className="h-20" />
           <h1 className="sr-only">Kaduna Climate Hazard Assessment and Risk Tracking</h1>
         </div>
 

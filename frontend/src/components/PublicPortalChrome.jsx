@@ -107,7 +107,7 @@ function PublicHeaderBrand({ compact = false }) {
       className="flex w-fit max-w-full items-center text-left"
       aria-label="Go to public home"
     >
-      <K3CWhiteTextLogo className={compact ? "h-11" : "h-14"} />
+      <K3CWhiteTextLogo className={compact ? "h-20" : "h-28"} />
     </button>
   );
 }
@@ -420,11 +420,11 @@ export function PublicPortalFooter() {
   const navItems = [...footerExploreItems, ...visibleFooterResourceItems];
 
   return (
-    <footer className="bg-[#030454] px-4 py-1.5 font-['DM_Sans'] text-xs text-white/55 sm:px-8 lg:px-10">
+    <footer className="bg-[#030454] px-4 py-4 font-['DM_Sans'] text-xs text-white/55 sm:px-8 lg:px-10">
       <div className="mx-auto max-w-[1536px]">
-        <div className="flex flex-col items-start gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2">
-            <K3CWhiteTextLogo className="h-7" />
+            <K3CWhiteTextLogo className="h-24" />
           </div>
 
           <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px]">
