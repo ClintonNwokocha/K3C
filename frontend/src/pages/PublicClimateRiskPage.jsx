@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { useScrollReveal, revealClasses, useMotionEnabled } from "../hooks/useScrollReveal";
 import {
   PublicCard,
   PublicDisclaimerNote,
   PublicEmptyState,
   PublicErrorBanner,
-  PublicFaqAccordion,
   PublicPrimaryButton,
   PublicPortalFooter,
   PublicPortalHeader,
@@ -25,7 +25,6 @@ import { getAtlasLayerConfig } from "../config/climateAtlasLayers";
 import { classifyNdvi, getPublicNdviError } from "../utils/publicNdvi";
 import RecommendedActions from "../components/RecommendedActions";
 import { recommendClimateActions } from "../decision-support/climateRecommendations.js";
-import climateRiskDryland from "../assets/climate-risk-dryland.jpg";
 import {
   computeClimateActionSignal,
   HAZARD_KEYS,
@@ -458,75 +457,196 @@ function NdviSeasonalBars({ points, isLoading }) {
   );
 }
 
-function PriorityLgaTable({ rows, limit, totalCount, onToggleLimit }) {
+function PriorityLgaExplorer({ rows }) {
+  const [search, setSearch] = useState("");
+  const [riskFilter, setRiskFilter] = useState("all");
+  const [concernFilter, setConcernFilter] = useState("all");
+  const [sortMode, setSortMode] = useState("score-desc");
+
+  const riskLevelOptions = useMemo(() => {
+    const set = new Set();
+    rows.forEach((row) => set.add(row.riskLevelDisplay));
+    return [...set];
+  }, [rows]);
+
+  const concernOptions = useMemo(() => {
+    const set = new Set();
+    rows.forEach((row) => {
+      if (row.concernLabel && row.concernLabel !== "Not assessed" && row.concernLabel !== "Not yet available") {
+        set.add(row.concernLabel);
+      }
+    });
+    return [...set].sort();
+  }, [rows]);
+  const concernFilterSupported = concernOptions.length > 0;
+
+  const filteredRows = useMemo(() => {
+    let result = rows;
+    const query = search.trim().toLowerCase();
+    if (query) result = result.filter((row) => row.lgaName.toLowerCase().includes(query));
+    if (riskFilter !== "all") result = result.filter((row) => row.riskLevelDisplay === riskFilter);
+    if (concernFilterSupported && concernFilter !== "all") {
+      result = result.filter((row) => row.concernLabel === concernFilter);
+    }
+
+    const sorted = [...result];
+    if (sortMode === "score-desc") {
+      sorted.sort((a, b) => (b.riskScoreRaw ?? -1) - (a.riskScoreRaw ?? -1));
+    } else if (sortMode === "score-asc") {
+      sorted.sort((a, b) => {
+        if (a.riskScoreRaw === null) return 1;
+        if (b.riskScoreRaw === null) return -1;
+        return a.riskScoreRaw - b.riskScoreRaw;
+      });
+    } else if (sortMode === "name") {
+      sorted.sort((a, b) => a.lgaName.localeCompare(b.lgaName));
+    }
+    return sorted;
+  }, [rows, search, riskFilter, concernFilter, concernFilterSupported, sortMode]);
+
+  function resetFilters() {
+    setSearch("");
+    setRiskFilter("all");
+    setConcernFilter("all");
+    setSortMode("score-desc");
+  }
+
+  const hasActiveFilters =
+    Boolean(search) || riskFilter !== "all" || concernFilter !== "all" || sortMode !== "score-desc";
+
   return (
     <PublicCard className="overflow-hidden p-0">
+      <div className="flex flex-col gap-3 border-b border-[#D8DDE2] bg-[#FBFCFE] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            type="search"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search an LGA..."
+            aria-label="Search LGAs"
+            className="h-10 min-w-[200px] rounded-md border border-[#D8DDE2] bg-white px-3 text-sm outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
+          />
+          <select
+            value={riskFilter}
+            onChange={(event) => setRiskFilter(event.target.value)}
+            aria-label="Filter by risk level"
+            className="h-10 rounded-md border border-[#D8DDE2] bg-white px-3 text-sm outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
+          >
+            <option value="all">All risk levels</option>
+            {riskLevelOptions.map((level) => (
+              <option key={level} value={level}>{level}</option>
+            ))}
+          </select>
+          {concernFilterSupported ? (
+            <select
+              value={concernFilter}
+              onChange={(event) => setConcernFilter(event.target.value)}
+              aria-label="Filter by main concern"
+              className="h-10 rounded-md border border-[#D8DDE2] bg-white px-3 text-sm outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
+            >
+              <option value="all">All concerns</option>
+              {concernOptions.map((label) => (
+                <option key={label} value={label}>{label}</option>
+              ))}
+            </select>
+          ) : (
+            <span
+              title="Concern filtering is disabled because the current risk profiles do not include published per-hazard concern scores."
+              className="rounded-md border border-dashed border-[#D8DDE2] bg-slate-50 px-3 py-2 text-xs font-bold text-slate-400"
+            >
+              Concern filter unavailable
+            </span>
+          )}
+          <select
+            value={sortMode}
+            onChange={(event) => setSortMode(event.target.value)}
+            aria-label="Sort priority LGAs"
+            className="h-10 rounded-md border border-[#D8DDE2] bg-white px-3 text-sm outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
+          >
+            <option value="score-desc">Risk score: high to low</option>
+            <option value="score-asc">Risk score: low to high</option>
+            <option value="name">LGA name: A-Z</option>
+          </select>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <button
+            type="button"
+            onClick={resetFilters}
+            disabled={!hasActiveFilters}
+            aria-label="Reset LGA filters and sorting"
+            className="rounded-md border border-[#D8DDE2] bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-[#030454] transition hover:border-[#009B35] hover:text-[#009B35] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Reset filters &#8630;
+          </button>
+          <span className="whitespace-nowrap text-xs font-bold text-slate-500">
+            Showing {filteredRows.length} of {rows.length} LGA records
+          </span>
+        </div>
+      </div>
+
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
+        <table className="w-full min-w-[760px] border-collapse text-sm">
           <caption className="sr-only">Priority LGAs by overall climate risk score</caption>
           <thead>
             <tr className="border-b border-[#D8DDE2] bg-[#F7F9FA] text-left text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
               <th scope="col" className="px-4 py-3">Rank</th>
-              <th scope="col" className="px-4 py-3">LGA</th>
+              <th scope="col" className="px-4 py-3">Local Government Area</th>
               <th scope="col" className="px-4 py-3">Risk score</th>
               <th scope="col" className="px-4 py-3">Risk level</th>
               <th scope="col" className="px-4 py-3">Main concern</th>
-              <th scope="col" className="px-4 py-3">Vulnerability</th>
               <th scope="col" className="px-4 py-3">Adaptive capacity</th>
+              <th scope="col" className="px-4 py-3 text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[#E6EAEC]">
-            {rows.map((profile, index) => {
-              const concern = getMainConcern(profile);
-              const riskScore = formatMetric(profile.overall_risk_score, 1);
-              const vulnerabilityScore = formatMetric(profile.vulnerability_score, 1);
-              const adaptiveCapacityScore = formatMetric(profile.adaptive_capacity_score, 1);
-              return (
-                <tr key={profile.id ?? profile.lga ?? profile.lga_name}>
-                  <td className="px-4 py-3 font-mono text-xs font-bold text-slate-500">{index + 1}</td>
-                  <th scope="row" className="px-4 py-3 text-left font-black">
-                    <a
-                      href={buildAtlasHref(concern.atlasKey, { lgaName: profile.lga_name })}
-                      aria-label={`Inspect ${profile.lga_name} in Climate Change Intelligence Tool`}
-                      className="text-[#030454] underline-offset-4 transition-colors duration-200 hover:text-[#009B35] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
-                    >
-                      {profile.lga_name}
-                    </a>
-                  </th>
-                  <td className="px-4 py-3 font-mono text-sm font-bold text-slate-700">{riskScore || "Not yet available"}</td>
-                  <td className="px-4 py-3">
-                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${getRiskLevelTone(profile.risk_level)}`}>
-                      {profile.risk_level_display || "Unknown"}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex rounded-full border border-[#D8DDE2] bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-600">
-                      {concern.label}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs font-bold text-slate-600">
-                    {vulnerabilityScore ? `${vulnerabilityScore} / 100` : "Not yet available"}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs font-bold text-slate-600">
-                    {adaptiveCapacityScore ? `${adaptiveCapacityScore} / 100` : "Not yet available"}
-                  </td>
-                </tr>
-              );
-            })}
+            {filteredRows.map((row, index) => (
+              <tr key={row.key} className="transition hover:bg-[#F5FBF7]">
+                <td className="px-4 py-3 font-mono text-xs font-bold text-slate-400">
+                  {String(index + 1).padStart(2, "0")}
+                </td>
+                <th scope="row" className="px-4 py-3 text-left font-black text-[#030454]">
+                  {row.lgaName}
+                </th>
+                <td className="px-4 py-3 font-mono text-sm font-bold text-slate-700">{row.riskScoreDisplay}</td>
+                <td className="px-4 py-3">
+                  <span className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold ${getRiskLevelTone(row.riskLevelDisplay)}`}>
+                    {row.riskLevelDisplay}
+                  </span>
+                </td>
+                <td className="px-4 py-3">
+                  <span className="inline-flex rounded-full border border-[#D8DDE2] bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                    {row.concernLabel}
+                  </span>
+                </td>
+                <td className="px-4 py-3 font-mono text-xs font-bold text-slate-600">{row.adaptiveCapacityDisplay}</td>
+                <td className="px-4 py-3 text-right">
+                  <a
+                    href={row.atlasHref}
+                    aria-label={`View ${row.lgaName} profile in the Climate Change Intelligence Tool`}
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-[#009B35]/40 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.06em] text-[#009B35] transition hover:bg-[#009B35] hover:text-white"
+                  >
+                    View profile <span aria-hidden="true">&#8599;</span>
+                  </a>
+                </td>
+              </tr>
+            ))}
+            {!filteredRows.length && (
+              <tr>
+                <td colSpan={7} className="px-4 py-8 text-center text-sm text-slate-500">
+                  No LGAs match the current search and filters.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
-      {totalCount > 5 && (
-        <div className="border-t border-[#D8DDE2] bg-[#F7F9FA] px-4 py-3 text-right">
-          <button
-            type="button"
-            onClick={onToggleLimit}
-            className="text-xs font-black uppercase tracking-[0.1em] text-[#030454] transition hover:text-[#009B35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
-          >
-            {limit === "all" ? "Show top five" : `View all ${totalCount} LGAs`}
-          </button>
-        </div>
-      )}
+
+      <div className="flex flex-col items-start gap-1 border-t border-[#D8DDE2] bg-[#FBFCFE] px-4 py-3 text-[11px] text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <span>
+          Coverage view &middot; {rows.length} LGA records &middot; {rows.filter((row) => row.hasProfile).length} with a published risk assessment
+        </span>
+        <span>Risk scores and labels reflect the approved dataset.</span>
+      </div>
     </PublicCard>
   );
 }
@@ -646,19 +766,61 @@ function AdditionalIndicatorRow({ name, value, period, limitation, href, actionL
   );
 }
 
+// Navy / soft-green / warm-cream, matching the approved three-finding
+// treatment. Every value below is real, already-computed page state
+// (risk-profile counts, vegetation and rainfall/SPI condition) - never a
+// hard-coded sample.
+const KEY_FINDING_TONES = [
+  { card: "bg-[#030454] text-white", decor: "border-white/25" },
+  { card: "bg-[#E6F7ED] text-[#030454]", decor: "border-[#009B35]/25" },
+  { card: "bg-[#FDF5E3] text-[#030454]", decor: "border-[#d99718]/30" },
+];
+
+function KeyFindingCard({ item, index }) {
+  const [cardRef, cardVisible] = useScrollReveal();
+  const tone = KEY_FINDING_TONES[index % KEY_FINDING_TONES.length];
+
+  return (
+    <a
+      ref={cardRef}
+      href={item.href}
+      style={{ transitionDelay: cardVisible ? `${index * 90}ms` : "0ms" }}
+      className={revealClasses(
+        cardVisible,
+        `group relative isolate flex min-h-[210px] flex-col overflow-hidden rounded-2xl p-6 duration-300 motion-safe:hover:-translate-y-1.5 hover:shadow-[0_18px_38px_rgba(8,12,65,0.16)] ${tone.card}`
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute -right-6 top-5 h-20 w-20 rounded-full border opacity-50 transition-transform duration-500 motion-safe:group-hover:scale-110 ${tone.decor}`}
+      />
+      <p className="relative z-[1] text-[10px] font-black uppercase tracking-[0.12em] opacity-75">
+        {item.kicker}
+      </p>
+      <p className="relative z-[1] mt-5 text-2xl font-black leading-tight sm:text-3xl">
+        {item.big}
+      </p>
+      <p className="relative z-[1] mt-2 text-xs leading-5 opacity-85">{item.body}</p>
+      <span className="relative z-[1] mt-auto flex w-fit items-center gap-1.5 border-b border-current pb-0.5 pt-4 text-[10px] font-black uppercase tracking-[0.08em]">
+        {item.linkLabel} <span aria-hidden="true">&#8599;</span>
+      </span>
+    </a>
+  );
+}
+
 function KeyFindingsSection({ findings }) {
   return (
     <PublicSection className="bg-white py-10 lg:py-11" innerClassName="max-w-7xl">
       <PublicSectionHeading
+        eyebrow="At a glance"
         title="Key Findings"
+        description="A quick, data-driven summary of the latest information on this page. Select a finding to explore the related section."
       />
-      <ul className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {findings.map((finding, index) => (
-          <li key={index} className="border-l-4 border-[#009B35] pl-4">
-            <p className="text-sm font-bold leading-6 text-[#030454]">{finding}</p>
-          </li>
+      <div className="mt-7 grid gap-5 sm:grid-cols-3">
+        {findings.map((item, index) => (
+          <KeyFindingCard key={item.key} item={item} index={index} />
         ))}
-      </ul>
+      </div>
     </PublicSection>
   );
 }
@@ -683,34 +845,55 @@ function AreasRequiringAttentionSection({ signals }) {
         description="LGAs prioritised by the Urgent Climate Action Signal — current climate-hazard evidence, exposure and vulnerability context alongside the existing validated risk assessment. A decision-support prioritisation signal, not a forecast or emergency warning."
       />
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        {displayed.map((signal) => (
-          <PublicCard key={signal.admin_code || signal.admin_name} className="p-4">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-sm font-black text-[#030454]">{signal.admin_name}</p>
-              <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] ${SIGNAL_VISUAL[signal.signal_level].badgeClass}`}>
-                {signal.signal_label}
-              </span>
-            </div>
-            <p className="mt-2 text-xs font-bold text-slate-700">
-              {signal.dominant_concern || "Environmental stress evidence"}
-            </p>
-            <p className="mt-1 text-[11px] leading-4 text-slate-500">
-              {signal.risk_level ? `${signal.risk_level_display} existing climate risk` : "Risk profile not yet available"}
-            </p>
-            {signal.exposure_evidence.length > 0 && (
-              <p className="mt-1 text-[11px] leading-4 text-slate-500">
-                {signal.exposure_evidence.map((item) => `${item.label}: ${Number(item.value).toLocaleString()}`).join(" · ")}
-              </p>
-            )}
-            <a
-              href={buildAtlasHref(DOMINANT_CONCERN_ATLAS_KEY[signal.dominant_concern] || "drought_index", { lgaName: signal.admin_name })}
-              aria-label={`Inspect ${signal.admin_name} in Climate Change Intelligence Tool`}
-              className="mt-3 inline-block text-xs font-black text-[#009B35] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
+        {displayed.map((signal) => {
+          const tone = SIGNAL_VISUAL[signal.signal_level];
+          return (
+            <PublicCard
+              key={signal.admin_code || signal.admin_name}
+              className="group relative overflow-hidden p-5 pl-6 transition duration-300 motion-safe:hover:-translate-y-1.5 hover:border-[#b2d9bf] hover:shadow-[0_18px_38px_rgba(8,12,65,0.1)]"
             >
-              Inspect
-            </a>
-          </PublicCard>
-        ))}
+              <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1" style={{ background: tone.color }} />
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-black text-[#030454]">{signal.admin_name}</h3>
+                  <p className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">
+                    {signal.dominant_concern || "Environmental stress evidence"}
+                  </p>
+                </div>
+                <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.06em] ${tone.badgeClass}`}>
+                  {signal.signal_label}
+                </span>
+              </div>
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                {signal.exposure_evidence.length > 0
+                  ? signal.exposure_evidence.map((item) => `${item.label}: ${Number(item.value).toLocaleString()}`).join(" · ")
+                  : "Review current climate-hazard evidence alongside the published assessment."}
+              </p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="rounded-lg bg-[#F6F8FB] p-2.5">
+                  <p className="text-[8px] font-black uppercase tracking-[0.06em] text-slate-400">Risk level</p>
+                  <p className="mt-0.5 text-xs font-black text-[#030454]">
+                    {signal.risk_level ? signal.risk_level_display : "Not yet available"}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-[#F6F8FB] p-2.5">
+                  <p className="text-[8px] font-black uppercase tracking-[0.06em] text-slate-400">Signal</p>
+                  <p className="mt-0.5 text-xs font-black text-[#030454]">{signal.signal_label}</p>
+                </div>
+              </div>
+              <a
+                href={buildAtlasHref(DOMINANT_CONCERN_ATLAS_KEY[signal.dominant_concern] || "drought_index", { lgaName: signal.admin_name })}
+                aria-label={`Inspect ${signal.admin_name} in Climate Change Intelligence Tool`}
+                className="mt-4 flex items-center justify-between gap-2 border-t border-[#EDF0F4] pt-3 text-[10px] font-black uppercase tracking-[0.08em] text-[#009B35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
+              >
+                Inspect LGA record
+                <span aria-hidden="true" className="transition-transform duration-200 motion-safe:group-hover:translate-x-1">
+                  &#8599;
+                </span>
+              </a>
+            </PublicCard>
+          );
+        })}
       </div>
       {flagged.length > 5 && (
         <div className="mt-4 text-right">
@@ -782,55 +965,281 @@ function ProcessingRequirementCard({ item }) {
   );
 }
 
-function ClimateRiskExecutiveHero({ riskProfile }) {
-  return (
-    <PublicSection
-      className="border-b border-[#D8DDE2] bg-white py-10 lg:py-11"
-      innerClassName="grid gap-8 lg:grid-cols-[minmax(0,0.98fr)_minmax(360px,0.82fr)] lg:items-center"
-    >
-      <div className="flex flex-col justify-center py-2">
-        <h1 className="max-w-3xl text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-[#030454] sm:text-5xl lg:text-6xl">
-          Climate risks require timely, targeted action
-        </h1>
-        <p className="mt-5 max-w-2xl text-pretty text-base leading-8 text-slate-600 sm:text-lg">
-          Explore Kaduna State's latest climate impact, priority LGAs and key
-          environmental indicators. Use the Climate Change Intelligence Tool for detailed maps and
-          spatial insights.
-        </p>
-        <div className="mt-6">
-          <PublicPrimaryButton
-            onClick={() => {
-              window.location.href = "/public/climate-atlas";
-            }}
-            showArrow
-            className="px-5 py-3 text-xs"
-          >
-            Climate Change Intelligence Tool
-          </PublicPrimaryButton>
-        </div>
-        {riskProfile.updatedAt && (
-          <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-500">
-            Updated: {riskProfile.updatedAt}
-          </p>
-        )}
-      </div>
+const RISK_VISUAL_POINTS = [
+  { left: "28%", top: "42%", delay: "0ms" },
+  { left: "55%", top: "27%", delay: "600ms" },
+  { left: "65%", top: "61%", delay: "1100ms" },
+  { left: "42%", top: "70%", delay: "1600ms" },
+];
 
-      <div className="relative min-h-[280px] w-full overflow-hidden rounded-xl bg-[#030454] shadow-sm sm:min-h-[320px] lg:min-h-[360px]">
-        <img
-          src={climateRiskDryland}
-          alt=""
+// Decorative risk-overview panel. Deliberately not a literal map: this
+// page has no bundled Kaduna boundary asset and the production Climate
+// Change Intelligence Tool (linked via the CTA below) is the authoritative
+// GIS surface. The only data shown here (risk level, assessment year,
+// high-risk LGA count) is real, already-computed `riskProfile` data - the
+// gradient/contours/pulsing points are ambient art direction only, with no
+// invented values of their own, matching the approved reference's own
+// treatment of this panel.
+function ClimateRiskVisualPanel({ riskProfile, motionEnabled }) {
+  return (
+    <div
+      className="relative min-h-[280px] w-full overflow-hidden rounded-2xl border border-white/15 shadow-[0_28px_65px_rgba(0,0,0,0.25)] sm:min-h-[320px] lg:min-h-[360px]"
+      style={{
+        background:
+          "radial-gradient(ellipse at 55% 38%, #4c7a52 0%, #2d5a45 25%, #12302e 54%, #081a2e 100%)",
+      }}
+    >
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-[15%] -rotate-[20deg] rounded-[44%_56%_39%_61%/44%_42%_58%_56%] border border-[#c9f4a7]/35"
+      />
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-[25%] rotate-[20deg] rounded-[44%_56%_39%_61%/44%_42%_58%_56%] border border-[#f2ff3f]/35"
+      />
+      {RISK_VISUAL_POINTS.map((point, index) => (
+        <span
+          key={index}
           aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover object-center"
+          className={`pointer-events-none absolute h-2.5 w-2.5 rounded-full bg-[#F3F74B] shadow-[0_0_0_6px_rgba(243,247,75,0.25),0_0_22px_rgba(243,247,75,0.9)] motion-reduce:animate-none ${
+            motionEnabled ? "animate-pulse" : ""
+          }`}
+          style={{ left: point.left, top: point.top, animationDelay: point.delay }}
         />
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(rgba(0,20,20,0.18), rgba(0,40,20,0.30))",
-          }}
-        />
+      ))}
+      <p className="absolute left-5 top-5 text-[10px] uppercase tracking-[0.14em] text-white/75">
+        Kaduna State climate risk overview
+      </p>
+      <div className="absolute bottom-4 right-4 w-[210px] rounded-xl border border-white/30 bg-[#061f24]/85 p-4 backdrop-blur">
+        <p className="text-[9px] font-black uppercase tracking-[0.12em] text-[#c4e5c4]">
+          Current risk level
+        </p>
+        <p className="mt-1 text-2xl font-black leading-tight text-white">
+          {riskProfile.level}
+        </p>
+        <div className="mt-3 flex items-center justify-between text-[10px] text-white/75">
+          <span>Assessment year</span>
+          <b className="text-white">{riskProfile.assessmentPeriod}</b>
+        </div>
+        <div className="mt-1.5 flex items-center justify-between text-[10px] text-white/75">
+          <span>High-risk LGAs</span>
+          <b className="text-[#ffb4c0]">{riskProfile.highRiskLgaCount}</b>
+        </div>
       </div>
+    </div>
+  );
+}
+
+function ClimateRiskExecutiveHero({ riskProfile }) {
+  const motionEnabled = useMotionEnabled();
+  const [eyebrowRef, eyebrowVisible] = useScrollReveal();
+  const [titleRef, titleVisible] = useScrollReveal();
+  const [introRef, introVisible] = useScrollReveal();
+  const [visualRef, visualVisible] = useScrollReveal();
+
+  return (
+    <section className="relative overflow-hidden bg-[#030454] px-4 py-12 text-white sm:px-8 sm:py-14 lg:px-10 lg:py-16">
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute -right-40 -top-56 h-[34rem] w-[34rem] rounded-full border border-[#F3F74B]/20 motion-reduce:animate-none ${
+          motionEnabled ? "animate-[spin_38s_linear_infinite]" : ""
+        }`}
+      />
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute right-[14%] -bottom-40 h-72 w-72 rounded-full bg-[#009B35] opacity-20 blur-[90px] motion-reduce:animate-none ${
+          motionEnabled ? "animate-pulse" : ""
+        }`}
+      />
+
+      <div className="relative mx-auto grid max-w-[1536px] gap-10 lg:grid-cols-[minmax(0,0.98fr)_minmax(360px,0.82fr)] lg:items-center">
+        <div>
+          <p
+            ref={eyebrowRef}
+            className={revealClasses(eyebrowVisible, "text-xs font-black uppercase tracking-[0.22em] text-[#F3F74B]")}
+          >
+            Climate impact briefing
+          </p>
+          <h1
+            ref={titleRef}
+            className={revealClasses(
+              titleVisible,
+              "mt-5 max-w-3xl text-balance font-['Playfair_Display'] text-4xl font-black leading-tight text-white sm:text-5xl lg:text-6xl"
+            )}
+            style={{ transitionDelay: titleVisible ? "80ms" : "0ms" }}
+          >
+            Climate risks require timely, targeted action
+          </h1>
+          <p
+            ref={introRef}
+            className={revealClasses(introVisible, "mt-5 max-w-2xl text-pretty text-base leading-8 text-white/78 sm:text-lg")}
+            style={{ transitionDelay: introVisible ? "160ms" : "0ms" }}
+          >
+            Explore Kaduna State's latest climate impact, priority LGAs and key
+            environmental indicators. Use the Climate Change Intelligence Tool for detailed maps and
+            spatial insights.
+          </p>
+          <div
+            className={revealClasses(introVisible, "mt-7 flex flex-wrap gap-4")}
+            style={{ transitionDelay: introVisible ? "220ms" : "0ms" }}
+          >
+            <PublicPrimaryButton
+              onClick={() => {
+                window.location.href = "/public/climate-atlas";
+              }}
+              showArrow
+              className="px-5 py-3.5 text-xs focus-visible:ring-offset-[#030454]"
+            >
+              Climate Change Intelligence Tool
+            </PublicPrimaryButton>
+          </div>
+          {riskProfile.updatedAt && (
+            <p className="mt-4 text-xs font-bold uppercase tracking-[0.12em] text-white/55">
+              Updated: {riskProfile.updatedAt}
+            </p>
+          )}
+        </div>
+
+        <div
+          ref={visualRef}
+          className={revealClasses(visualVisible, "")}
+          style={{ transitionDelay: visualVisible ? "140ms" : "0ms" }}
+        >
+          <ClimateRiskVisualPanel riskProfile={riskProfile} motionEnabled={motionEnabled} />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+const ACCORDION_ICON_TONES = [
+  "bg-[#e7f7ee] text-[#009B35]",
+  "bg-[#e6eeff] text-[#1d4ed8]",
+  "bg-[#fff0d6] text-[#b45309]",
+];
+
+function ReadBeyondHeadlineAccordion({ items }) {
+  const [openIndex, setOpenIndex] = useState(0);
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[#D8DDE2] bg-white">
+      {items.map((item, index) => {
+        const isOpen = openIndex === index;
+        return (
+          <div key={item.title} className={index > 0 ? "border-t border-[#D8DDE2]" : ""}>
+            <button
+              type="button"
+              onClick={() => setOpenIndex(isOpen ? -1 : index)}
+              aria-expanded={isOpen}
+              className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-[#F6FBF8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/40"
+            >
+              <span className="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-sm ${ACCORDION_ICON_TONES[index % ACCORDION_ICON_TONES.length]}`}
+                >
+                  {item.icon}
+                </span>
+                <span className="text-sm font-black text-[#030454]">{item.title}</span>
+              </span>
+              <span
+                aria-hidden="true"
+                className={`shrink-0 text-xl font-black text-[#009B35] transition-transform duration-300 ${isOpen ? "rotate-45" : ""}`}
+              >
+                +
+              </span>
+            </button>
+            <div
+              className="grid transition-[grid-template-rows] duration-300 ease-out motion-reduce:transition-none"
+              style={{ gridTemplateRows: isOpen ? "1fr" : "0fr" }}
+            >
+              <div className="overflow-hidden">
+                <div className="px-5 pb-5 pl-16 text-sm leading-7 text-slate-600">{item.body}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ReadBeyondHeadlineSection({ items }) {
+  return (
+    <PublicSection className="bg-[#F7F9FA] py-10 lg:py-11" innerClassName="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
+      <div className="rounded-2xl bg-[#030454] p-7 text-white">
+        <p className="text-xs font-black uppercase tracking-[0.18em] text-[#F3F74B]">Supporting information</p>
+        <h2 className="mt-3 font-['Playfair_Display'] text-3xl font-bold leading-tight sm:text-4xl">
+          Read beyond the headline.
+        </h2>
+        <p className="mt-3 text-sm leading-7 text-white/75">
+          Make context and limitations easy to find. These expandable notes
+          explain what is available, what still needs processing and how
+          users should interpret the evidence.
+        </p>
+        <div className="mt-6 rounded-xl bg-white/10 px-4 py-3 text-xs font-bold text-[#F3F74B]">
+          &#9679;&nbsp; Data transparency is part of climate intelligence.
+        </div>
+      </div>
+      <ReadBeyondHeadlineAccordion items={items} />
     </PublicSection>
+  );
+}
+
+const ABOUT_DATA_ICON_TONES = [
+  "bg-[#e7f7ee] text-[#009B35]",
+  "bg-[#e6eeff] text-[#1d4ed8]",
+  "bg-[#fdf0e3] text-[#b45309]",
+  "bg-[#f3e8ff] text-[#7c3aed]",
+  "bg-[#fff0d6] text-[#92400e]",
+  "bg-[#e0f2fe] text-[#0369a1]",
+];
+
+function AboutDataCard({ item, index }) {
+  const [cardRef, cardVisible] = useScrollReveal();
+
+  return (
+    <article
+      ref={cardRef}
+      style={{ transitionDelay: cardVisible ? `${index * 70}ms` : "0ms" }}
+      className={revealClasses(
+        cardVisible,
+        "rounded-2xl border border-slate-200 bg-white p-5 text-left shadow-[0_6px_18px_rgba(16,25,77,0.05)] transition motion-safe:hover:-translate-y-0.5 hover:shadow-[0_12px_28px_rgba(16,25,77,0.1)]"
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={`grid h-10 w-10 place-items-center rounded-xl text-base font-black ${ABOUT_DATA_ICON_TONES[index % ABOUT_DATA_ICON_TONES.length]}`}
+      >
+        {String(index + 1).padStart(2, "0")}
+      </span>
+      <h3 className="mt-4 text-sm font-black text-[#030454]">{item.title}</h3>
+      <p className="mt-2 text-sm leading-6 text-slate-500">{item.body}</p>
+    </article>
+  );
+}
+
+function AboutDataGrid({ items }) {
+  return (
+    <section className="bg-gradient-to-r from-[#fbf8d6] via-[#eaf7ea] to-[#fdf5e3] px-4 py-10 sm:px-8 lg:px-10">
+      <div className="mx-auto max-w-7xl">
+        <div className="text-center">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#009B35]">Methodology</p>
+          <h2 className="mt-3 font-['Playfair_Display'] text-3xl font-bold text-[#030454] sm:text-4xl">
+            About the data
+          </h2>
+          <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600">
+            Concise transparency notes for every indicator shown on this
+            page, linking back to the detailed evidence above where useful.
+          </p>
+        </div>
+        <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {items.map((item, index) => (
+            <AboutDataCard key={item.title} item={item} index={index} />
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -857,7 +1266,6 @@ export default function PublicClimateRiskPage() {
   const [floodOccurrenceData, setFloodOccurrenceData] = useState(null);
   const [elevationData, setElevationData] = useState(null);
   const [lulcData, setLulcData] = useState(null);
-  const [lgaLimit, setLgaLimit] = useState("5");
   const [selectedIndicatorLgaCode, setSelectedIndicatorLgaCode] = useState("");
 
   useEffect(() => {
@@ -1082,17 +1490,73 @@ export default function PublicClimateRiskPage() {
       )[0],
     [publicRiskProfiles],
   );
-  const priorityLgaRows = useMemo(
-    () =>
-      [...publicRiskProfiles]
-        .filter((profile) => Number.isFinite(Number(profile.overall_risk_score)))
-        .sort((a, b) => Number(b.overall_risk_score) - Number(a.overall_risk_score)),
-    [publicRiskProfiles],
-  );
-  const displayedPriorityRows = useMemo(
-    () => (lgaLimit === "all" ? priorityLgaRows : priorityLgaRows.slice(0, 5)),
-    [priorityLgaRows, lgaLimit],
-  );
+  // Full 23-LGA coverage: every LGA known to the page (via the NDVI LGA
+  // list already loaded for the indicator explorer) is shown, with real
+  // published risk-profile data where it exists and an explicit "Pending"
+  // row - never a silently dropped LGA or a fabricated score - where it
+  // does not.
+  const fullLgaCoverageRows = useMemo(() => {
+    const profileByName = new Map();
+    publicRiskProfiles.forEach((profile) => {
+      if (profile.lga_name) profileByName.set(normalizeLgaName(profile.lga_name), profile);
+    });
+
+    function rowFromProfile(profile, fallbackName) {
+      const concern = getMainConcern(profile);
+      const riskScoreRaw = safeNumber(profile.overall_risk_score);
+      const adaptiveCapacity = formatMetric(profile.adaptive_capacity_score, 1);
+      return {
+        key: profile.id ?? profile.lga_name ?? fallbackName,
+        lgaName: profile.lga_name || fallbackName,
+        riskScoreRaw,
+        riskScoreDisplay: formatMetric(profile.overall_risk_score, 1) || "—",
+        riskLevelDisplay: profile.risk_level_display || "Unknown",
+        concernLabel: concern.label,
+        adaptiveCapacityDisplay: adaptiveCapacity ? `${adaptiveCapacity} / 100` : "Not yet available",
+        atlasHref: buildAtlasHref(concern.atlasKey, { lgaName: profile.lga_name || fallbackName }),
+        hasProfile: true,
+      };
+    }
+
+    const coveredNames = new Set();
+    const rows = lgaOptions.map((lga) => {
+      const key = normalizeLgaName(lga.admin_name);
+      coveredNames.add(key);
+      const profile = profileByName.get(key);
+      if (!profile) {
+        return {
+          key: lga.admin_code,
+          lgaName: lga.admin_name,
+          riskScoreRaw: null,
+          riskScoreDisplay: "—",
+          riskLevelDisplay: "Pending",
+          concernLabel: "Not assessed",
+          adaptiveCapacityDisplay: "Not yet available",
+          atlasHref: buildAtlasHref("drought_index", { lgaName: lga.admin_name }),
+          hasProfile: false,
+        };
+      }
+      return rowFromProfile(profile, lga.admin_name);
+    });
+
+    // A published risk profile whose LGA name is absent from the NDVI LGA
+    // list is still included, so a real record is never dropped just
+    // because another dataset's coverage differs.
+    publicRiskProfiles.forEach((profile) => {
+      if (!profile.lga_name) return;
+      const key = normalizeLgaName(profile.lga_name);
+      if (coveredNames.has(key)) return;
+      coveredNames.add(key);
+      rows.push(rowFromProfile(profile, profile.lga_name));
+    });
+
+    return rows.sort((a, b) => {
+      if (a.riskScoreRaw === null && b.riskScoreRaw === null) return a.lgaName.localeCompare(b.lgaName);
+      if (a.riskScoreRaw === null) return 1;
+      if (b.riskScoreRaw === null) return -1;
+      return b.riskScoreRaw - a.riskScoreRaw;
+    });
+  }, [lgaOptions, publicRiskProfiles]);
   // Urgent Climate Action Signal — same shared computation as the Climate
   // Change Intelligence System map (frontend/src/decision-support/climateActionSignal.js).
   // No new API calls: risk profiles, indicators and exposure breakdown are
@@ -1318,34 +1782,45 @@ export default function PublicClimateRiskPage() {
     selectedLulcSnapshot,
     selectedRainfallAnomaly,
   ]);
-  const keyFindings = useMemo(() => {
+  const keyFindingCards = useMemo(() => {
     const vegetationCopy = {
       "Healthy vegetation": "Vegetation conditions are generally healthy across Kaduna State.",
       "Moderate vegetation": "Vegetation conditions are moderate across Kaduna State.",
       "Sparse vegetation": "Vegetation conditions are below normal in parts of Kaduna State.",
       "Low vegetation": "Vegetation conditions are low in parts of Kaduna State.",
     };
-    const temperatureCopy = {
-      "High surface temperature": "Surface temperatures require continued monitoring.",
-      "Moderate surface temperature": "Surface temperatures are within a moderate range.",
-      "Lower surface temperature": "Surface temperatures remain in a lower range.",
-    };
 
     return [
-      hasPublicRiskCounts
-        ? `${highRiskLgaCount} LGA${highRiskLgaCount === 1 ? "" : "s"} ${highRiskLgaCount === 1 ? "is" : "are"} currently classified as High or Very High Risk.`
-        : "LGA risk classifications for the current period are not yet published.",
-      ...(hazardCards.some((card) => card.status !== "Not yet available")
-        ? hazardCards.map((card) => `${card.label}: ${card.status}${selectedIndicatorLgaCode ? "" : " Moderate or worse"} in 2025.`)
-        : [
-            vegetationCopy[vegetationStatus] || "Vegetation data for the current period is not yet available.",
-            spiStatus !== "Not yet available"
-              ? `Rainfall conditions are ${spiStatus.toLowerCase()}.`
-              : "Rainfall and drought conditions for the current period are not yet available.",
-            temperatureCopy[lstStatus] || "Surface temperature data for the current period is not yet available.",
-          ]),
+      {
+        key: "risk-profile",
+        kicker: "01 / Risk profile",
+        big: hasPublicRiskCounts ? `${highRiskLgaCount} LGA${highRiskLgaCount === 1 ? "" : "s"}` : "Not yet available",
+        body: hasPublicRiskCounts
+          ? "Currently classified as High or Very High risk in the published assessment summary."
+          : "LGA risk classifications for the current period are not yet published.",
+        linkLabel: "Explore priority LGAs",
+        href: "#priority",
+      },
+      {
+        key: "vegetation",
+        kicker: "02 / Vegetation",
+        big: vegetationStatus !== "Not yet available" ? vegetationStatus : "Data gap",
+        body: vegetationCopy[vegetationStatus] || "Vegetation data for the current period is not yet available in this briefing.",
+        linkLabel: "Read supporting data notes",
+        href: "#supporting",
+      },
+      {
+        key: "rainfall",
+        kicker: "03 / Rainfall",
+        big: spiStatus !== "Not yet available" ? spiStatus : "Review",
+        body: spiStatus !== "Not yet available"
+          ? `Rainfall conditions are classified as ${spiStatus.toLowerCase()}; interpret alongside seasonal context.`
+          : "Rainfall conditions require interpretation alongside seasonal context.",
+        linkLabel: "Read supporting data notes",
+        href: "#supporting",
+      },
     ];
-  }, [hasPublicRiskCounts, highRiskLgaCount, vegetationStatus, spiStatus, lstStatus, hazardCards, selectedIndicatorLgaCode]);
+  }, [hasPublicRiskCounts, highRiskLgaCount, vegetationStatus, spiStatus]);
 
   const riskProfile = useMemo(() => ({
     level: highestRiskProfile?.risk_level_display || "Not yet published",
@@ -1359,28 +1834,35 @@ export default function PublicClimateRiskPage() {
     highestRiskProfile,
     publicRiskSummary.year,
   ]);
-  const aboutDataItems = useMemo(() => [
+  // Exactly six named topics, consolidating the same real methodology notes
+  // used elsewhere on this page (the per-indicator limitation text below is
+  // also visible inline in the "Read beyond the headline" indicator table) -
+  // no generic placeholder copy was substituted.
+  const aboutDataSixCards = useMemo(() => [
     {
-      title: "Data sources",
-      body: <div className="space-y-3"><p>Vegetation / NDVI uses Landsat Collection 2 Level 2 and Sentinel-2 Surface Reflectance Harmonized through Google Earth Engine.</p><p>Daytime LST uses MODIS Terra MOD11A1 v061. Rainfall, rainfall anomaly, and SPI use CHIRPS v2.0 daily rainfall totals where those layers are available in the public catalog.</p></div>,
+      title: "Data Sources",
+      body: "Vegetation/NDVI uses Landsat Collection 2 Level 2 and Sentinel-2 Surface Reflectance Harmonized via Google Earth Engine. Daytime LST uses MODIS Terra MOD11A1 v061. Rainfall, rainfall anomaly and SPI use CHIRPS v2.0 daily rainfall totals where those layers are in the public catalog.",
     },
     {
-      title: "Processing methodology",
-      body: <div className="space-y-3"><p>NDVI values on this briefing page are derived from 2025 Sentinel-2 composites and summarized to LGA-level records for annual, wet-season, and dry-season windows.</p><p>The full Climate Change Intelligence Tool archive keeps Landsat NDVI and Sentinel-2 NDVI scientifically distinct; they are not presented as one calibrated series.</p><p>Rainfall anomaly is database-derived from CHIRPS rainfall totals as percentage departure from the 1991-2020 LGA baseline. SPI uses fixed-window precipitation-only gamma fits for Annual, Wet Season, and Dry Season windows.</p></div>,
+      title: "Processing Methodology",
+      body: "NDVI values are derived from 2025 Sentinel-2 composites, summarized to LGA-level records for annual, wet-season and dry-season windows. Landsat and Sentinel-2 NDVI remain scientifically distinct series. Rainfall anomaly is the percentage departure from the 1991-2020 LGA baseline; SPI uses fixed-window precipitation-only gamma fits.",
     },
-    { title: "Coverage", body: <p>Kaduna coverage is summarized at LGA level. The current public vegetation briefing reports annual, wet-season, and dry-season records where LGA data is available.</p> },
-    { title: "Temporal frequency", body: <p>The current briefing view uses 2025 composites and the live public catalog state. Historical coverage noted in the catalog includes Sentinel-2 2018-2025, Landsat 1985-2017, MODIS LST 2001-2025, and CHIRPS-derived rainfall products where available.</p> },
-    { title: "Spatial resolution", body: <p>Sentinel-2 NDVI is shown with the existing 60 m processing scale noted by the page. MODIS daytime LST is documented as a 1 km layer. LGA summaries aggregate raster products to administrative units.</p> },
     {
-      title: "Known limitations",
-      body: <div className="space-y-3"><p>LST is land surface temperature and is not equivalent to air temperature. SPI is a precipitation-only meteorological drought or wetness indicator and is not an agricultural or hydrological drought indicator.</p><p>Rainfall anomaly is not a drought index and should be interpreted alongside seasonal rainfall totals. Satellite rainfall totals are estimates, and local gauge validation is planned.</p></div>,
+      title: "Spatial Coverage",
+      body: "Kaduna coverage is summarized at LGA level across all reporting windows where data is available. Sentinel-2 NDVI uses a 60 m processing scale; MODIS daytime LST is a 1 km layer. Raster products are aggregated to administrative units.",
     },
-    { title: "Interpretation guidance", body: <p>NDVI indicates vegetation condition and should be interpreted with season, rainfall, rainfall anomaly, SPI, and LST caveats before technical decisions. This public page is a briefing layer, not a replacement for technical GIS analysis.</p> },
-    { title: "Administrative exposure estimates", body: <div className="space-y-3"><p>Estimated People in High-Risk LGAs is an administrative-area estimate based on WorldPop gridded population inside LGAs currently classified High or Very High. It is not a hazard-footprint exposure estimate.</p><p>The estimate assumes the selected gridded population layer and K3C LGA boundaries are suitable for public planning context. It should be interpreted as a screening indicator, not a household count.</p></div> },
-    { title: "Mapped building footprint assumptions", body: <div className="space-y-3"><p>Mapped Buildings in High-Risk LGAs uses Google Open Buildings footprints filtered by the published confidence threshold. Building footprint area is the summed mapped polygon area, not floor area, occupancy, replacement value, or service criticality.</p><p>Open Buildings identifies structures but does not classify facility function. Hospitals, schools, water, power, and emergency assets require a classified infrastructure inventory.</p></div> },
-    { title: "Flood footprint exposure", body: <div className="space-y-3"><p>Flood Exposure uses the existing JRC Global Surface Water occurrence layer as a historical surface-water footprint and intersects it with WorldPop gridded population. Open Buildings structure and area aggregates are shown only after a cached building-footprint run completes successfully.</p><p>This differs from administrative exposure because it uses an actual mapped raster footprint instead of counting every person or structure within an LGA boundary.</p></div> },
-    { title: "Exposure limitations", body: <div className="space-y-3"><p>Administrative indicators summarize people and mapped structures within administratively high-risk LGAs. They do not mean every person or structure is directly exposed to a specific flood, heat, drought, vegetation-stress, or forest-loss footprint.</p><p>Flood Exposure is a historical surface-water occurrence screen, not a real-time alert, flood forecast, or formal flood hazard designation. True spatial exposure estimates require dedicated hazard raster masks and asset-overlay analysis.</p></div> },
-    { title: "Difference between this briefing page and the hazard map", body: <p>This page gives a concise public briefing of the four climate hazards (extreme heat, flood, drought and erratic rainfall) with executive charts and dataset readiness. The Climate Change Intelligence Tool map is the deeper interactive GIS experience for maps, year and season filtering, LGA drill-down, and basemap controls.</p> },
+    {
+      title: "Temporal Frequency",
+      body: "This briefing uses 2025 composites and the live public catalog state. Historical catalog coverage includes Sentinel-2 2018-2025, Landsat 1985-2017, MODIS LST 2001-2025, and CHIRPS-derived rainfall products where available.",
+    },
+    {
+      title: "Known Limitations",
+      body: "LST is surface temperature, not air temperature. SPI is precipitation-only and not an agricultural or hydrological drought indicator; rainfall anomaly is not a drought index. Administrative exposure estimates (people, buildings) are screening indicators tied to LGA boundaries, WorldPop and Open Buildings data - not hazard-footprint or infrastructure-criticality assessments. Satellite rainfall totals are estimates pending local gauge validation.",
+    },
+    {
+      title: "Interpretation Guidance",
+      body: "NDVI indicates vegetation condition and should be read alongside season, rainfall, rainfall anomaly, SPI and LST caveats before technical decisions. This page is a briefing layer, not a replacement for GIS analysis - use the Climate Change Intelligence Tool for interactive maps, year/season filtering and LGA drill-down.",
+    },
   ], []);
 
   return (
@@ -1388,7 +1870,7 @@ export default function PublicClimateRiskPage() {
       <PublicPortalHeader activePage="climate-intelligence" compact showHero={false} showActions={false} />
       <ClimateRiskExecutiveHero riskProfile={riskProfile} />
       <PublicErrorBanner message={apiError} maxWidthClassName="max-w-7xl" />
-      <KeyFindingsSection findings={keyFindings} />
+      <KeyFindingsSection findings={keyFindingCards} />
 
       <PublicSection className="bg-[#F7F9FA] py-10 lg:py-11" innerClassName="max-w-7xl">
         <PublicSectionHeading title="Climate Indicators" description="Current condition indicators are summarised here; the Climate Change Intelligence Tool handles maps, seasons, periods and LGA spatial exploration." />
@@ -1535,19 +2017,14 @@ export default function PublicClimateRiskPage() {
       <PublicSection className="bg-white py-10 lg:py-11" innerClassName="max-w-7xl">
         <PublicSectionHeading
           title="Priority LGAs"
-          description="The LGAs with the highest overall climate risk score in the latest validated assessment. Vulnerability reflects how susceptible people and systems in the LGA are to climate impacts; adaptive capacity reflects the LGA's existing ability to prepare for, respond to and recover from them — both are scored separately from hazard and exposure so they remain distinguishable rather than collapsed into the single overall score."
+          description="Review the state's LGAs ranked by overall climate risk score in the latest validated assessment. Use the search, risk and concern filters to explore coverage; adaptive capacity reflects an LGA's existing ability to prepare for, respond to and recover from climate impacts, scored separately from the overall risk score."
         />
         <div className="mt-5">
           <HowToReadScoresCard />
         </div>
         <div className="mt-7">
-          {priorityLgaRows.length ? (
-            <PriorityLgaTable
-              rows={displayedPriorityRows}
-              limit={lgaLimit}
-              totalCount={priorityLgaRows.length}
-              onToggleLimit={() => setLgaLimit(lgaLimit === "all" ? "5" : "all")}
-            />
+          {fullLgaCoverageRows.length ? (
+            <PriorityLgaExplorer rows={fullLgaCoverageRows} />
           ) : (
             <PublicEmptyState
               title="Priority LGA data is not yet available"
@@ -1559,11 +2036,12 @@ export default function PublicClimateRiskPage() {
 
       <AreasRequiringAttentionSection signals={rankedClimateActionSignals} />
 
-      <div id="processing-requirements">
-        <PublicFaqAccordion
-          title="Supporting Information"
+      <div id="supporting">
+        <div id="processing-requirements" />
+        <ReadBeyondHeadlineSection
           items={[
             {
+              icon: "\u25A4",
               title: `${additionalIndicatorItems.length} additional climate and exposure indicators`,
               body: (
                 <div className="overflow-hidden rounded-lg border border-[#D8DDE2]">
@@ -1574,10 +2052,12 @@ export default function PublicClimateRiskPage() {
               ),
             },
             {
+              icon: "\u25F7",
               title: `${availableClimateLayerCount} of ${climateLayerCards.length} briefing datasets available`,
               body: <DataLayerAvailabilityTable layers={climateLayerCards} selectedLga={selectedIndicatorLga} />,
             },
             {
+              icon: "\u2691",
               title: `${pendingIndicators.length} indicators require further processing`,
               body: (
                 <div className="grid gap-3 md:grid-cols-2">
@@ -1588,13 +2068,11 @@ export default function PublicClimateRiskPage() {
               ),
             },
           ]}
-          className="bg-white px-4 py-10 sm:px-8 lg:px-10"
-          containerClassName="mx-auto max-w-7xl"
         />
       </div>
 
       <div id="about-data">
-        <PublicFaqAccordion title="About the Data" items={aboutDataItems} className="bg-[#F7F9FA] px-4 py-10 sm:px-8 lg:px-10" containerClassName="mx-auto max-w-7xl" />
+        <AboutDataGrid items={aboutDataSixCards} />
       </div>
 
       <PublicSection className="bg-[#F7F9FA]" innerClassName="max-w-7xl">
