@@ -46,6 +46,19 @@ class ClimateRiskProfile(models.Model):
     data_source = models.CharField(max_length=255, default="Development seed data")
     is_active = models.BooleanField(default=True)
 
+    is_published = models.BooleanField(
+        default=False,
+        help_text="Must be explicitly set by an Admin/Analyst before this profile is served on the public Climate Atlas.",
+    )
+    published_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="published_climate_risk_profiles",
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -116,6 +129,7 @@ class ClimateRiskProfile(models.Model):
         indexes = [
             models.Index(fields=["year", "risk_level"]),
             models.Index(fields=["overall_risk_score"]),
+            models.Index(fields=["is_published"]),
         ]
 
     def __str__(self):
