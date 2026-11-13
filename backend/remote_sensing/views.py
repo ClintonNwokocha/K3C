@@ -75,7 +75,7 @@ def decimal_to_float(value):
 
 def get_latest_year():
     metric_year = RemoteSensingLGAMetric.objects.aggregate(value=Max("year")).get("value")
-    risk_year = ClimateRiskProfile.objects.aggregate(value=Max("year")).get("value")
+    risk_year = ClimateRiskProfile.objects.filter(is_published=True).aggregate(value=Max("year")).get("value")
     return metric_year or risk_year
 
 
@@ -260,7 +260,7 @@ def lga_profile(request, lga):
 
     risk_profile = (
         ClimateRiskProfile.objects
-        .filter(lga=lga_obj, year=year, is_active=True)
+        .filter(lga=lga_obj, year=year, is_active=True, is_published=True)
         .first()
         if year
         else None
@@ -305,7 +305,7 @@ def lga_profile(request, lga):
 def dashboard_kpis(request):
     latest_year = get_latest_year()
 
-    risk_profiles = ClimateRiskProfile.objects.filter(is_active=True)
+    risk_profiles = ClimateRiskProfile.objects.filter(is_active=True, is_published=True)
 
     if latest_year:
         risk_profiles = risk_profiles.filter(year=latest_year)
@@ -354,6 +354,7 @@ def ai_hotspots(request):
 
     profiles = ClimateRiskProfile.objects.select_related("lga").filter(
         is_active=True,
+        is_published=True,
     )
 
     if year:

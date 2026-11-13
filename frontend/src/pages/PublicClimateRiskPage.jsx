@@ -8,7 +8,6 @@ import {
   PublicPrimaryButton,
   PublicPortalFooter,
   PublicPortalHeader,
-  PublicSecondaryButton,
   PublicSection,
   PublicSectionHeading,
 } from "../components/PublicPortalChrome";
@@ -23,12 +22,8 @@ import {
 } from "../services/api";
 import { getAtlasLayerConfig } from "../config/climateAtlasLayers";
 import { classifyNdvi, getPublicNdviError } from "../utils/publicNdvi";
-import RecommendedActions from "../components/RecommendedActions";
-import { recommendClimateActions } from "../decision-support/climateRecommendations.js";
 import {
   computeClimateActionSignal,
-  HAZARD_KEYS,
-  HAZARD_LABELS,
   METHODOLOGY_NOTE as CLIMATE_ACTION_METHODOLOGY_NOTE,
   rankSignals,
   SIGNAL_LEVEL,
@@ -227,18 +222,8 @@ function metricForScope(dataset, adminCode) {
   return safeNumber(findLgaMetric(dataset, adminCode)?.mean_value);
 }
 
-function sourceForScope(dataset, adminCode) {
-  if (!dataset?.results?.length) return null;
-  if (adminCode) return findLgaMetric(dataset, adminCode) || null;
-  return dataset.results.find((item) => item.data_source || item.metadata) || dataset.results[0] || null;
-}
-
 function ndviForScope(dataset, adminCode) {
   return metricForScope(dataset, adminCode);
-}
-
-function formatNdvi(value) {
-  return value === null || value === undefined ? null : value.toFixed(3);
 }
 
 function formatMetric(value, digits = 1) {
@@ -294,49 +279,8 @@ function classifySpi(value) {
   return "Near normal";
 }
 
-function classifyLst(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return "Not yet available";
-  if (n >= 35) return "High surface temperature";
-  if (n >= 30) return "Moderate surface temperature";
-  return "Lower surface temperature";
-}
-
 function getLayerPeriod(layer) {
   return layer?.coverageNote?.replace(/^Coverage:\s*/i, "") || layer?.detail || "Not yet available";
-}
-
-const HAZARD_ADVERSE = new Set(["Moderate", "Severe", "Extreme"]);
-const HAZARD_RANK = { Extreme: 3, Severe: 2, Moderate: 1, Normal: 0 };
-
-function getConditionTone(status) {
-  const value = String(status || "").toLowerCase();
-  if (value === "normal" || value.startsWith("0 of")) {
-    return "border-[#009B35]/30 bg-[#009B35]/10 text-[#007a29]";
-  }
-  if (value === "severe" || value === "extreme" || value.includes("lgas")) {
-    return "border-rose-200 bg-rose-50 text-rose-700";
-  }
-  if (value.includes("healthy") || value.includes("near normal") || value.includes("near baseline") || value.includes("lower")) {
-    return "border-[#009B35]/30 bg-[#009B35]/10 text-[#007a29]";
-  }
-  if (value.includes("moderate")) {
-    return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-  if (
-    value.includes("sparse") ||
-    value.includes("low ") ||
-    value.includes("high ") ||
-    value.includes("dry") ||
-    value.includes("above baseline") ||
-    value.includes("below baseline") ||
-    value.includes("extremely") ||
-    value.includes("severely") ||
-    value.includes("very wet")
-  ) {
-    return "border-rose-200 bg-rose-50 text-rose-700";
-  }
-  return "border-slate-200 bg-slate-50 text-slate-600";
 }
 
 const RISK_LEVEL_TONES = {
@@ -423,39 +367,6 @@ function getMainConcern(profile) {
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
-
-function NdviSeasonalBars({ points, isLoading }) {
-  const validValues = points.map((point) => point.value).filter((value) => value !== null && value !== undefined);
-
-  if (isLoading) {
-    return <p className="text-xs text-slate-500">Loading seasonal NDVI comparison...</p>;
-  }
-  if (!validValues.length) {
-    return <p className="text-xs text-slate-500">Seasonal NDVI comparison is not yet available.</p>;
-  }
-
-  const maxValue = Math.max(...validValues, 0.01);
-
-  return (
-    <div className="space-y-1.5" role="group" aria-label="Seasonal NDVI comparison">
-      {points.map((point) => {
-        const hasValue = point.value !== null && point.value !== undefined;
-        const widthPct = hasValue ? Math.max(4, (point.value / maxValue) * 100) : 0;
-        return (
-          <div key={point.label} className="flex items-center gap-2">
-            <span className="w-[70px] shrink-0 text-[11px] font-bold text-slate-500">{point.label}</span>
-            <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#E6EAEC]" aria-hidden="true">
-              <div className="h-full rounded-full bg-[#009B35]" style={{ width: `${widthPct}%` }} />
-            </div>
-            <span className="w-12 shrink-0 text-right font-mono text-[11px] font-bold text-slate-600">
-              {hasValue ? point.value.toFixed(3) : "N/A"}
-            </span>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function PriorityLgaExplorer({ rows }) {
   const [search, setSearch] = useState("");
@@ -911,39 +822,6 @@ function AreasRequiringAttentionSection({ signals }) {
   );
 }
 
-function IndicatorSummaryCard({
-  title,
-  value,
-  unit,
-  period,
-  status,
-  source,
-  children,
-}) {
-  return (
-    <PublicCard className="flex flex-col p-4">
-      <div>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <h3 className="text-sm font-black text-[#030454]">{title}</h3>
-          <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold ${getConditionTone(status)}`}>
-            {status}
-          </span>
-        </div>
-        <p className="mt-2 font-mono text-3xl font-black text-[#009B35]">
-          {value || "Not yet available"}{value && unit ? <span className="ml-2 text-sm font-bold text-slate-500">{unit}</span> : null}
-        </p>
-        {children}
-      </div>
-      <div className="mt-3 border-t border-[#E6EAEC] pt-3">
-        <p className="text-[11px] leading-4 text-slate-500">
-          {period}
-          {source && <span className="text-slate-400"> &middot; {source}</span>}
-        </p>
-      </div>
-    </PublicCard>
-  );
-}
-
 function ProcessingRequirementCard({ item }) {
   const meta = STATUS_META[item.stateKey] || STATUS_META.processing_required;
   return (
@@ -1249,8 +1127,6 @@ function AboutDataGrid({ items }) {
 
 export default function PublicClimateRiskPage() {
   const [annualData, setAnnualData] = useState(null);
-  const [wetData, setWetData] = useState(null);
-  const [dryData, setDryData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [apiError, setApiError] = useState("");
   const [publicLayerCatalog, setPublicLayerCatalog] = useState(null);
@@ -1261,12 +1137,11 @@ export default function PublicClimateRiskPage() {
   const [rainDryData, setRainDryData] = useState(null);
   const [rainfallAnomalyData, setRainfallAnomalyData] = useState(null);
   const [spiData, setSpiData] = useState(null);
-  const [lstData, setLstData] = useState(null);
   const [climateIntelligenceData, setClimateIntelligenceData] = useState(null);
   const [floodOccurrenceData, setFloodOccurrenceData] = useState(null);
   const [elevationData, setElevationData] = useState(null);
   const [lulcData, setLulcData] = useState(null);
-  const [selectedIndicatorLgaCode, setSelectedIndicatorLgaCode] = useState("");
+  const selectedIndicatorLgaCode = "";
 
   useEffect(() => {
     async function load() {
@@ -1276,7 +1151,7 @@ export default function PublicClimateRiskPage() {
       const [
         annualResult, wetResult, dryResult,
         rainAnnualResult, rainWetResult, rainDryResult, layerCatalogResult,
-        publicRiskResult, rainfallAnomalyResult, spiResult, lstResult,
+        publicRiskResult, rainfallAnomalyResult, spiResult,
         climateIntelligenceResult, floodOccurrenceResult, elevationResult, lulcResult,
       ] = await Promise.allSettled([
         getRemoteSensingLgaStats({ layer: "ndvi", year: 2025, season: "annual", admin_level: "lga" }),
@@ -1289,7 +1164,6 @@ export default function PublicClimateRiskPage() {
         getPublicClimateRiskProfiles(),
         getRemoteSensingLgaStats({ layer: "rainfall_anomaly", year: 2025, season: "annual", admin_level: "lga" }),
         getRemoteSensingLgaStats({ layer: "drought_index", year: 2025, season: "annual", admin_level: "lga" }),
-        getRemoteSensingLgaStats({ layer: "lst", year: 2025, season: "annual", admin_level: "lga" }),
         getClimateIntelligence({ year: 2025, season: "annual", admin_level: "lga" }),
         getPublicHistoricalSurfaceWater(),
         getPublicElevationSummary(),
@@ -1301,15 +1175,12 @@ export default function PublicClimateRiskPage() {
       ));
 
       setAnnualData(annualResult.status === "fulfilled" ? annualResult.value : null);
-      setWetData(wetResult.status === "fulfilled" ? wetResult.value : null);
-      setDryData(dryResult.status === "fulfilled" ? dryResult.value : null);
 
       setRainAnnualData(rainAnnualResult.status === "fulfilled" ? rainAnnualResult.value : null);
       setRainWetData(rainWetResult.status === "fulfilled" ? rainWetResult.value : null);
       setRainDryData(rainDryResult.status === "fulfilled" ? rainDryResult.value : null);
       setRainfallAnomalyData(rainfallAnomalyResult.status === "fulfilled" ? rainfallAnomalyResult.value : null);
       setSpiData(spiResult.status === "fulfilled" ? spiResult.value : null);
-      setLstData(lstResult.status === "fulfilled" ? lstResult.value : null);
       setClimateIntelligenceData(climateIntelligenceResult.status === "fulfilled" ? climateIntelligenceResult.value : null);
       setFloodOccurrenceData(floodOccurrenceResult.status === "fulfilled" ? floodOccurrenceResult.value : null);
       setElevationData(elevationResult.status === "fulfilled" ? elevationResult.value : null);
@@ -1356,18 +1227,6 @@ export default function PublicClimateRiskPage() {
     () => ndviForScope(annualData, selectedIndicatorLgaCode),
     [annualData, selectedIndicatorLgaCode],
   );
-  const selectedWetNdvi = useMemo(
-    () => ndviForScope(wetData, selectedIndicatorLgaCode),
-    [wetData, selectedIndicatorLgaCode],
-  );
-  const selectedDryNdvi = useMemo(
-    () => ndviForScope(dryData, selectedIndicatorLgaCode),
-    [dryData, selectedIndicatorLgaCode],
-  );
-  const selectedRainfall = useMemo(
-    () => metricForScope(rainAnnualData, selectedIndicatorLgaCode),
-    [rainAnnualData, selectedIndicatorLgaCode],
-  );
   const selectedRainfallAnomaly = useMemo(
     () => metricForScope(rainfallAnomalyData, selectedIndicatorLgaCode),
     [rainfallAnomalyData, selectedIndicatorLgaCode],
@@ -1375,10 +1234,6 @@ export default function PublicClimateRiskPage() {
   const selectedSpi = useMemo(
     () => metricForScope(spiData, selectedIndicatorLgaCode),
     [spiData, selectedIndicatorLgaCode],
-  );
-  const selectedLst = useMemo(
-    () => metricForScope(lstData, selectedIndicatorLgaCode),
-    [lstData, selectedIndicatorLgaCode],
   );
   const selectedFloodOccurrence = useMemo(
     () => metricForScope(floodOccurrenceData, selectedIndicatorLgaCode),
@@ -1401,40 +1256,9 @@ export default function PublicClimateRiskPage() {
       admin_name: "Kaduna State",
     } : null;
   }, [lulcData, selectedIndicatorLgaCode]);
-  const selectedRainfallSource = useMemo(
-    () => sourceForScope(rainAnnualData, selectedIndicatorLgaCode),
-    [rainAnnualData, selectedIndicatorLgaCode],
-  );
-  const selectedSpiSource = useMemo(
-    () => sourceForScope(spiData, selectedIndicatorLgaCode),
-    [spiData, selectedIndicatorLgaCode],
-  );
-  const selectedLstSource = useMemo(
-    () => sourceForScope(lstData, selectedIndicatorLgaCode),
-    [lstData, selectedIndicatorLgaCode],
-  );
-  const meanNdvi = useMemo(() => formatNdvi(selectedAnnualNdvi), [selectedAnnualNdvi]);
-  const ndviSeasonPoints = useMemo(() => [
-    { label: "Annual", value: selectedAnnualNdvi },
-    { label: "Wet season", value: selectedWetNdvi },
-    { label: "Dry season", value: selectedDryNdvi },
-  ], [selectedAnnualNdvi, selectedWetNdvi, selectedDryNdvi]);
-  const wetDryDifference = useMemo(() => {
-    if (selectedWetNdvi === null || selectedWetNdvi === undefined) return null;
-    if (selectedDryNdvi === null || selectedDryNdvi === undefined) return null;
-    return selectedWetNdvi - selectedDryNdvi;
-  }, [selectedWetNdvi, selectedDryNdvi]);
   const indicatorScopeLabel = selectedIndicatorLga
     ? selectedIndicatorLga.admin_name
     : "Kaduna State mean";
-  const selectedLgaProfileHref = selectedIndicatorLga
-    ? buildAtlasHref("ndvi", {
-        adminCode: selectedIndicatorLga.admin_code,
-        lgaName: selectedIndicatorLga.admin_name,
-        season: "annual",
-      })
-    : "";
-
   const publicRiskProfiles = useMemo(
     () => publicRiskData?.results || [],
     [publicRiskData],
@@ -1604,41 +1428,9 @@ export default function PublicClimateRiskPage() {
     }
     return climateIntelligenceData.results[0] || null;
   }, [climateIntelligenceData, selectedIndicatorLgaCode]);
-  // Climate hazards: the selected LGA's classes, or (statewide) how many LGAs
-  // are Moderate or worse and the worst class.
-  const hazardCards = useMemo(() => HAZARD_KEYS.map((key) => {
-    if (selectedIndicatorLgaCode) {
-      const block = selectedClimateIntelligence?.hazards?.[key];
-      const driver = block && HAZARD_ADVERSE.has(block.class) ? block.indicators?.[block.driver] : null;
-      return {
-        key,
-        label: HAZARD_LABELS[key],
-        status: block?.class || "Not yet available",
-        detail: block?.failed_season
-          ? "No rainy-season onset by 31 July."
-          : driver
-            ? `${driver.label}: ${driver.value} (normal ${driver.baseline_mean})`
-            : block ? "Within the LGA's 1991-2020 normal range." : "Not yet assessed.",
-        block,
-      };
-    }
-    const blocks = (climateIntelligenceData?.results || []).map((item) => item.hazards?.[key]).filter(Boolean);
-    const flagged = blocks.filter((b) => HAZARD_ADVERSE.has(b.class));
-    const worst = flagged.reduce((acc, b) => (HAZARD_RANK[b.class] > HAZARD_RANK[acc] ? b.class : acc), "Normal");
-    return {
-      key,
-      label: HAZARD_LABELS[key],
-      status: blocks.length ? `${flagged.length} of ${blocks.length} LGAs` : "Not yet available",
-      detail: blocks.length
-        ? flagged.length ? `Moderate or worse; worst class ${worst}.` : "All LGAs within their 1991-2020 normal range."
-        : "Not yet assessed.",
-      block: null,
-    };
-  }), [climateIntelligenceData, selectedClimateIntelligence, selectedIndicatorLgaCode]);
   const vegetationStatus = selectedClimateIntelligence?.indicators?.ndvi?.condition || classifyNdvi(selectedAnnualNdvi);
   const rainfallAnomalyStatus = selectedClimateIntelligence?.indicators?.rainfall_anomaly?.condition || classifyRainfallAnomaly(selectedRainfallAnomaly);
   const spiStatus = selectedClimateIntelligence?.indicators?.spi?.condition || classifySpi(selectedSpi);
-  const lstStatus = selectedClimateIntelligence?.indicators?.lst?.condition || classifyLst(selectedLst);
   const lulcDatasetIsPublic = Boolean(lulcData?.dataset?.is_public && lulcData?.dataset?.is_validated);
   const exposurePeople = exposureSummary.estimated_people_in_high_risk_lgas;
   const exposureBuildings = exposureSummary.mapped_buildings_in_high_risk_lgas;
@@ -1871,148 +1663,6 @@ export default function PublicClimateRiskPage() {
       <ClimateRiskExecutiveHero riskProfile={riskProfile} />
       <PublicErrorBanner message={apiError} maxWidthClassName="max-w-7xl" />
       <KeyFindingsSection findings={keyFindingCards} />
-
-      <PublicSection className="bg-[#F7F9FA] py-10 lg:py-11" innerClassName="max-w-7xl">
-        <PublicSectionHeading title="Climate Indicators" description="Current condition indicators are summarised here; the Climate Change Intelligence Tool handles maps, seasons, periods and LGA spatial exploration." />
-        <div className="mt-4 flex flex-col gap-2 rounded-lg border border-[#D8DDE2] bg-white p-3 shadow-sm md:flex-row md:items-center md:justify-between">
-          <label className="block md:min-w-[280px]">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-[0.14em] text-slate-500">
-              View by LGA
-            </span>
-            <select
-              value={selectedIndicatorLgaCode}
-              onChange={(event) => setSelectedIndicatorLgaCode(event.target.value)}
-              className="h-9 w-full rounded-md border border-[#D8DDE2] bg-white px-3 text-sm font-bold text-[#030454] outline-none transition focus:border-[#009B35] focus:ring-2 focus:ring-[#009B35]/15"
-            >
-              <option value="">Kaduna State mean</option>
-              {lgaOptions.map((lga) => (
-                <option key={lga.admin_code} value={lga.admin_code}>
-                  {lga.admin_name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="text-xs leading-5 text-slate-500 md:text-right">
-            <p>
-              {lgaOptions.length
-                ? `${lgaOptions.length} assessed LGAs available`
-                : isLoading ? "LGA list loading" : "No public NDVI LGAs available"}
-            </p>
-            {selectedIndicatorLga && (
-              <a
-                href={selectedLgaProfileHref}
-                className="font-black text-[#009B35] underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#009B35]/30"
-              >
-                Inspect this LGA in Climate Change Intelligence Tool
-              </a>
-            )}
-          </div>
-        </div>
-        <h3 className="mt-5 text-xs font-black uppercase tracking-[0.12em] text-slate-500">Climate hazards</h3>
-        <div className="mt-3 grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {hazardCards.map((card) => (
-            <IndicatorSummaryCard
-              key={card.key}
-              title={card.label}
-              value={card.block ? `${Math.round(card.block.score ?? 0)}` : ""}
-              unit={card.block ? "score" : ""}
-              period={`${indicatorScopeLabel} - 2025 · vs 1991-2020 normal`}
-              status={card.status}
-              source={card.block?.data_source}
-            >
-              <p className="mt-3 text-[11px] leading-4 text-slate-500">{card.detail}</p>
-            </IndicatorSummaryCard>
-          ))}
-        </div>
-
-        <details className="mt-6 rounded-lg border border-[#E6EAEC] bg-white p-4">
-          <summary className="cursor-pointer text-xs font-black uppercase tracking-[0.12em] text-slate-500">
-            Supporting data: vegetation, rainfall, SPI and surface temperature
-          </summary>
-        <div className="mt-4 grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <IndicatorSummaryCard
-            title="NDVI / Vegetation Health"
-            value={meanNdvi}
-            unit="NDVI"
-            period={`${indicatorScopeLabel} - 2025 annual`}
-            status={vegetationStatus}
-            source={sourceForScope(annualData, selectedIndicatorLgaCode)?.data_source}
-          >
-            {!isLoading && !apiError &&
-              !countWithData(annualData) && !countWithData(wetData) && !countWithData(dryData) && (
-                <p className="mt-3 text-xs text-slate-500">
-                  No public NDVI data is available for 2025 at LGA level.
-                </p>
-              )}
-            <div className="mt-3">
-              <p className="mb-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-slate-500">
-                Seasonal NDVI comparison
-              </p>
-              <NdviSeasonalBars points={ndviSeasonPoints} isLoading={isLoading} />
-              {wetDryDifference !== null && (
-                <p className="mt-1.5 text-[11px] text-slate-500">
-                  Wet minus dry: {formatSignedMetric(wetDryDifference, 3) || "Not yet available"}
-                </p>
-              )}
-            </div>
-          </IndicatorSummaryCard>
-          <IndicatorSummaryCard
-            title="Rainfall Total"
-            value={formatMetric(selectedRainfall, 1)}
-            unit="mm"
-            period={`${indicatorScopeLabel} - 2025 annual`}
-            status={selectedRainfall !== null ? "Annual rainfall total" : "Not yet available"}
-            source={selectedRainfallSource?.data_source || "CHIRPS v2.0 Daily"}
-          >
-            <p className="mt-3 text-[11px] leading-4 text-slate-500">
-              Accumulated annual rainfall for the selected geography.
-            </p>
-          </IndicatorSummaryCard>
-          <IndicatorSummaryCard
-            title="SPI Drought"
-            value={formatMetric(selectedSpi, 2)}
-            unit="SPI"
-            period={`${indicatorScopeLabel} - 2025 annual`}
-            status={spiStatus}
-            source={selectedSpiSource?.data_source || "CHIRPS v2.0 Daily rainfall"}
-          >
-            <p className="mt-3 text-[11px] leading-4 text-slate-500">
-              SPI indicates meteorological wetness or dryness based on rainfall.
-            </p>
-          </IndicatorSummaryCard>
-          <IndicatorSummaryCard
-            title="Land Surface Temperature"
-            value={formatMetric(selectedLst, 1)}
-            unit="deg C"
-            period={`${indicatorScopeLabel} - 2025 annual daytime`}
-            status={lstStatus}
-            source={selectedLstSource?.data_source || "MODIS Terra MOD11A1"}
-          >
-            <p className="mt-3 text-[11px] leading-4 text-slate-500">
-              Daytime land-surface temperature, not air temperature.
-            </p>
-          </IndicatorSummaryCard>
-        </div>
-        </details>
-
-        {selectedIndicatorLga && !isLoading && <div className="mt-6">
-          <RecommendedActions recommendations={[
-            ...HAZARD_KEYS.map((key) => [`hazard_${key}`, selectedClimateIntelligence?.hazards?.[key] || null]),
-            ["ndvi", { value: selectedAnnualNdvi }],
-          ].flatMap(([indicator, metric]) => recommendClimateActions({ indicator, lga: selectedIndicatorLga.admin_name, adminCode: selectedIndicatorLga.admin_code, year: 2025, period: "Annual", season: "annual", metrics: { [indicator]: metric } })).filter((action, index, all) => all.findIndex((item) => item.id === action.id) === index)} />
-        </div>}
-        <div className="mt-6 flex justify-center">
-          <PublicSecondaryButton
-            as="a"
-            href="/public/climate-atlas"
-            showArrow
-            aria-label="Explore these indicators in the Climate Change Intelligence Tool"
-            className="text-xs"
-          >
-            Explore These Indicators On The Map
-          </PublicSecondaryButton>
-        </div>
-      </PublicSection>
 
       <PublicSection className="bg-white py-10 lg:py-11" innerClassName="max-w-7xl">
         <PublicSectionHeading

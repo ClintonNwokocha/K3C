@@ -2497,7 +2497,7 @@ export default function PublicClimateAtlasPage() {
       </header>
 
       <section className="flex min-h-0 flex-1">
-        <aside className={`relative flex h-full shrink-0 flex-col border-r border-[#E6EAEC] bg-white transition-all duration-300 ${sidebarOpen ? "w-[300px]" : "w-[42px]"}${isExportMode ? " hidden" : ""}`}>
+        <aside className={`relative flex max-h-full shrink-0 self-start flex-col border-r border-[#E6EAEC] bg-white transition-all duration-300 ${sidebarOpen ? "w-[300px]" : "w-[42px]"}${isExportMode ? " hidden" : ""}`}>
           <button
             type="button"
             aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}

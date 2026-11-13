@@ -83,11 +83,11 @@ def get_project_image_url(request, project):
 
 
 def build_public_climate_summary():
-    latest_year = ClimateRiskProfile.objects.aggregate(
+    latest_year = ClimateRiskProfile.objects.filter(is_published=True).aggregate(
         value=Max("year")
     ).get("value")
 
-    profiles = ClimateRiskProfile.objects.all()
+    profiles = ClimateRiskProfile.objects.filter(is_published=True)
 
     if latest_year:
         profiles = profiles.filter(year=latest_year)
@@ -1262,11 +1262,11 @@ def public_portal_summary(request):
 def public_climate_risk_profiles(request):
     year = safe_int(request.query_params.get("year"))
 
-    latest_year = ClimateRiskProfile.objects.aggregate(
+    latest_year = ClimateRiskProfile.objects.filter(is_published=True).aggregate(
         value=Max("year")
     ).get("value")
 
-    profiles = ClimateRiskProfile.objects.select_related("lga").all()
+    profiles = ClimateRiskProfile.objects.select_related("lga").filter(is_published=True)
 
     if year:
         profiles = profiles.filter(year=year)
