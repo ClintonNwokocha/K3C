@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PublicDataNotice,
   PublicPortalFooter,
+  PublicPortalHeader,
   PublicGreenButton,
   PublicNavyButton,
   PublicPrimaryButton,
@@ -9,7 +10,6 @@ import {
 import { getPublicPortalSummary } from "../services/api";
 import { isMilestoneOneDemo } from "../config/demoMode";
 import { useScrollReveal, revealClasses, useMotionEnabled } from "../hooks/useScrollReveal";
-import { K3CWhiteTextLogo } from "../components/K3CLogo";
 import { MotionProvider } from "../hooks/MotionContext";
 
 const partnerLogos = [
@@ -64,116 +64,6 @@ function formatNumber(value, maximumFractionDigits = 2) {
 
 function navigateTo(href) {
   window.location.href = href;
-}
-
-function HomeTopNav() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const fullNavItems = [
-    { label: "Home", href: "/public", active: true },
-    { label: "Climate Impact", href: "/public/climate-risk" },
-    { label: "GHG Inventory", href: "/public/ghg-inventory" },
-    { label: "Projects", href: "/public/projects" },
-    { label: "Reports", href: "/public/reports" },
-  ];
-  // Milestone 1 demo hides GHG/Projects/Reports from nav only — routes and
-  // components stay intact, see frontend/src/config/demoMode.js.
-  const navItems = isMilestoneOneDemo
-    ? fullNavItems.filter((item) => item.label === "Home" || item.label === "Climate Impact")
-    : fullNavItems;
-
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-
-    function handleKeyDown(event) {
-      if (event.key === "Escape") setMenuOpen(false);
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [menuOpen]);
-
-  function goTo(href) {
-    setMenuOpen(false);
-    navigateTo(href);
-  }
-
-  return (
-    <header className="relative border-b border-white/10 bg-[#030454] px-4 py-5 text-white sm:px-8 lg:px-10">
-      <div className="mx-auto flex max-w-[1536px] items-center justify-between gap-5">
-        <button
-          type="button"
-          onClick={() => goTo("/public")}
-          className="flex shrink-0 items-center text-left"
-        >
-          <K3CWhiteTextLogo className="h-20 md:h-24 lg:h-[104px] xl:h-[116px]" />
-        </button>
-
-        <nav className="hidden flex-wrap gap-2 md:flex">
-          {navItems.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => goTo(item.href)}
-              className={`rounded-md border px-4 py-2.5 text-xs font-black uppercase tracking-[0.12em] transition ${
-                item.active
-                  ? "border-[#F3F74B] bg-[#F3F74B] text-[#030454]"
-                  : "border-white/15 bg-white/5 text-white hover:bg-white/10"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-
-          <PublicGreenButton
-            onClick={() => goTo("/login")}
-            className="px-4 py-2.5 text-xs focus-visible:ring-offset-[#030454]"
-          >
-            Staff Login
-          </PublicGreenButton>
-        </nav>
-
-        <button
-          type="button"
-          onClick={() => setMenuOpen((open) => !open)}
-          aria-expanded={menuOpen}
-          aria-controls="home-mobile-nav"
-          className="rounded-md border border-white/35 bg-transparent px-3 py-2 text-xs font-black uppercase tracking-[0.08em] text-white transition hover:bg-white/10 md:hidden"
-        >
-          {menuOpen ? "✕ Close" : "☰ Menu"}
-        </button>
-      </div>
-
-      {menuOpen && (
-        <nav
-          id="home-mobile-nav"
-          aria-label="Primary navigation"
-          className="absolute inset-x-0 top-full z-20 flex flex-col gap-2 border-t border-white/10 bg-[#030454] px-4 py-4 shadow-[0_18px_30px_rgba(3,4,84,0.35)] md:hidden"
-        >
-          {navItems.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              onClick={() => goTo(item.href)}
-              className={`rounded-md border px-4 py-3 text-left text-xs font-black uppercase tracking-[0.12em] transition ${
-                item.active
-                  ? "border-[#F3F74B] bg-[#F3F74B] text-[#030454]"
-                  : "border-white/15 bg-white/5 text-white hover:bg-white/10"
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
-
-          <PublicGreenButton
-            onClick={() => goTo("/login")}
-            className="justify-center px-4 py-3 text-xs focus-visible:ring-offset-[#030454]"
-          >
-            Staff Login
-          </PublicGreenButton>
-        </nav>
-      )}
-    </header>
-  );
 }
 
 function HomeHero() {
@@ -1082,7 +972,7 @@ function PublicPortalPageContent({ motionEnabled, onToggleMotion }) {
 
   return (
     <main className="min-h-screen bg-[#DFE3E4] font-['DM_Sans'] text-[#030454]">
-      <HomeTopNav />
+      <PublicPortalHeader activePage="home" showHero={false} />
       <HomeHero />
       <WhyKcccSection />
       {isMilestoneOneDemo && <MilestoneFramingSection />}

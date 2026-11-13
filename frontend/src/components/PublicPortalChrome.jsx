@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ArrowRight } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, Menu, X } from "lucide-react";
 import { isMilestoneOneDemo } from "../config/demoMode";
 import { K3CWhiteTextLogo } from "./K3CLogo";
 
@@ -79,16 +79,19 @@ const visibleFooterResourceItems = isMilestoneOneDemo
 
 const footerAccessItems = [{ key: "staff-login", label: "Staff Login", href: "/" }];
 
-function PublicNavButton({ label, active, onClick }) {
+function PublicNavButton({ label, active, onClick, block = false }) {
   const activeClass = "bg-[#F3F74B] text-[#030454]";
   const ghostClass =
     "border border-white/15 text-white/75 hover:border-white/35 hover:bg-white/10 hover:text-white";
+  const layoutClass = block
+    ? "flex w-full min-h-11 items-center px-4 py-3 md:min-h-10"
+    : "inline-flex h-11 items-center px-3.5 sm:px-4";
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md px-3.5 py-2 text-[11px] font-black uppercase tracking-[0.1em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B]/70 sm:px-4 ${
+      className={`rounded-md text-[11px] font-black uppercase tracking-[0.1em] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F3F74B]/70 ${layoutClass} ${
         active ? activeClass : ghostClass
       }`}
     >
@@ -97,23 +100,22 @@ function PublicNavButton({ label, active, onClick }) {
   );
 }
 
-function PublicHeaderBrand({ compact = false }) {
+// Fixed, responsive sizing shared by every public page's header — the
+// single source of truth for header height / logo size / padding so pages
+// can't drift out of sync with each other again.
+const PUBLIC_HEADER_NAV_CLASS =
+  "relative z-10 mx-auto flex min-h-[76px] max-w-[1536px] items-center justify-between gap-4 border-b border-white/10 px-4 md:h-[88px] md:px-6 xl:h-[112px] xl:px-12";
+const PUBLIC_HEADER_LOGO_CLASS = "h-[52px] md:h-[60px] xl:h-[76px]";
+
+function PublicHeaderBrand({ onNavigate }) {
   return (
     <button
       type="button"
-      onClick={() => {
-        window.location.href = "/public";
-      }}
+      onClick={() => onNavigate("/public")}
       className="flex w-fit max-w-full shrink-0 items-center text-left"
       aria-label="Go to public home"
     >
-      <K3CWhiteTextLogo
-        className={
-          compact
-            ? "h-16 md:h-[76px]"
-            : "h-20 md:h-24 lg:h-[104px] xl:h-[116px]"
-        }
-      />
+      <K3CWhiteTextLogo className={PUBLIC_HEADER_LOGO_CLASS} />
     </button>
   );
 }
@@ -133,37 +135,63 @@ export function PublicPortalHeader({
   onPrimaryAction,
   onSecondaryAction,
 }) {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") setMobileNavOpen(false);
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [mobileNavOpen]);
+
+  function goTo(href) {
+    setMobileNavOpen(false);
+    window.location.href = href;
+  }
+
   return (
+    <div className="relative">
     <header className="relative overflow-hidden bg-[#030454] font-['DM_Sans'] text-white">
       <div className="absolute inset-0">
         <div className="absolute inset-0 bg-[#030454]" />
         <div className="absolute inset-x-0 bottom-0 h-px bg-[#F3F74B]/45" />
       </div>
 
-      <nav className="relative z-10 mx-auto flex max-w-[1536px] flex-col justify-between gap-5 border-b border-white/10 px-4 py-5 sm:px-8 md:flex-row md:items-center lg:px-10">
-        <PublicHeaderBrand compact={compact} />
+      <nav className={PUBLIC_HEADER_NAV_CLASS}>
+        <PublicHeaderBrand onNavigate={goTo} />
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="hidden items-center gap-2.5 xl:flex">
           {visiblePublicNavItems.map((item) => (
             <PublicNavButton
               key={item.key}
               label={item.label}
               active={activePage === item.key}
-              onClick={() => {
-                window.location.href = item.href;
-              }}
+              onClick={() => goTo(item.href)}
             />
           ))}
 
           <PublicGreenButton
-            onClick={() => {
-              window.location.href = "/";
-            }}
-            className="px-4 py-2 text-[11px] focus-visible:ring-offset-[#030454]"
+            onClick={() => goTo("/")}
+            className="h-11 px-4 text-[11px] focus-visible:ring-offset-[#030454]"
           >
             Staff Login
           </PublicGreenButton>
         </div>
+
+        <button
+          type="button"
+          onClick={() => setMobileNavOpen((open) => !open)}
+          aria-expanded={mobileNavOpen}
+          aria-controls="public-mobile-nav"
+          aria-label={mobileNavOpen ? "Close menu" : "Open menu"}
+          className="flex h-11 min-h-11 w-11 min-w-11 shrink-0 items-center justify-center rounded-md border border-white/35 bg-transparent text-white transition hover:bg-white/10 xl:hidden"
+        >
+          {mobileNavOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
+        </button>
       </nav>
 
       {showHero && (
@@ -243,6 +271,32 @@ export function PublicPortalHeader({
         </>
       )}
     </header>
+
+    {mobileNavOpen && (
+      <nav
+        id="public-mobile-nav"
+        aria-label="Primary navigation"
+        className="absolute inset-x-0 top-full z-20 flex flex-col gap-2 border-t border-white/10 bg-[#030454] px-4 py-4 shadow-[0_18px_30px_rgba(3,4,84,0.35)] xl:hidden"
+      >
+        {visiblePublicNavItems.map((item) => (
+          <PublicNavButton
+            key={item.key}
+            label={item.label}
+            active={activePage === item.key}
+            onClick={() => goTo(item.href)}
+            block
+          />
+        ))}
+
+        <PublicGreenButton
+          onClick={() => goTo("/")}
+          className="min-h-11 justify-center px-4 text-[11px] focus-visible:ring-offset-[#030454]"
+        >
+          Staff Login
+        </PublicGreenButton>
+      </nav>
+    )}
+    </div>
   );
 }
 
