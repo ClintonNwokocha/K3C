@@ -8,6 +8,7 @@ import {
   Download,
   FilterX,
   Info,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   PublicBadge,
@@ -1606,62 +1607,43 @@ function MainVisualization({
   const metadataLine = getChartMetadataLine(chart, filters, optionLabels);
   const seriesCount = visibleKeys.length;
   const workspaceTitle = activeView === "map" ? "GHG Emissions Map" : chartTitle;
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   return (
     <div className="space-y-6">
       <section className="relative overflow-hidden rounded-[22px] border border-[#dbe5f0] bg-[radial-gradient(circle_at_95%_0%,#e5f8ef_0,transparent_28%),linear-gradient(135deg,#f5f7ff_0%,#fff_55%,#f0fbf6_100%)] p-5 shadow-[0_14px_38px_rgba(16,32,74,0.05)] sm:p-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <span className="text-[10px] font-black uppercase tracking-[0.14em] text-[#078b4b]">
               Interactive Data Explorer
             </span>
-            <h2 className="mt-1 text-xl font-black leading-tight text-[#08094e] sm:text-2xl">
-              Explore emissions by sector
+            <h2 className="text-lg font-black leading-tight text-[#08094e] sm:text-xl">
+              GHG Emissions by Sector
             </h2>
-            <p className="mt-1 max-w-xl text-xs leading-5 text-slate-500">
-              Filter approved records by sector, category, gas, geography and
-              reporting year, then inspect each sector&rsquo;s contribution below.
-            </p>
           </div>
-          <span
-            aria-hidden="true"
-            className="hidden h-[54px] w-[54px] shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-[#08094e] to-[#078b4b] text-2xl text-[#e9ff35] shadow-[0_8px_18px_rgba(8,9,78,0.2)] sm:grid"
+          <button
+            type="button"
+            onClick={() => setFiltersOpen((open) => !open)}
+            aria-expanded={filtersOpen}
+            aria-controls="ghg-filters-panel"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#D8DDE2] bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-[#08094e] shadow-sm transition hover:border-[#009B35] hover:text-[#009B35] md:hidden"
           >
-            ⌁
-          </span>
+            <SlidersHorizontal size={13} aria-hidden="true" />
+            {filtersOpen ? "Hide Filters" : "Filters"}
+          </button>
         </div>
 
-        <div className="mt-5 rounded-2xl border border-[#dce6f1] bg-gradient-to-br from-[#edf2ff] to-[#eaf8f0] p-5 shadow-sm sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <span
-                aria-hidden="true"
-                className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-[#dce5ff] to-[#d9f5e5] text-lg font-black text-[#173e88]"
-              >
-                ☰
-              </span>
-              <div>
-                <h3 className="text-sm font-black text-[#08094e]">Filter your view</h3>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  Narrow the inventory by sector, category, gas, geography or
-                  reporting period.
-                </p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={onReset}
-              disabled={!hasActiveFilters}
-              className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full border border-[#D8DDE2] bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.08em] text-[#08094e] shadow-sm transition hover:border-[#009B35] hover:text-[#009B35] disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              <FilterX size={13} aria-hidden="true" />
-              Clear Filters
-            </button>
-          </div>
-
-          <div className="mt-5">
-            <FiltersPanel filters={filters} onFilterChange={onFilterChange} options={filterOptions} />
-          </div>
+        <div
+          id="ghg-filters-panel"
+          className={`mt-4 ${filtersOpen ? "block" : "hidden"} md:block`}
+        >
+          <FiltersPanel
+            filters={filters}
+            onFilterChange={onFilterChange}
+            options={filterOptions}
+            onReset={onReset}
+            hasActiveFilters={hasActiveFilters}
+          />
         </div>
 
         <div className="mt-3">
@@ -1673,13 +1655,6 @@ function MainVisualization({
             recordCount={recordCount}
           />
         </div>
-
-        <SectorExplorerBlock
-          data={data}
-          filters={filters}
-          filterOptions={filterOptions}
-          onFilterChange={onFilterChange}
-        />
 
         <div className="mt-6 border-t border-[#dbe5f0] pt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1739,6 +1714,15 @@ function MainVisualization({
       />
 
       <AutomatedObservationsPanel data={data} change={change} />
+
+      <PublicCard className="p-5 sm:p-6">
+        <SectorExplorerBlock
+          data={data}
+          filters={filters}
+          filterOptions={filterOptions}
+          onFilterChange={onFilterChange}
+        />
+      </PublicCard>
     </div>
   );
 }
@@ -2033,10 +2017,12 @@ function FiltersPanel({
   filters,
   onFilterChange,
   options,
+  onReset,
+  hasActiveFilters,
 }) {
   return (
     <div className="min-w-0 grow">
-      <div className="grid min-w-0 gap-3 grid-cols-2 sm:grid-cols-4">
+      <div className="grid min-w-0 gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
         <FilterField
           id="ghg-filter-sector"
           label="1. Sector"
@@ -2088,6 +2074,20 @@ function FiltersPanel({
           onChange={(value) => onFilterChange("breakout", value)}
           options={options.breakoutOptions}
         />
+        <div className="block">
+          <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.1em] text-transparent" aria-hidden="true">
+            Reset
+          </span>
+          <button
+            type="button"
+            onClick={onReset}
+            disabled={!hasActiveFilters}
+            className="flex h-9 w-full items-center justify-center gap-1.5 rounded-md border border-[#D8DDE2] bg-white px-2.5 text-[10px] font-black uppercase tracking-[0.08em] text-[#08094e] transition hover:border-[#009B35] hover:text-[#009B35] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            <FilterX size={13} aria-hidden="true" />
+            Clear Filters
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -2267,8 +2267,11 @@ function SectorExplorerBlock({ data, filters, filterOptions, onFilterChange }) {
   if (tiles.length === 0) return null;
 
   return (
-    <div className="mt-5 border-t border-[#dce6f1] pt-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+      <h2 className="text-lg font-black leading-tight text-[#030454] sm:text-xl">
+        Inventory Scope by Sector
+      </h2>
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="w-full sm:w-56">
           <YearSelectField
             id="ghg-explorer-year"
